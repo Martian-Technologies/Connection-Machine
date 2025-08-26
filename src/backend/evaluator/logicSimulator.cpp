@@ -303,13 +303,13 @@ simulator_id_t LogicSimulator::addGate(const GateType gateType) {
 		andGates.back().resetState(evalConfig.isRealistic(), statesB);
 		break;
 	case GateType::XOR:
-		xorGates.emplace_back( simulatorId, evaluatorLocalityVectorGenerator.getVector(andGates.size()), false );
+		xorGates.emplace_back( simulatorId, evaluatorLocalityVectorGenerator.getVector(xorGates.size()), false );
 		updateGateLocation(simulatorId, SimGateType::XOR, xorGates.size() - 1);
 		xorGates.back().resetState(evalConfig.isRealistic(), statesA);
 		xorGates.back().resetState(evalConfig.isRealistic(), statesB);
 		break;
 	case GateType::XNOR:
-		xorGates.emplace_back( simulatorId, evaluatorLocalityVectorGenerator.getVector(andGates.size()), true );
+		xorGates.emplace_back( simulatorId, evaluatorLocalityVectorGenerator.getVector(xorGates.size()), true );
 		updateGateLocation(simulatorId, SimGateType::XOR, xorGates.size() - 1);
 		xorGates.back().resetState(evalConfig.isRealistic(), statesA);
 		xorGates.back().resetState(evalConfig.isRealistic(), statesB);
@@ -419,7 +419,7 @@ void LogicSimulator::removeGate(simulator_id_t simulatorId) {
 	auto fixMovedIndex = [&](auto& vec) {
 		const size_t last = vec.size() - 1;
 		if (gateIndex != last) {
-			std::swap(vec[gateIndex], vec[last]);
+			vec[gateIndex] = std::move(vec[last]);
 			simulator_id_t movedId = vec[gateIndex].getId();
 			gateLocations[movedId].gateIndex = gateIndex;
 		}

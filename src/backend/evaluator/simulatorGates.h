@@ -12,6 +12,10 @@ public:
 
 	SimulatorGate(simulator_id_t id) : id(id) {}
 
+	// void swap(SimulatorGate& other) {
+	// 	std::swap(id, other.id);
+	// }
+
 	virtual void addInput(simulator_id_t inputId, connection_port_id_t portId) = 0;
 	virtual void removeInput(simulator_id_t inputId, connection_port_id_t portId) = 0;
 	virtual void removeIdRefs(simulator_id_t otherId) = 0;
@@ -40,6 +44,10 @@ class LogicGate : public SimulatorGate {
 public:
 	LogicGate(simulator_id_t id) : SimulatorGate(id) {}
 
+	// void swap(LogicGate& other) {
+	// 	SimulatorGate::swap(other);
+	// }
+
 	void resetState(bool realistic, std::vector<logic_state_t>& states) override {
 		if (realistic) {
 			states[id] = logic_state_t::UNDEFINED;
@@ -60,6 +68,11 @@ public:
 class MultiInputGate : public LogicGate {
 public:
 	MultiInputGate(simulator_id_t id, EvaluatorLocalityVectorGenerator::LocalityVector&& vector) : LogicGate(id), inputs(std::move(vector)) {}
+
+	// void swap(MultiInputGate& other) {
+	// 	LogicGate::swap(other);
+	// 	std::swap(inputs, other.inputs)
+	// }
 
 	void addInput(simulator_id_t inputId, connection_port_id_t portId) override {
 		inputs.push_back(inputId);
@@ -110,11 +123,10 @@ protected:
 	std::optional<simulator_id_t> input;
 };
 
-struct ANDLikeGate : public MultiInputGate {
+class ANDLikeGate : public MultiInputGate {
+public:
 	// By default, behaves like an AND gate
 	// Can be used for AND, OR, NAND, and NOR
-	bool inputsInverted;
-	bool outputInverted;
 
 	ANDLikeGate(simulator_id_t id, EvaluatorLocalityVectorGenerator::LocalityVector&& vector, bool inputsInverted = false, bool outputInverted = false)
 		: MultiInputGate(id, std::move(vector)), inputsInverted(inputsInverted), outputInverted(outputInverted) {}
@@ -150,6 +162,10 @@ struct ANDLikeGate : public MultiInputGate {
 		logic_state_t targetState = calculate(statesA);
 		applyRealisticTick(targetState, statesA, statesB);
 	}
+
+private:
+	bool inputsInverted;
+	bool outputInverted;
 };
 
 struct XORLikeGate : public MultiInputGate {

@@ -1,10 +1,8 @@
 #ifndef evaluatorLocalityVectorGenerator_h
 #define evaluatorLocalityVectorGenerator_h
 
-#include "evalTypedef.h"
-
 #include "util/localityAllocator.h"
 
-typedef LocalityVectorGenerator<simulator_id_t, 256, 12, 512*sizeof(simulator_id_t)> EvaluatorLocalityVectorGenerator;
+typedef LocalityVectorGenerator<unsigned int, 128, 12, 256*sizeof(unsigned int)> EvaluatorLocalityVectorGenerator;
 
 #endif /* evaluatorLocalityVectorGenerator_h */
