@@ -216,10 +216,12 @@ Rml::ElementPtr ContentManager::generateItem(const std::string& key) {
 		break;
 	case SettingType::FILE_PATH:
 	{
-		Rml::XMLAttributes nameAttributes;
-		nameAttributes["type"] = "text";
-		nameAttributes["maxlength"] = "4000";
-		Rml::ElementPtr pathElement = Rml::Factory::InstanceElement(document, "textarea", "textarea", nameAttributes);
+		Rml::XMLAttributes attributes;
+		attributes["type"] = "text";
+		attributes["maxlength"] = "4000";
+		attributes["rows"] = "3";
+		attributes["cols"] = "100";
+		Rml::ElementPtr pathElement = Rml::Factory::InstanceElement(document, "textarea", "textarea", attributes);
 
 		Rml::ElementFormControlTextArea* elementFormControlTextArea = rmlui_dynamic_cast<Rml::ElementFormControlTextArea*>(pathElement.get());
 		elementFormControlTextArea->SetValue(*Settings::get<SettingType::FILE_PATH>(key));

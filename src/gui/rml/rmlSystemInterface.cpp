@@ -127,12 +127,13 @@ bool RmlSystemInterface::LogMessage(Rml::Log::Type type, const Rml::String& mess
 		logInfo(message, "RmlUi - MISC");
 	}
 	}
-	
+
 	return true;
 }
 
 void RmlSystemInterface::SetClipboardText(const Rml::String& text)
 {
+	logInfo(text);
 	SDL_SetClipboardText(text.c_str());
 }
 
@@ -140,6 +141,7 @@ void RmlSystemInterface::GetClipboardText(Rml::String& text)
 {
 	char* raw_text = SDL_GetClipboardText();
 	text = Rml::String(raw_text);
+	logInfo(text);
 	SDL_free(raw_text);
 }
 
@@ -501,11 +503,19 @@ int RmlSDL::GetKeyModifierState() {
 
 	int retval = 0;
 
+#ifdef __APPLE__
+	if (sdl_mods & mod_ctrl)
+		retval |= Rml::Input::KM_META;
+
+	if (sdl_mods & mod_gui)
+		retval |= Rml::Input::KM_CTRL;
+#else
 	if (sdl_mods & mod_ctrl)
 		retval |= Rml::Input::KM_CTRL;
 
 	if (sdl_mods & mod_gui)
 		retval |= Rml::Input::KM_META;
+#endif
 
 	if (sdl_mods & mod_shift)
 		retval |= Rml::Input::KM_SHIFT;

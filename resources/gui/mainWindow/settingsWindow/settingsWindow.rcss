@@ -194,7 +194,7 @@ Nord Color Pallete:
 	margin: 0 0.1em;
 }
 
-.settings-tree li .settings-tree-item textarea {
+.settings-tree li .settings-tree-item {
 	display: block;
 	background-color: #232323;
 	border-radius: 0.1em;
