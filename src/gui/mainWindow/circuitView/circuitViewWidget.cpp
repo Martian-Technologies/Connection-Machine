@@ -7,9 +7,9 @@
 
 #include "gui/viewportManager/circuitView/events/customEvents.h"
 #include "gui/viewportManager/circuitView/circuitView.h"
-#include "gui/helper/eventPasser.h"
-
 #include "gui/mainWindow/mainWindow.h"
+#include "gui/helper/keybindHelpers.h"
+#include "gui/helper/eventPasser.h"
 
 void LoadCallback(void* userData, const char* const* filePaths, int filter) {
 	CircuitViewWidget* circuitViewWidget = (CircuitViewWidget*)userData;
