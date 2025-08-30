@@ -133,7 +133,6 @@ bool RmlSystemInterface::LogMessage(Rml::Log::Type type, const Rml::String& mess
 
 void RmlSystemInterface::SetClipboardText(const Rml::String& text)
 {
-	logInfo(text);
 	SDL_SetClipboardText(text.c_str());
 }
 
@@ -141,7 +140,6 @@ void RmlSystemInterface::GetClipboardText(Rml::String& text)
 {
 	char* raw_text = SDL_GetClipboardText();
 	text = Rml::String(raw_text);
-	logInfo(text);
 	SDL_free(raw_text);
 }
 
