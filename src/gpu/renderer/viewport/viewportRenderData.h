@@ -1,5 +1,5 @@
-#ifndef viewportRenderInterface_h
-#define viewportRenderInterface_h
+#ifndef viewportRenderData_h
+#define viewportRenderData_h
 
 #include <glm/ext/matrix_float4x4.hpp>
 
@@ -16,9 +16,9 @@ struct ViewportViewData {
 	VkViewport viewport;
 };
 
-class ViewportRenderInterface {
+class ViewportRenderData {
 public:
-	ViewportRenderInterface(VulkanDevice* device, Rml::Element* element);
+	ViewportRenderData(VulkanDevice* device, Rml::Element* element);
 
 	ViewportViewData getViewData();
 	inline VulkanChunker& getChunker() { return chunker; }

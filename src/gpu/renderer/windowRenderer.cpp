@@ -175,7 +175,7 @@ void WindowRenderer::renderToCommandBuffer(Frame& frame, uint32_t imageIndex) {
 	{
 		// viewports
 		std::lock_guard<std::mutex> lock(viewportRenderersMux);
-		for (ViewportRenderInterface* viewport : viewportRenderInterfaces) {
+		for (ViewportRenderData* viewport : viewportRenderDatas) {
 			viewportRenderer.render(frame, viewport);
 		}
 		
@@ -243,17 +243,17 @@ void WindowRenderer::recreateSwapchain() {
 	swapchainRecreationNeeded = false;
 }
 
-void WindowRenderer::registerViewportRenderInterface(ViewportRenderInterface *viewportRenderInterface) {
+void WindowRenderer::registerViewportRenderData(ViewportRenderData *viewportRenderData) {
 	std::lock_guard<std::mutex> lock(viewportRenderersMux);
-	viewportRenderInterfaces.insert(viewportRenderInterface);
+	viewportRenderDatas.insert(viewportRenderData);
 }
 
-void WindowRenderer::deregisterViewportRenderInterface(ViewportRenderInterface* viewportRenderInterface) {
+void WindowRenderer::deregisterViewportRenderData(ViewportRenderData* viewportRenderData) {
 	std::lock_guard<std::mutex> lock(viewportRenderersMux);
-	viewportRenderInterfaces.erase(viewportRenderInterface);
+	viewportRenderDatas.erase(viewportRenderData);
 }
 
-bool WindowRenderer::hasViewportRenderInterface(ViewportRenderInterface* viewportRenderInterface) {
+bool WindowRenderer::hasViewportRenderData(ViewportRenderData* viewportRenderData) {
 	std::lock_guard<std::mutex> lock(viewportRenderersMux);
-	return viewportRenderInterfaces.contains(viewportRenderInterface);
+	return viewportRenderDatas.contains(viewportRenderData);
 }

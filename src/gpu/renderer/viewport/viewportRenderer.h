@@ -4,7 +4,7 @@
 #include "logic/chunking/chunkRenderer.h"
 #include "gpu/renderer/frameManager.h"
 #include "elements/elementRenderer.h"
-#include "viewportRenderInterface.h"
+#include "viewportRenderData.h"
 #include "grid/gridRenderer.h"
 
 class ViewportRenderer {
@@ -12,7 +12,7 @@ public:
 	void init(VulkanDevice* device, VkRenderPass renderPass);
 	void cleanup();
 
-	void render(Frame& frame, ViewportRenderInterface* viewport);
+	void render(Frame& frame, ViewportRenderData* viewport);
 
 private:
 	GridRenderer gridRenderer;

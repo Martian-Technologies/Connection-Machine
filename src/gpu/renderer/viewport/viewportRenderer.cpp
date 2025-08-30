@@ -16,7 +16,7 @@ void ViewportRenderer::cleanup() {
 	gridRenderer.cleanup();
 }
 
-void ViewportRenderer::render(Frame& frame, ViewportRenderInterface* viewport) {
+void ViewportRenderer::render(Frame& frame, ViewportRenderData* viewport) {
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif

@@ -7,7 +7,7 @@
 
 #include "gpu/abstractions/vulkanSwapchain.h"
 #include "gpu/renderer/frameManager.h"
-#include "gpu/renderer/viewport/viewportRenderInterface.h"
+#include "gpu/renderer/viewport/viewportRenderData.h"
 #include "gpu/renderer/viewport/viewportRenderer.h"
 #include "gpu/renderer/rml/rmlRenderer.h"
 
@@ -26,9 +26,9 @@ public:
 	RmlRenderer& getRmlRenderer() { return rmlRenderer; }
 	const RmlRenderer& getRmlRenderer() const { return rmlRenderer; }
 
-	void registerViewportRenderInterface(ViewportRenderInterface* viewportRenderInterface);
-	void deregisterViewportRenderInterface(ViewportRenderInterface* viewportRenderInterface);
-	bool hasViewportRenderInterface(ViewportRenderInterface* viewportRenderInterface);
+	void registerViewportRenderData(ViewportRenderData* viewportRenderData);
+	void deregisterViewportRenderData(ViewportRenderData* viewportRenderData);
+	bool hasViewportRenderData(ViewportRenderData* viewportRenderData);
 
 	inline VulkanDevice* getDevice() { return device; }
 
@@ -59,7 +59,7 @@ private:
 	void renderLoop();
 
 	// connected viewport render interfaces
-	std::set<ViewportRenderInterface*> viewportRenderInterfaces;
+	std::set<ViewportRenderData*> viewportRenderDatas;
 	std::mutex viewportRenderersMux;
 
 	// handles

@@ -1,4 +1,4 @@
-#include "viewportRenderInterface.h"
+#include "viewportRenderData.h"
 
 #include <RmlUi/Core/Element.h>
 
@@ -7,16 +7,16 @@
 #include "backend/selection.h"
 #include "gpu/renderer/viewport/elements/elementRenderer.h"
 
-ViewportRenderInterface::ViewportRenderInterface(VulkanDevice* device, Rml::Element* element) : element(element), chunker(device) {}
+ViewportRenderData::ViewportRenderData(VulkanDevice* device, Rml::Element* element) : element(element), chunker(device) {}
 
-ViewportViewData ViewportRenderInterface::getViewData() {
+ViewportViewData ViewportRenderData::getViewData() {
 	std::lock_guard<std::mutex> lock(viewMux);
 	return viewData;
 }
 
 // ====================================== INTERFACE ==========================================
 
-void ViewportRenderInterface::setEvaluator(Evaluator* evaluator, const Address& address) {
+void ViewportRenderData::setEvaluator(Evaluator* evaluator, const Address& address) {
 	std::lock_guard<std::mutex> lock1(evaluatorMux);
 	std::lock_guard<std::mutex> lock2(addressMux);
 	this->evaluator = evaluator;
@@ -24,7 +24,7 @@ void ViewportRenderInterface::setEvaluator(Evaluator* evaluator, const Address& 
 	chunker.setEvaluator(evaluator, address);
 }
 
-void ViewportRenderInterface::updateViewFrame(glm::vec2 origin, glm::vec2 size) {
+void ViewportRenderData::updateViewFrame(glm::vec2 origin, glm::vec2 size) {
 	std::lock_guard<std::mutex> lock(viewMux);
 	viewData.viewport.x = origin.x;
 	viewData.viewport.y = origin.y;
@@ -35,17 +35,17 @@ void ViewportRenderInterface::updateViewFrame(glm::vec2 origin, glm::vec2 size) 
 
 }
 
-void ViewportRenderInterface::updateView(FPosition topLeft, FPosition bottomRight) {
+void ViewportRenderData::updateView(FPosition topLeft, FPosition bottomRight) {
 	std::lock_guard<std::mutex> lock(viewMux);
 	viewData.viewportViewMat = glm::ortho(topLeft.x, bottomRight.x, topLeft.y, bottomRight.y);
 	viewData.viewBounds = { topLeft, bottomRight };
 }
 
-float ViewportRenderInterface::getLastFrameTimeMs() const {
+float ViewportRenderData::getLastFrameTimeMs() const {
 	return 0.0f;
 }
 
-ElementId ViewportRenderInterface::addSelectionObjectElement(const SelectionObjectElement& selection) {
+ElementId ViewportRenderData::addSelectionObjectElement(const SelectionObjectElement& selection) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	ElementId newElement = ++currentElementId;
@@ -127,7 +127,7 @@ ElementId ViewportRenderInterface::addSelectionObjectElement(const SelectionObje
 	return newElement;
 }
 
-ElementId ViewportRenderInterface::addSelectionElement(const SelectionElement& selection) {
+ElementId ViewportRenderData::addSelectionElement(const SelectionElement& selection) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	ElementId newElement = ++currentElementId;
@@ -148,14 +148,14 @@ ElementId ViewportRenderInterface::addSelectionElement(const SelectionElement& s
 	return newElement;
 }
 
-void ViewportRenderInterface::removeSelectionElement(ElementId id) {
+void ViewportRenderData::removeSelectionElement(ElementId id) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	boxSelections.erase(id);
 	arrows.erase(id);
 }
 
-std::vector<ArrowRenderData> ViewportRenderInterface::getArrows() {
+std::vector<ArrowRenderData> ViewportRenderData::getArrows() {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	std::vector<ArrowRenderData> returnArrows;
@@ -168,7 +168,7 @@ std::vector<ArrowRenderData> ViewportRenderInterface::getArrows() {
 	return returnArrows;
 }
 
-std::vector<BoxSelectionRenderData> ViewportRenderInterface::getBoxSelections() {
+std::vector<BoxSelectionRenderData> ViewportRenderData::getBoxSelections() {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	std::vector<BoxSelectionRenderData> returnBoxSelections;
@@ -181,7 +181,7 @@ std::vector<BoxSelectionRenderData> ViewportRenderInterface::getBoxSelections() 
 	return returnBoxSelections;
 }
 
-ElementId ViewportRenderInterface::addBlockPreview(BlockPreview&& blockPreview) {
+ElementId ViewportRenderData::addBlockPreview(BlockPreview&& blockPreview) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	ElementId newElement = ++currentElementId;
@@ -204,7 +204,7 @@ ElementId ViewportRenderInterface::addBlockPreview(BlockPreview&& blockPreview) 
 	return newElement;
 }
 
-void ViewportRenderInterface::shiftBlockPreview(ElementId id, Vector shift) {
+void ViewportRenderData::shiftBlockPreview(ElementId id, Vector shift) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	auto iterPair = blockPreviews.equal_range(id);
@@ -213,13 +213,13 @@ void ViewportRenderInterface::shiftBlockPreview(ElementId id, Vector shift) {
 	}
 }
 
-void ViewportRenderInterface::removeBlockPreview(ElementId id) {
+void ViewportRenderData::removeBlockPreview(ElementId id) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	blockPreviews.erase(id);
 }
 
-std::vector<BlockPreviewRenderData> ViewportRenderInterface::getBlockPreviews() {
+std::vector<BlockPreviewRenderData> ViewportRenderData::getBlockPreviews() {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	std::vector<BlockPreviewRenderData> returnBlockPreviews;
@@ -232,7 +232,7 @@ std::vector<BlockPreviewRenderData> ViewportRenderInterface::getBlockPreviews() 
 	return returnBlockPreviews;
 }
 
-ElementId ViewportRenderInterface::addConnectionPreview(const ConnectionPreview& connectionPreview) {
+ElementId ViewportRenderData::addConnectionPreview(const ConnectionPreview& connectionPreview) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	ElementId newElement = ++currentElementId;
@@ -247,13 +247,13 @@ ElementId ViewportRenderInterface::addConnectionPreview(const ConnectionPreview&
 	return newElement;
 }
 
-void ViewportRenderInterface::removeConnectionPreview(ElementId id) {
+void ViewportRenderData::removeConnectionPreview(ElementId id) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	connectionPreviews.erase(id);
 }
 
-ElementId ViewportRenderInterface::addHalfConnectionPreview(const HalfConnectionPreview& halfConnectionPreview) {
+ElementId ViewportRenderData::addHalfConnectionPreview(const HalfConnectionPreview& halfConnectionPreview) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	ElementId newElement = ++currentElementId;
@@ -267,13 +267,13 @@ ElementId ViewportRenderInterface::addHalfConnectionPreview(const HalfConnection
 	return newElement;
 }
 
-void ViewportRenderInterface::removeHalfConnectionPreview(ElementId id) {
+void ViewportRenderData::removeHalfConnectionPreview(ElementId id) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	connectionPreviews.erase(id);
 }
 
-std::vector<ConnectionPreviewRenderData> ViewportRenderInterface::getConnectionPreviews() {
+std::vector<ConnectionPreviewRenderData> ViewportRenderData::getConnectionPreviews() {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	std::vector<ConnectionPreviewRenderData> returnConnectionPreviews;

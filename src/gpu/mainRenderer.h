@@ -94,7 +94,7 @@ private:
 	WindowId lastWindowId = 0;
 	ViewportId lastViewportId = 0;
 	std::map<WindowId, WindowRenderer> windowRenderers;
-	std::map<ViewportId, ViewportRenderInterface> viewportRenderers;
+	std::map<ViewportId, ViewportRenderData> viewportRenderers;
 };
 
 #endif /* mainRenderer_h */
