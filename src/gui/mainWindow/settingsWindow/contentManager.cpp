@@ -121,7 +121,7 @@ void ContentManager::setPaths(const std::vector<std::vector<std::string>>& paths
 	for (auto iter : pathsByRoot) {
 		Rml::ElementPtr newItem = document->CreateElement("li");
 		// add listener
-		// if (!clickableName) 
+		// if (!clickableName)
 		newItem->AddEventListener("click", new MenuTreeListener(false, nullptr));
 		// else {
 		// 	newItem->AddEventListener("click", new EventPasser(
@@ -177,7 +177,7 @@ Rml::ElementPtr ContentManager::generateItem(const std::string& key) {
 		Rml::ElementPtr keybindText = document->CreateElement("div");
 		keybindText->SetInnerRML(Settings::get<SettingType::KEYBIND>(key)->toString());
 		keybindText->SetClass("keybind", true);
-		
+
 		keybindText->AddEventListener(Rml::EventId::Click, new EventPasser([this, key](Rml::Event& event){
 			if (activeItem == key) return;
 			activeItem = key;
@@ -214,6 +214,29 @@ Rml::ElementPtr ContentManager::generateItem(const std::string& key) {
 	}
 	case SettingType::STRING:
 		break;
+	case SettingType::FILE_PATH:
+	{
+		Rml::XMLAttributes nameAttributes;
+		nameAttributes["type"] = "text";
+		nameAttributes["maxlength"] = "4000";
+		Rml::ElementPtr pathElement = Rml::Factory::InstanceElement(document, "textarea", "textarea", nameAttributes);
+
+		Rml::ElementFormControlTextArea* elementFormControlTextArea = rmlui_dynamic_cast<Rml::ElementFormControlTextArea*>(pathElement.get());
+		elementFormControlTextArea->SetValue(*Settings::get<SettingType::FILE_PATH>(key));
+
+		// update setting on change
+		pathElement->AddEventListener(Rml::EventId::Change,
+			new EventPasser([this, key](Rml::Event& event) {
+				auto* textarea = dynamic_cast<Rml::ElementFormControlTextArea*>(event.GetCurrentElement());
+				if (!textarea) return;
+				std::string text = textarea->GetValue();
+				Settings::set<SettingType::FILE_PATH>(key, text);
+			})
+		);
+
+		item->AppendChild(std::move(pathElement));
+		break;
+	}
 	case SettingType::VOID:
 		item->AppendChild(std::move(document->CreateTextNode("NULL TYPE")));
 		break;

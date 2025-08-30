@@ -92,6 +92,11 @@ MainWindow::MainWindow(Backend* backend, CircuitFileManager* circuitFileManager)
 	// 	std::make_pair<std::string, std::function<void()>>("B", [](){logInfo("B");}),
 	// 	std::make_pair<std::string, std::function<void()>>("C", [](){logInfo("C");})
 	// });
+
+	Settings::registerListener<SettingType::FILE_PATH>("Appearance/Font", [this](const std::string& fontFilePath) {
+		// Rml::LoadFontFace(fontFilePath);
+		logInfo("loaded, {}", "", fontFilePath);
+	});
 }
 
 MainWindow::~MainWindow() {
@@ -140,7 +145,7 @@ bool MainWindow::recieveEvent(SDL_Event& event) {
 
 		return true;
 	}
-	
+
 	return false;
 }
 
@@ -221,4 +226,18 @@ void MainWindow::saveAsPopUp(const std::string& circuitUUID) {
 		std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(circuitFileManager, circuitUUID);
 		SDL_ShowSaveFileDialog(SaveCallback, data, sdlWindow.getHandle(), filters, 1, nullptr);
 	}
+}
+
+void setGlobalCssPropertyRec(Rml::Element* element, const std::string& property, const std::string& value) {
+	if (!element) return;
+
+	element->SetProperty(property, value);
+	for (int i = 0; i < element->GetNumChildren(); i++) {
+		setGlobalCssPropertyRec(element->GetChild(i), property, value);
+	}
+}
+
+void MainWindow::setGlobalCssProperty(const std::string& property, const std::string& value) {
+	logInfo("Setting {} to {}", "", property, value);
+	setGlobalCssPropertyRec(rmlDocument, property, value);
 }

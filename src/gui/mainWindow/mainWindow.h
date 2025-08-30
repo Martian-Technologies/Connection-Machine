@@ -25,7 +25,7 @@ public:
 	// no copy
 	MainWindow(const MainWindow&) = delete;
 	MainWindow& operator=(const MainWindow&) = delete;
-	
+
 public:
 	bool recieveEvent(SDL_Event& event);
 	void updateRml();
@@ -46,6 +46,8 @@ public:
 	void savePopUp(const std::string& circuitUUID);
 	void saveAsPopUp(const std::string& circuitUUID);
 
+	void setGlobalCssProperty(const std::string& property, const std::string& value);
+
 private:
 	void createPopUp(const std::string& message, const std::vector<std::pair<std::string, std::function<void()>>>& options);
 
@@ -62,7 +64,7 @@ private:
 
 	std::shared_ptr<CircuitViewWidget> activeCircuitViewWidget;
 	std::vector<std::shared_ptr<CircuitViewWidget>> circuitViewWidgets;
-	
+
 	Rml::Context* rmlContext;
 	Rml::ElementDocument* rmlDocument;
 
