@@ -13,10 +13,10 @@
 
 #include "settingsWindow/settingsWindow.h"
 #include "computerAPI/directoryManager.h"
-#include "appInstance.h"
+#include "environment.h"
 
-MainWindow::MainWindow(AppInstance* appInstance) :
-	sdlWindow("Connection Machine"), appInstance(appInstance), toolManagerManager(appInstance->getBackend().getDataUpdateEventManager()) {
+MainWindow::MainWindow(Environment* environment) :
+	sdlWindow("Connection Machine"), environment(environment), toolManagerManager(environment->getBackend().getDataUpdateEventManager()) {
 
 	windowId = MainRenderer::get().registerWindow(&sdlWindow);
 
@@ -35,21 +35,21 @@ MainWindow::MainWindow(AppInstance* appInstance) :
 
 	// eval menutree
 	Rml::Element* evalTreeParent = rmlDocument->GetElementById("eval-tree");
-	evalWindow.emplace(&(appInstance->getBackend().getEvaluatorManager()), &(appInstance->getBackend().getCircuitManager()), this, appInstance->getBackend().getDataUpdateEventManager(), rmlDocument, evalTreeParent);
+	evalWindow.emplace(&(environment->getBackend().getEvaluatorManager()), &(environment->getBackend().getCircuitManager()), this, environment->getBackend().getDataUpdateEventManager(), rmlDocument, evalTreeParent);
 
 	//  blocks/tools menutree
 	selectorWindow.emplace(
-		appInstance->getBackend().getBlockDataManager(),
-		appInstance->getBackend().getDataUpdateEventManager(),
-		appInstance->getBackend().getCircuitManager().getProceduralCircuitManager(),
+		environment->getBackend().getBlockDataManager(),
+		environment->getBackend().getDataUpdateEventManager(),
+		environment->getBackend().getCircuitManager().getProceduralCircuitManager(),
 		&toolManagerManager,
 		rmlDocument
 	);
 
 	Rml::Element* blockCreationMenu = rmlDocument->GetElementById("block-creation-form");
-	blockCreationWindow.emplace(&(appInstance->getBackend().getCircuitManager()), this, appInstance->getBackend().getDataUpdateEventManager(), &toolManagerManager, rmlDocument, blockCreationMenu);
+	blockCreationWindow.emplace(&(environment->getBackend().getCircuitManager()), this, environment->getBackend().getDataUpdateEventManager(), &toolManagerManager, rmlDocument, blockCreationMenu);
 
-	simControlsManager.emplace(rmlDocument, getCircuitViewWidget(0), appInstance->getBackend().getDataUpdateEventManager());
+	simControlsManager.emplace(rmlDocument, getCircuitViewWidget(0), environment->getBackend().getDataUpdateEventManager());
 
 	SettingsWindow* settingsWindow = new SettingsWindow(rmlDocument);
 
@@ -122,11 +122,11 @@ bool MainWindow::recieveEvent(SDL_Event& event) {
 				if (id == 0) {
 					logError("Error", "Failed to load circuit file.");
 				} else {
-					getActiveCircuitViewWidget()->getCircuitView()->setCircuit(&appInstance->getBackend(), id);
+					getActiveCircuitViewWidget()->getCircuitView()->setCircuit(&environment->getBackend(), id);
 					// circuitViewWidget->getCircuitView()->getBackend()->linkCircuitViewWithCircuit(circuitViewWidget->getCircuitView(), id);
-					for (auto& iter : appInstance->getBackend().getEvaluatorManager().getEvaluators()) {
+					for (auto& iter : environment->getBackend().getEvaluatorManager().getEvaluators()) {
 						if (iter.second->getCircuitId(Address()) == id) {
-							getActiveCircuitViewWidget()->getCircuitView()->setEvaluator(&appInstance->getBackend(), iter.first);
+							getActiveCircuitViewWidget()->getCircuitView()->setEvaluator(&environment->getBackend(), iter.first);
 							// circuitViewWidget->getCircuitView()->getBackend()->linkCircuitViewWithEvaluator(circuitViewWidget->getCircuitView(), iter.first, Address());
 						}
 					}
@@ -164,8 +164,8 @@ void MainWindow::updateRml() {
 }
 
 void MainWindow::createCircuitViewWidget(Rml::Element* element) {
-	circuitViewWidgets.push_back(std::make_shared<CircuitViewWidget>(&appInstance->getCircuitFileManager(), rmlDocument, this, windowId, element));
-	circuitViewWidgets.back()->getCircuitView()->setBackend(&appInstance->getBackend());
+	circuitViewWidgets.push_back(std::make_shared<CircuitViewWidget>(&environment->getCircuitFileManager(), rmlDocument, this, windowId, element));
+	circuitViewWidgets.back()->getCircuitView()->setBackend(&environment->getBackend());
 	toolManagerManager.addCircuitView(circuitViewWidgets.back()->getCircuitView());
 	activeCircuitViewWidget = circuitViewWidgets.back(); // if it is created, it should be used
 }
@@ -211,12 +211,12 @@ void SaveCallback(void* userData, const char* const* filePaths, int filter) {
 }
 
 void MainWindow::savePopUp(const std::string& circuitUUID) {
-	if (!appInstance->getCircuitFileManager().save(circuitUUID)) {
+	if (!environment->getCircuitFileManager().save(circuitUUID)) {
 		// if failed to save the circuit with out a path
 		static const SDL_DialogFileFilter filters[] = {
 			{ "Circuit Files",  ".cir" }
 		};
-		std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(&appInstance->getCircuitFileManager(), circuitUUID);
+		std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(&environment->getCircuitFileManager(), circuitUUID);
 		SDL_ShowSaveFileDialog(SaveCallback, data, sdlWindow.getHandle(), filters, 1, nullptr);
 	}
 }
@@ -225,7 +225,7 @@ void MainWindow::saveAsPopUp(const std::string& circuitUUID) {
 	static const SDL_DialogFileFilter filters[] = {
 		{ "Circuit Files",  ".cir" }
 	};
-	std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(&appInstance->getCircuitFileManager(), circuitUUID);
+	std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(&environment->getCircuitFileManager(), circuitUUID);
 	SDL_ShowSaveFileDialog(SaveCallback, data, sdlWindow.getHandle(), filters, 1, nullptr);
 }
 

@@ -1,13 +1,13 @@
-#ifndef appInstance_h
-#define appInstance_h
+#ifndef environment_h
+#define environment_h
 
 #include "backend/backend.h"
 #include "computerAPI/circuits/circuitFileManager.h"
 #include "computerAPI/fileListener/fileListener.h"
 
-class AppInstance {
+class Environment {
 public:
-	AppInstance() : backend(&circuitFileManager), circuitFileManager(&backend.getCircuitManager()), fileListener(std::chrono::milliseconds(200)) { }
+	Environment() : backend(&circuitFileManager), circuitFileManager(&backend.getCircuitManager()), fileListener(std::chrono::milliseconds(200)) { }
 
 	const Backend& getBackend() const { return backend; }
 	Backend& getBackend() { return backend; }
@@ -25,4 +25,4 @@ private:
 
 };
 
-#endif /* appInstance_h */
+#endif /* environment_h */

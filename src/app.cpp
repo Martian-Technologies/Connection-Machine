@@ -7,7 +7,7 @@
 #include "gui/mainWindow/circuitView/circuitViewWidget.h"
 
 App::App() : rml(&rmlSystemInterface, &rmlRenderInterface) {
-	windows.push_back(std::make_unique<MainWindow>(&appInstance));
+	windows.push_back(std::make_unique<MainWindow>(&environment));
 }
 
 #ifdef TRACY_PROFILER

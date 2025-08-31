@@ -14,11 +14,11 @@
 #include "gui/helper/keybindHandler.h"
 
 class CircuitViewWidget;
-class AppInstance;
+class Environment;
 
 class MainWindow {
 public:
-	MainWindow(AppInstance* appInstance);
+	MainWindow(Environment* environment);
 	~MainWindow();
 
 	// no copy
@@ -51,7 +51,7 @@ private:
 	void createPopUp(const std::string& message, const std::vector<std::pair<std::string, std::function<void()>>>& options);
 
 	WindowId windowId;
-	AppInstance* appInstance;
+	Environment* environment;
 
 	// inputs and tools
 	KeybindHandler keybindHandler;

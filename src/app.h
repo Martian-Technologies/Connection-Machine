@@ -1,7 +1,7 @@
 #ifndef app_h
 #define app_h
 
-#include "appInstance.h"
+#include "environment.h"
 #include "gui/mainWindow/mainWindow.h"
 #include "gui/rml/rmlInstance.h"
 #include "gui/rml/rmlRenderInterface.h"
@@ -15,7 +15,7 @@ public:
 	void runLoop();
 
 private:
-	AppInstance appInstance;
+	Environment environment;
 
 	RmlRenderInterface rmlRenderInterface;
 	RmlSystemInterface rmlSystemInterface;
