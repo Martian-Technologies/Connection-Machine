@@ -4,7 +4,7 @@
 
 BlockRenderDataId BlockRenderDataManager::addBlockRenderData() {
 	BlockRenderDataId newBlockRenderDataId = findUnusedKey<BlockRenderDataId>(blockRenderData, 1);
-	blockRenderData.emplace(newBlockRenderDataId);
+	blockRenderData.try_emplace(newBlockRenderDataId);
 	return newBlockRenderDataId;
 }
 
@@ -51,7 +51,7 @@ BlockPortRenderDataId BlockRenderDataManager::addBlockPort(BlockRenderDataId blo
 		return 0;
 	}
 	BlockPortRenderDataId newBlockPortRenderDataId = findUnusedKey<BlockPortRenderDataId>(iter->second.blockPortRenderData, 1);
-	blockRenderData.emplace(newBlockPortRenderDataId, isInput, positionOnBlock);
+	iter->second.blockPortRenderData.try_emplace(newBlockPortRenderDataId, isInput, positionOnBlock);
 	return newBlockPortRenderDataId;
 }
 

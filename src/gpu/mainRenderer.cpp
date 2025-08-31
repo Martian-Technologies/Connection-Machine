@@ -123,7 +123,43 @@ void MainRenderer::setScissorRegion(WindowId windowId, Rml::Rectanglei region) {
 	}
 	iter->second.getRmlRenderer().setScissorRegion(region);
 }
-	
+
+BlockRenderDataId MainRenderer::registerBlockRenderData() {
+	return blockRenderDataManager.addBlockRenderData();
+}
+
+void MainRenderer::deregisterBlockRenderData(BlockRenderDataId blockRenderDataId) {
+	blockRenderDataManager.removeBlockRenderData(blockRenderDataId);
+}
+
+void MainRenderer::setBlockName(BlockRenderDataId blockRenderDataId, const std::string& blockName) {
+	blockRenderDataManager.setBlockName(blockRenderDataId, blockName);
+}
+
+void MainRenderer::setBlockSize(BlockRenderDataId blockRenderDataId, Size size) {
+	blockRenderDataManager.setBlockSize(blockRenderDataId, size);
+}
+
+void MainRenderer::setBlockTextureIndex(BlockRenderDataId blockRenderDataId, unsigned int textureIndex) {
+	blockRenderDataManager.setBlockTextureIndex(blockRenderDataId, textureIndex);
+}
+
+BlockPortRenderDataId MainRenderer::addBlockPort(BlockRenderDataId blockRenderDataId, bool isInput, FVector positionOnBlock) {
+	return blockRenderDataManager.addBlockPort(blockRenderDataId, isInput, positionOnBlock);
+}
+
+void MainRenderer::removeBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId) {
+	blockRenderDataManager.removeBlockPort(blockRenderDataId, blockPortRenderDataId);
+}
+
+void MainRenderer::moveBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId, FVector newPositionOnBlock) {
+	blockRenderDataManager.moveBlockPort(blockRenderDataId, blockPortRenderDataId, newPositionOnBlock);
+}
+
+void MainRenderer::setBlockPortName(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId, const std::string& newPortName) {
+	blockRenderDataManager.setBlockPortName(blockRenderDataId, blockPortRenderDataId, newPortName);
+}
+
 ViewportId MainRenderer::registerViewport(WindowId windowId, glm::vec2 origin, glm::vec2 size, Rml::Element* element) {
 	auto iter = windowRenderers.find(windowId);
 	if (iter == windowRenderers.end()) {

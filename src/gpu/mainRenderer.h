@@ -45,7 +45,7 @@ public:
 	void setScissorRegion(WindowId windowId, Rml::Rectanglei region);
 
 	// Block Render Data ===============================================================================================================================
-	BlockRenderDataId registrBlockRenderData();
+	BlockRenderDataId registerBlockRenderData();
 	void deregisterBlockRenderData(BlockRenderDataId blockRenderDataId);
 	void setBlockName(BlockRenderDataId blockRenderDataId, const std::string& blockName);
 	void setBlockSize(BlockRenderDataId blockRenderDataId, Size size);
@@ -98,6 +98,7 @@ private:
 	ViewportId lastViewportId = 0;
 	std::map<WindowId, WindowRenderer> windowRenderers;
 	std::map<ViewportId, ViewportRenderData> viewportRenderers;
+	BlockRenderDataManager blockRenderDataManager;
 };
 
 #endif /* mainRenderer_h */
