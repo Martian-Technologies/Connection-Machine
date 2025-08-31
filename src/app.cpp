@@ -4,10 +4,10 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-App::App() :
-	rml(&rmlSystemInterface, &rmlRenderInterface), backend(&circuitFileManager), circuitFileManager(&(backend.getCircuitManager())),
-	fileListener(std::chrono::milliseconds(200)) {
-	windows.push_back(std::make_unique<MainWindow>(&backend, &circuitFileManager));
+#include "gui/mainWindow/circuitView/circuitViewWidget.h"
+
+App::App() : rml(&rmlSystemInterface, &rmlRenderInterface) {
+	windows.push_back(std::make_unique<MainWindow>(&appInstance));
 }
 
 #ifdef TRACY_PROFILER

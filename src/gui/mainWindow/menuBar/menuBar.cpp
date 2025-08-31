@@ -1,8 +1,9 @@
 #include "menuBar.h"
 
-#include "gui/helper/eventPasser.h"
 #include "gui/mainWindow/settingsWindow/settingsWindow.h"
+#include "gui/mainWindow/circuitView/circuitViewWidget.h"
 #include "gui/mainWindow/mainWindow.h"
+#include "gui/helper/eventPasser.h"
 
 MenuBar::MenuBar(Rml::ElementDocument* context, SettingsWindow* settingsWindow, MainWindow* window) : context(context), element(context->GetElementById("menu-bar")), settingsWindow(settingsWindow), window(window) {
 	Rml::Element* element = context->GetElementById("menu-bar");

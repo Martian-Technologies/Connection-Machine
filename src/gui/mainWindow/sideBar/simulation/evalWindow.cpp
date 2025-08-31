@@ -1,8 +1,12 @@
 #include "evalWindow.h"
+
 #include "backend/evaluator/evaluatorManager.h"
 #include "backend/dataUpdateEventManager.h"
 #include "backend/circuit/circuitManager.h"
+
+#include "gui/mainWindow/circuitView/circuitViewWidget.h"
 #include "gui/mainWindow/mainWindow.h"
+
 #include "util/algorithm.h"
 
 EvalWindow::EvalWindow(

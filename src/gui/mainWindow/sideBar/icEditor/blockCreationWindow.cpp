@@ -1,11 +1,15 @@
 #include "blockCreationWindow.h"
 
+#include "gui/viewportManager/circuitView/tools/other/portSelector.h"
+#include "gui/mainWindow/circuitView/circuitViewWidget.h"
+#include "gui/mainWindow/mainWindow.h"
+#include "gui/helper/eventPasser.h"
+
 #include "backend/dataUpdateEventManager.h"
 #include "backend/circuit/circuitManager.h"
+
 #include "util/algorithm.h"
-#include "gui/helper/eventPasser.h"
-#include "../../mainWindow.h"
-#include "gui/viewportManager/circuitView/tools/other/portSelector.h"
+
 
 BlockCreationWindow::BlockCreationWindow(
 	CircuitManager* circuitManager,
@@ -380,7 +384,7 @@ void BlockCreationWindow::addListItem(bool isInput) {
 	Rml::ElementFormControlInput* positionYElement = rmlui_dynamic_cast<Rml::ElementFormControlInput*>(positionY.get());
 	positionXElement->SetValue("N/A");
 	positionYElement->SetValue("N/A");
-	
+
 	Rml::ElementPtr setPositionButton = document->CreateElement("button");
 	setPositionButton->AppendChild(std::move(document->CreateTextNode("S")));
 	setPositionButton->AddEventListener(Rml::EventId::Click, new EventPasser(

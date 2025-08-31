@@ -6,20 +6,19 @@
 
 #include "gui/sdl/sdlWindow.h"
 
-#include "computerAPI/circuits/circuitFileManager.h"
-#include "backend/backend.h"
-
 #include "tools/toolManagerManager.h"
 #include "sideBar/icEditor/blockCreationWindow.h"
 #include "circuitView/simControlsManager.h"
-#include "circuitView/circuitViewWidget.h"
 #include "sideBar/selector/selectorWindow.h"
 #include "sideBar/simulation/evalWindow.h"
+#include "gui/helper/keybindHandler.h"
 
+class CircuitViewWidget;
+class AppInstance;
 
 class MainWindow {
 public:
-	MainWindow(Backend* backend, CircuitFileManager* circuitFileManager);
+	MainWindow(AppInstance* appInstance);
 	~MainWindow();
 
 	// no copy
@@ -52,23 +51,28 @@ private:
 	void createPopUp(const std::string& message, const std::vector<std::pair<std::string, std::function<void()>>>& options);
 
 	WindowId windowId;
-	Backend* backend;
+	AppInstance* appInstance;
+
+	// inputs and tools
 	KeybindHandler keybindHandler;
-	CircuitFileManager* circuitFileManager;
-	SdlWindow sdlWindow;
 	ToolManagerManager toolManagerManager;
+
+	// widgets
 	std::optional<SelectorWindow> selectorWindow;
 	std::optional<EvalWindow> evalWindow;
 	std::optional<BlockCreationWindow> blockCreationWindow;
 	std::optional<SimControlsManager> simControlsManager;
 
+	std::vector<std::pair<std::string,const std::vector<std::pair<std::string, std::function<void()>>>>> popUpsToAdd;
+
+	// circuit view widget
 	std::shared_ptr<CircuitViewWidget> activeCircuitViewWidget;
 	std::vector<std::shared_ptr<CircuitViewWidget>> circuitViewWidgets;
 
+	// rmlui and sdl
 	Rml::Context* rmlContext;
 	Rml::ElementDocument* rmlDocument;
-
-	std::vector<std::pair<std::string,const std::vector<std::pair<std::string, std::function<void()>>>>> popUpsToAdd;
+	SdlWindow sdlWindow;
 };
 
 #endif /* window_h */
