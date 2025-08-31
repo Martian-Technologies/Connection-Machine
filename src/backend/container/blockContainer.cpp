@@ -45,7 +45,7 @@ unsigned int BlockContainer::getBlockTypeCountRecursive(BlockType blockType) con
 	unsigned int count = 0;
 	if (blockTypeCounts.size() > blockType) count += blockTypeCounts[blockType];
 	for (unsigned int i = 0; i < blockTypeCounts.size(); i++) {
-		if ((BlockType)i == blockType) continue;
+		if ((BlockType)i == blockType || blockTypeCounts[i] == 0) continue;
 		circuit_id_t circuitId = circuitManager->getCircuitBlockDataManager()->getCircuitId((BlockType)i);
 		if (circuitId == 0) continue;
 		SharedCircuit circuit = circuitManager->getCircuit(circuitId);
