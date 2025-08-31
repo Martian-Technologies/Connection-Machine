@@ -6,11 +6,11 @@
 namespace Settings {
 	SettingsMap& getSettingsMap();
 	template<SettingType settingType>
-	inline void registerSetting(std::string name) {
+	inline void registerSetting(const std::string& name) {
 		getSettingsMap().registerSetting<settingType>(name);
 	}
 	template<SettingType settingType>
-	inline void registerSetting(std::string name, const typename SettingTypeToType<settingType>::type& value) {
+	inline void registerSetting(const std::string& name, const typename SettingTypeToType<settingType>::type& value) {
 		getSettingsMap().registerSetting<settingType>(name, value);
 	}
 	template<SettingType settingType>
@@ -28,7 +28,7 @@ namespace Settings {
 		return getSettingsMap().hasKey(key);
 	}
 	template<SettingType settingType>
-	inline void registerListener(std::string key, SettingsMap::ListenerFunction<settingType> listener) {
+	inline void registerListener(const std::string& key, SettingsMap::ListenerFunction<settingType> listener) {
 		getSettingsMap().registerListener<settingType>(key, listener);
 	}
 };

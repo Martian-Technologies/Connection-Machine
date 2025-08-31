@@ -9,8 +9,6 @@
 typedef uint32_t WindowId;
 typedef uint32_t ViewportId;
 typedef uint32_t ElementId;
-typedef uint32_t BlockRenderDataId;
-typedef uint32_t BlockRenderDataPortId;
 
 // Element Types ------------------------------
 struct SelectionElement {

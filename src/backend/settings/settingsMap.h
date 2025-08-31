@@ -53,7 +53,7 @@ public:
 		virtual ~SettingEntryBase() = default;
 		SettingType getType() const { return type; };
 		template<SettingType settingType>
-		void addListener(ListenerFunction<settingType> listener) {
+		void addListener(const ListenerFunction<settingType>& listener) {
 			listeners.emplace_back(std::make_unique<SettingListener<settingType>>(listener));
 		}
 	protected:
@@ -172,7 +172,7 @@ private:
 	template <SettingType settingType>
 	class SettingListener : public SettingListenerBase {
 	public:
-		SettingListener(ListenerFunction<settingType> listener) : SettingListenerBase(settingType), listener(listener) { }
+		SettingListener(const ListenerFunction<settingType>& listener) : SettingListenerBase(settingType), listener(listener) { }
 		void call(const SettingTypeToType<settingType>::type& value) const { listener(value); }
 
 	private:

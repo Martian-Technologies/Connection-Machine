@@ -37,6 +37,17 @@ inline void sortVectorWithOther(std::vector<T1>& sortBy, std::vector<T2>& other)
     }
 }
 
+template <typename K, typename V>
+inline K findUnusedKey(const std::map<K, V>& map, K minKey = 0) {
+	for (const auto& pair : map) {
+		if (minKey != pair.first) {
+			return minKey;
+		}
+		++minKey;
+	}
+	return minKey;
+}
+
 inline std::vector<std::string> stringSplit(const std::string& s, const char delimiter) {
 	size_t start = 0;
 	size_t end = 0;

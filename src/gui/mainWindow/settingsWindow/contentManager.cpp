@@ -173,7 +173,6 @@ Rml::ElementPtr ContentManager::generateItem(const std::string& key) {
 		break;
 	}
 	case SettingType::KEYBIND: {
-		item->AppendChild(std::move(document->CreateTextNode("Keybind: " + key)));
 		Rml::ElementPtr keybindText = document->CreateElement("div");
 		keybindText->SetInnerRML(Settings::get<SettingType::KEYBIND>(key)->toString());
 		keybindText->SetClass("keybind", true);

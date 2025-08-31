@@ -8,10 +8,12 @@
 #include "backend/evaluator/evaluator.h"
 #include "gui/sdl/sdlWindow.h"
 
-#include "mainRendererDefs.h"
-
-#include "vulkanInstance.h"
 #include "renderer/windowRenderer.h"
+
+#include "mainRendererDefs.h"
+#include "blockRenderDataManager.h"
+#include "vulkanInstance.h"
+
 
 class MainRenderer {
 public:
@@ -41,16 +43,17 @@ public:
 	void renderGeometry(WindowId windowId, Rml::CompiledGeometryHandle handle, Rml::Vector2f translation, Rml::TextureHandle texture);
 	void enableScissorRegion(WindowId windowId, bool enable);
 	void setScissorRegion(WindowId windowId, Rml::Rectanglei region);
-	
+
 	// Block Render Data ===============================================================================================================================
 	BlockRenderDataId registrBlockRenderData();
 	void deregisterBlockRenderData(BlockRenderDataId blockRenderDataId);
 	void setBlockName(BlockRenderDataId blockRenderDataId, const std::string& blockName);
 	void setBlockSize(BlockRenderDataId blockRenderDataId, Size size);
-	BlockRenderDataPortId addBlockPort(BlockRenderDataId blockRenderDataId, bool isInput, FPosition positionOnBlock, const std::string name);
-	void removeBlockPort(BlockRenderDataId blockRenderDataId, BlockRenderDataPortId blockRenderDataPortId);
-	void moveBlockPort(BlockRenderDataId blockRenderDataId, BlockRenderDataPortId blockRenderDataPortId, FPosition newPositionOnBlock);
-	void setBlockPortName(BlockRenderDataId blockRenderDataId, BlockRenderDataPortId blockRenderDataPortId, const std::string newName);
+	void setBlockTextureIndex(BlockRenderDataId blockRenderDataId, unsigned int textureIndex);
+	BlockPortRenderDataId addBlockPort(BlockRenderDataId blockRenderDataId, bool isInput, FVector positionOnBlock);
+	void removeBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId);
+	void moveBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId, FVector newPositionOnBlock);
+	void setBlockPortName(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId, const std::string& newPortName);
 
 	// Viewports ================================================================================================================================
 	ViewportId registerViewport(WindowId windowId, glm::vec2 origin, glm::vec2 size, Rml::Element* element); // tmp element
