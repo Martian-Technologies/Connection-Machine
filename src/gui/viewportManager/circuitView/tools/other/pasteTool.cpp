@@ -34,7 +34,7 @@ bool PasteTool::place(const Event* event) {
 
 // Preview is only shown for the primary parsed circuit, not the dependencies that will be created in a different circuit
 void PasteTool::updateElements() {
-	if (!elementCreator.isSetup()) return;
+	if (!isActivate || !elementCreator.isSetup()) return;
 
 	if (!pointerInView) {
 		elementCreator.clear();

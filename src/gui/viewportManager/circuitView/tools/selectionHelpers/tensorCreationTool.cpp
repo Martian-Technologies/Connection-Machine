@@ -101,7 +101,7 @@ std::string formatOrdinal(int n) {
 }
 
 void TensorCreationTool::updateElements() {
-	if (!elementCreator.isSetup()) return;
+	if (!isActivate || !elementCreator.isSetup()) return;
 	elementCreator.clear();
 
 	if (!pointerInView) {

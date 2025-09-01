@@ -65,7 +65,7 @@ bool SelectionMakerTool::unclick(const Event* event) {
 }
 
 void SelectionMakerTool::updateElements() {
-	if (!elementCreator.isSetup()) return;
+	if (!isActivate || !elementCreator.isSetup()) return;
 	elementCreator.clear();
 	if (!activeSelectionHelper->isFinished()) return;
 	setStatusBar("Left click to select the origin. Right click to cancel. Ctrl-C to copy.");

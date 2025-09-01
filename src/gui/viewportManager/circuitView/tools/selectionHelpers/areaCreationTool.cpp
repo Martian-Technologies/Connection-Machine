@@ -51,7 +51,7 @@ bool AreaCreationTool::unclick(const Event* event) {
 }
 
 void AreaCreationTool::updateElements() {
-	if (!elementCreator.isSetup()) return;
+	if (!isActivate || !elementCreator.isSetup()) return;
 	elementCreator.clear();
 	if (hasOrigin) {
 		setStatusBar("Left click to select second corner. Right click to cancel.");

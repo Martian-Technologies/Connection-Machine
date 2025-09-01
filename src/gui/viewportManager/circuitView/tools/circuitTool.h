@@ -35,7 +35,7 @@ protected:
 
 	virtual void reset() { elementCreator.clear(); }
 	virtual void activate();
-	virtual void deactivate() { unregisterFunctions(); }
+	virtual void deactivate() { isActivate = false; unregisterFunctions(); }
 
 	virtual void setMode(std::string toolMode) { }
 
@@ -47,6 +47,7 @@ protected:
 
 	Circuit* circuit = nullptr;
 	bool helper = false;
+	bool isActivate = false;
 
 	CircuitView* circuitView;
 	ElementCreator elementCreator;

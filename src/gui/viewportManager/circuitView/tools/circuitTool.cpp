@@ -48,6 +48,7 @@ void CircuitTool::activate() {
 	registerFunction("pointer enter view", std::bind(&CircuitTool::enterBlockView, this, std::placeholders::_1));
 	registerFunction("pointer exit view", std::bind(&CircuitTool::exitBlockView, this, std::placeholders::_1));
 	registerFunction("Pointer Move", std::bind(&CircuitTool::pointerMove, this, std::placeholders::_1));
+	isActivate = true;
 	updateElements();
 }
 

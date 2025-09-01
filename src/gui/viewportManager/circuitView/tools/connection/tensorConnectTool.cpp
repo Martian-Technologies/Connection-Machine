@@ -70,7 +70,7 @@ bool TensorConnectTool::invertMode(const Event* event) {
 }
 
 void TensorConnectTool::updateElements() {
-	if (!elementCreator.isSetup()) return;
+	if (!isActivate || !elementCreator.isSetup()) return;
 	elementCreator.clear();
 	if (!activeOutputSelectionHelper->isFinished()) return;
 	elementCreator.addSelectionElement(SelectionObjectElement(activeOutputSelectionHelper->getSelection(), SelectionObjectElement::RenderMode::ARROWS));

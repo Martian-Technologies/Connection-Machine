@@ -81,7 +81,7 @@ bool ModeChangerTool::changeModeDown(const Event* event) {
 }
 
 void ModeChangerTool::updateElements() {
-	if (!elementCreator.isSetup()) return;
+	if (!isActivate || !elementCreator.isSetup()) return;
 	elementCreator.clear();
 	if (!activeSelectionHelper->isFinished()) return;
 	setStatusBar("Left click to set the mode to " + types[type].second+ ". Change mode Q/E.");

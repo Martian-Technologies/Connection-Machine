@@ -78,7 +78,7 @@ bool MoveTool::unclick(const Event* event) {
 }
 
 void MoveTool::updateElements() {
-	if (!elementCreator.isSetup()) return;
+	if (!isActivate || !elementCreator.isSetup()) return;
 
 	if (!activeSelectionHelper->isFinished()) {
 		elementCreator.clear();

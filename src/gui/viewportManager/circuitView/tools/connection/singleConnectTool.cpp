@@ -33,6 +33,7 @@ bool SingleConnectTool::cancelConnection(const Event* event) {
 }
 
 void SingleConnectTool::updateElements() {
+	if (!isActivate) return;
 	if (clicked) {
 		setStatusBar("Left click to set the connection end. Remake a connection to remove it.");
 	} else {

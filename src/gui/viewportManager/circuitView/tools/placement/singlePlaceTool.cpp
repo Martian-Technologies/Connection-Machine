@@ -126,7 +126,7 @@ bool SinglePlaceTool::pointerMove(const Event* event) {
 }
 
 void SinglePlaceTool::updateElements() {
-	if (!elementCreator.isSetup()) return;
+	if (!isActivate || !elementCreator.isSetup()) return;
 	elementCreator.clear();
 
 	if (!pointerInView) return;

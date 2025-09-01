@@ -1,5 +1,4 @@
 #include "areaPlaceTool.h"
-#include "gpu/mainRenderer.h"
 
 void AreaPlaceTool::activate() {
 	BaseBlockPlacementTool::activate();
@@ -45,7 +44,7 @@ bool AreaPlaceTool::startDeleteBlocks(const Event* event) {
 }
 
 void AreaPlaceTool::updateElements() {
-	if (!elementCreator.isSetup()) return;
+	if (!isActivate || !elementCreator.isSetup()) return;
 	elementCreator.clear();
 	switch (click) {
 	case 'n':
