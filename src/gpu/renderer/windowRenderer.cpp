@@ -4,28 +4,28 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-#include "gpu/vulkanInstance.h"
+#include "gpu/mainRenderer.h"
 
-WindowRenderer::WindowRenderer(SdlWindow* sdlWindow, VulkanInstance* instance) : sdlWindow(sdlWindow) {
+WindowRenderer::WindowRenderer(SdlWindow* sdlWindow) : sdlWindow(sdlWindow) {
 	logInfo("Initializing window renderer...");
 
 	// create surface and use it to make sure a vulkan device has been created
-	surface = sdlWindow->createVkSurface(instance->getVkbInstance());
-	device = instance->createOrGetDevice(surface);
+	surface = sdlWindow->createVkSurface(MainRenderer::get().getVulkanInstance().getVkbInstance());
+	device = MainRenderer::get().getVulkanInstance().createOrGetDevice(surface);
 
 	// initialize frames
 	frames.init(device);
-	
+
 	// set up swapchain and subrenderer
 	windowSize = sdlWindow->getSize();
 	swapchain.init(device, surface, windowSize);
 	createRenderPass();
 	swapchain.createFramebuffers(renderPass);
-	
+
 	// subrenderers
 	rmlRenderer.init(device, renderPass);
 	viewportRenderer.init(device, renderPass);
-	
+
 	// start render loop
 	running = true;
 	renderThread = std::thread(&WindowRenderer::renderLoop, this);
@@ -63,7 +63,7 @@ void WindowRenderer::renderLoop() {
 
 		// wait for frame completion
 		frames.waitForCurrentFrameCompletion();
-		
+
 		// recreate swapchain if needed
 		if (swapchainRecreationNeeded) {
 			recreateSwapchain();
@@ -77,14 +77,14 @@ void WindowRenderer::renderLoop() {
 		if (imageGetResult == VK_ERROR_OUT_OF_DATE_KHR || imageGetResult == VK_SUBOPTIMAL_KHR) {
 			// if the swapchain is not ideal, try again but recreate it this time (this happens in normal operation)
 			swapchainRecreationNeeded = true;
-			
+
 			if (imageGetResult == VK_ERROR_OUT_OF_DATE_KHR) continue;
 		} else if (imageGetResult != VK_SUCCESS) {
 			// if the error was even worse (one could say exceptional), we log an error and pray
 			logError("failed to acquire swap chain image!");
 			continue;
 		}
-		
+
 		// tell frame that it has started
 		frames.startCurrentFrame();
 
@@ -102,7 +102,7 @@ void WindowRenderer::renderLoop() {
 		submitInfo.waitSemaphoreCount = 1;
 		submitInfo.pWaitSemaphores = waitSemaphores;
 		submitInfo.pWaitDstStageMask = waitStages;
-		
+
 		// command buffers
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &frame.mainCommandBuffer;
@@ -115,9 +115,9 @@ void WindowRenderer::renderLoop() {
 		// submit to queue
 		if (device->submitGraphicsQueue(&submitInfo, frame.renderFence) != VK_SUCCESS){
 			logError("failed to submit draw command buffer!");
-			
+
 		}
-		
+
 		// start setting up present submission =====================================================
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -150,7 +150,7 @@ void WindowRenderer::renderLoop() {
 void WindowRenderer::renderToCommandBuffer(Frame& frame, uint32_t imageIndex) {
 	// preparation
 	VkExtent2D windowSize = swapchain.getSwapchain().extent;
-	
+
 	// start recording
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -168,7 +168,7 @@ void WindowRenderer::renderToCommandBuffer(Frame& frame, uint32_t imageIndex) {
 	renderPassInfo.renderArea.offset = {0, 0};
 	renderPassInfo.renderArea.extent = swapchain.getSwapchain().extent;
 	renderPassInfo.clearValueCount = 0;
-	
+
 	vkCmdBeginRenderPass(frame.mainCommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 	// do actual rendering...
@@ -178,7 +178,7 @@ void WindowRenderer::renderToCommandBuffer(Frame& frame, uint32_t imageIndex) {
 		for (ViewportRenderData* viewport : viewportRenderDatas) {
 			viewportRenderer.render(frame, viewport);
 		}
-		
+
 		// rml rendering
 		rmlRenderer.render(frame, windowSize);
 	}
@@ -226,7 +226,7 @@ void WindowRenderer::createRenderPass() {
 	renderPassInfo.pSubpasses = &subpass;
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
-	
+
 	if (vkCreateRenderPass(device->getDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create render pass!");
 	}
@@ -234,12 +234,12 @@ void WindowRenderer::createRenderPass() {
 
 void WindowRenderer::recreateSwapchain() {
 	device->waitIdle();
-	
+
 	std::lock_guard<std::mutex> lock(windowSizeMux);
 
 	swapchain.recreate(surface, windowSize);
 	swapchain.createFramebuffers(renderPass);
-	
+
 	swapchainRecreationNeeded = false;
 }
 

@@ -1,7 +1,6 @@
 #ifndef tensorConnectTool_h
 #define tensorConnectTool_h
 
-#include "backend/selection.h"
 #include "../selectionHelpers/selectionHelperTool.h"
 
 class TensorConnectTool : public CircuitToolHelper {

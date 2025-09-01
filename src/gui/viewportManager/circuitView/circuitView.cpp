@@ -5,7 +5,7 @@
 
 #include "gpu/mainRenderer.h"
 
-CircuitView::CircuitView(ViewportId viewportId) : viewportId(viewportId), toolManager(&eventRegister, viewportId, this) {
+CircuitView::CircuitView(Environment* environment, ViewportId viewportId) : viewportId(viewportId), toolManager(environment , &eventRegister, viewportId, this) {
 	MainRenderer::get().moveViewportView(viewportId, viewManager.getTopLeft(), viewManager.getBottomRight());
 	viewManager.setUpEvents(eventRegister);
 	viewManager.connectViewChanged(std::bind(&CircuitView::viewChanged, this));

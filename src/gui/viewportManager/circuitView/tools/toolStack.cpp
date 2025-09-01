@@ -14,6 +14,7 @@ void ToolStack::activate() {
 			PositionEvent event("Stack Updating Position", lastPointerFPosition);
 			toolStack.back()->exitBlockView(&event);
 		}
+		toolStack.back()->setEnvironment(environment);
 		toolStack.back()->activate();
 	}
 }
@@ -84,7 +85,10 @@ void ToolStack::pushTool(SharedCircuitTool newTool, bool resetTool) {
 		PositionEvent event("Stack Updating Position", lastPointerFPosition);
 		toolStack.back()->exitBlockView(&event);
 	}
-	if (isActive) toolStack.back()->activate();
+	if (isActive) {
+		toolStack.back()->setEnvironment(environment);
+		toolStack.back()->activate();
+	}
 }
 
 void ToolStack::popTool() {
@@ -100,7 +104,10 @@ void ToolStack::popTool() {
 		PositionEvent event("Stack Updating Position", lastPointerFPosition);
 		toolStack.back()->exitBlockView(&event);
 	}
-	if (isActive) toolStack.back()->activate();
+	if (isActive) {
+		toolStack.back()->setEnvironment(environment);
+		toolStack.back()->activate();
+	}
 }
 
 void ToolStack::clearTools() {
@@ -123,7 +130,10 @@ void ToolStack::popAbove(CircuitTool* toolNotToPop) {
 		PositionEvent event("Stack Updating Position", lastPointerFPosition);
 		toolStack.back()->exitBlockView(&event);
 	}
-	if (isActive) toolStack.back()->activate();
+	if (isActive) {
+		toolStack.back()->setEnvironment(environment);
+		toolStack.back()->activate();
+	}
 }
 
 void ToolStack::switchToStack(int stack) {
@@ -164,7 +174,7 @@ void ToolStack::verifyNoEdits() {
 		for (SharedCircuitTool tool : toolStack) {
 			if (tool->canMakeEdits()) {
 				clearTools();
-				return; 
+				return;
 			}
 		}
 	}

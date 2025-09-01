@@ -1,5 +1,5 @@
 #include "singlePlaceTool.h"
-#include "gpu/mainRenderer.h"
+#include "environment/environment.h"
 
 void SinglePlaceTool::activate() {
 	BaseBlockPlacementTool::activate();
@@ -135,7 +135,7 @@ void SinglePlaceTool::updateElements() {
 		Size size = circuit->getBlockContainer()->getBlockDataManager()->getBlockSize(selectedBlock, orientation);
 		bool cantPlace = circuit->getBlockContainer()->checkCollision(lastPointerPosition, orientation, selectedBlock);
 		elementCreator.addSelectionElement(SelectionElement(lastPointerPosition, lastPointerPosition + size.getLargestVectorInArea(), cantPlace));
-		elementCreator.addBlockPreview(BlockPreview(selectedBlock, lastPointerPosition, orientation));
+		elementCreator.addBlockPreview(BlockPreview(environment->getBlockRenderDataFeeder().getBlockRenderDataId(selectedBlock), lastPointerPosition, orientation));
 	} else {
 		elementCreator.addSelectionElement(SelectionElement(lastPointerPosition, true));
 	}

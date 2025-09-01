@@ -2,7 +2,6 @@
 #define pasteTool_h
 
 #include "../circuitTool.h"
-#include "backend/circuit/parsedCircuit.h"
 
 class Backend;
 
@@ -29,4 +28,4 @@ private:
 	bool validatePlacement() const;
 };
 
-#endif /* pasteTool_h */ 
+#endif /* pasteTool_h */

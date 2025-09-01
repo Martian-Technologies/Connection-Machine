@@ -1,7 +1,6 @@
 #ifndef elementRenderer_h
 #define elementRenderer_h
 
-#include "backend/container/block/blockDefs.h"
 #include "backend/position/position.h"
 #include "gpu/abstractions/vulkanPipeline.h"
 #include "gpu/renderer/frameManager.h"
@@ -22,7 +21,7 @@ struct BlockPreviewRenderData {
 	glm::vec2 position;
 	glm::vec2 size;
 	Orientation orientation;
-	BlockType type;
+	unsigned int textureIndex;
 };
 
 struct BoxSelectionPushConstant {
@@ -79,7 +78,7 @@ public:
 	void renderBoxSelections(Frame& frame, const glm::mat4& viewMatrix, const std::vector<BoxSelectionRenderData>& boxSelections);
 
 	void renderConnectionPreviews(Frame& frame, const glm::mat4& viewMatrix, const std::vector<ConnectionPreviewRenderData>& connectionPreviews);
-	
+
 	void renderArrows(Frame& frame, const glm::mat4& viewMatrix, const std::vector<ArrowRenderData>& arrows);
 
 private:

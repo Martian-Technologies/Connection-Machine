@@ -13,7 +13,7 @@
 
 class WindowRenderer {
 public:
-	WindowRenderer(SdlWindow* sdlWindow, VulkanInstance* instance);
+	WindowRenderer(SdlWindow* sdlWindow);
 	~WindowRenderer();
 
 	// no copy

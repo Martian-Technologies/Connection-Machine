@@ -5,7 +5,6 @@
 #include <VkBootstrap.h>
 #include <vk_mem_alloc.h>
 
-class VulkanInstance;
 class BlockTextureManager;
 
 struct QueueInfo {
@@ -15,7 +14,7 @@ struct QueueInfo {
 
 class VulkanDevice {
 public:
-	VulkanDevice(VulkanInstance* instance, VkSurfaceKHR surfaceForPresenting);
+	VulkanDevice(VkSurfaceKHR surfaceForPresenting);
 	~VulkanDevice();
 
 	// queue submission functions
@@ -31,17 +30,16 @@ public:
 	inline VmaAllocator getAllocator() { return vmaAllocator; }
 
 	inline BlockTextureManager* getBlockTextureManager() { return blockTextureManager.get(); }
-	
+
 private:
 	void createAllocator();
 	void initializeImmediateSubmission();
-	
+
 private:
 	// Device details
 	VkPhysicalDevice physicalDevice;
 	vkb::Device device;
 	VmaAllocator vmaAllocator;
-	VulkanInstance* instance;
 
 	// Queues
 	QueueInfo graphicsQueue;

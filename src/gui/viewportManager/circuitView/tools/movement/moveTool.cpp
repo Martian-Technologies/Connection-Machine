@@ -2,6 +2,7 @@
 
 #include "../selectionHelpers/tensorCreationTool.h"
 #include "../selectionHelpers/areaCreationTool.h"
+#include "environment/environment.h"
 
 void MoveTool::reset() {
 	CircuitTool::reset();
@@ -106,7 +107,7 @@ void MoveTool::updateElements() {
 			if (blocksSet.contains(block)) continue;
 			blocksSet.insert(block);
 			blocks.emplace_back(
-				block->type(),
+				environment->getBlockRenderDataFeeder().getBlockRenderDataId(block->type()),
 				lastPointerPosition + transformAmount * (block->getPosition() - selectionOrigin) - transformAmount.transformVectorWithArea(Vector(0), block->size()),
 				transformAmount * block->getOrientation()
 			);

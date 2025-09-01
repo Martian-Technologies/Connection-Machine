@@ -11,6 +11,8 @@
 #include "gui/helper/keybindHelpers.h"
 #include "gui/helper/eventPasser.h"
 
+#include "environment/environment.h"
+
 void LoadCallback(void* userData, const char* const* filePaths, int filter) {
 	CircuitViewWidget* circuitViewWidget = (CircuitViewWidget*)userData;
 	if (filePaths && filePaths[0]) {
@@ -35,15 +37,21 @@ void LoadCallback(void* userData, const char* const* filePaths, int filter) {
 	}
 }
 
-CircuitViewWidget::CircuitViewWidget(CircuitFileManager* fileManager, Rml::ElementDocument* document, MainWindow* mainWindow, WindowId windowId, Rml::Element* element) : fileManager(fileManager), document(document), mainWindow(mainWindow), windowId(windowId), element(element) {
+CircuitViewWidget::CircuitViewWidget(
+	Environment* environment,
+	Rml::ElementDocument* document,
+	MainWindow* mainWindow,
+	WindowId windowId,
+	Rml::Element* element) :
+	fileManager(&environment->getCircuitFileManager()), document(document), mainWindow(mainWindow), windowId(windowId), element(element) {
 	// create circuitView
 	int w = this->element->GetClientWidth();
 	int h = this->element->GetClientHeight();
 	int x = this->element->GetAbsoluteLeft() + this->element->GetClientLeft();
 	int y = this->element->GetAbsoluteTop() + this->element->GetClientTop();
 	viewportId = MainRenderer::get().registerViewport(windowId, {x, y}, {w, h}, element);
-	circuitView = std::make_unique<CircuitView>(viewportId);
-	
+	circuitView = std::make_unique<CircuitView>(environment, viewportId);
+
 	circuitView->getEventRegister().registerFunction("status bar changed", [this](const Event* event) -> bool {
 		auto eventData = event->cast2<std::string>();
 		if (eventData) setStatusBar(eventData->get());
@@ -57,7 +65,7 @@ CircuitViewWidget::CircuitViewWidget(CircuitFileManager* fileManager, Rml::Eleme
 	// set initial view
 	element->AddEventListener(Rml::EventId::Resize, new EventPasser([this](Rml::Event&){handleResize();}));
 	handleResize();
-	
+
 	// create keybind shortcuts and connect them
 	document->AddEventListener(Rml::EventId::Keydown, &keybindHandler);
 	keybindHandler.addListener(
@@ -184,7 +192,7 @@ CircuitViewWidget::CircuitViewWidget(CircuitFileManager* fileManager, Rml::Eleme
 			}
 		}
 	));
-	
+
 	element->AddEventListener("pinch", new EventPasser(
 		[this](Rml::Event& event) {
 			float delta = event.GetParameter<float>("delta", 0);

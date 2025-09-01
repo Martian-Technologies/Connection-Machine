@@ -43,6 +43,7 @@ void CircuitTool::setStatusBar(const std::string& text) {
 }
 
 void CircuitTool::activate() {
+	assert(environment); // it should have been set
 	setStatusBar("");
 	registerFunction("pointer enter view", std::bind(&CircuitTool::enterBlockView, this, std::placeholders::_1));
 	registerFunction("pointer exit view", std::bind(&CircuitTool::exitBlockView, this, std::placeholders::_1));

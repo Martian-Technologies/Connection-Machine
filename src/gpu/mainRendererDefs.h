@@ -2,8 +2,8 @@
 #define mainRendererDefs_h
 
 #include "backend/position/position.h"
-#include "backend/container/block/blockDefs.h"
 #include "backend/selection.h"
+#include "gpu/blockRenderDataManager.h"
 
 // Types
 typedef uint32_t WindowId;
@@ -39,16 +39,16 @@ struct SelectionObjectElement {
 
 struct BlockPreview {
 	struct Block {
-		Block(BlockType type, Position position, Orientation orientation)
-		: type(type), position(position), orientation(orientation) { }
-		BlockType type;
+		Block(BlockRenderDataId blockRenderDataId, Position position, Orientation orientation)
+		: blockRenderDataId(blockRenderDataId), position(position), orientation(orientation) { }
+		BlockRenderDataId blockRenderDataId;
 		Position position;
 		Orientation orientation;
 	};
 
 	BlockPreview() = default;
-	BlockPreview(BlockType type, Position position, Orientation orientation)
-		: blocks({BlockPreview::Block(type, position, orientation)}) { }
+	BlockPreview(BlockRenderDataId blockRenderDataId, Position position, Orientation orientation)
+		: blocks({BlockPreview::Block(blockRenderDataId, position, orientation)}) { }
 	BlockPreview(std::vector<Block>&& blocks) : blocks(std::move(blocks)) {}
 
 	std::vector<Block> blocks;

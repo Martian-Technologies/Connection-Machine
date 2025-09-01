@@ -14,7 +14,7 @@ class MainWindow;
 
 class CircuitViewWidget {
 public:
-	CircuitViewWidget(CircuitFileManager* fileManager, Rml::ElementDocument* document, MainWindow* mainWindow, WindowId windowId, Rml::Element* element);
+	CircuitViewWidget(Environment* environment, Rml::ElementDocument* document, MainWindow* mainWindow, WindowId windowId, Rml::Element* element);
 	~CircuitViewWidget() { element->RemoveEventListener("keydown", &keybindHandler); }
 
 	// setup

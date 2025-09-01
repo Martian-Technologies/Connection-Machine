@@ -20,6 +20,12 @@ public:
 	static MainRenderer& get();
 	static void kill();
 
+	// getters for internal objects
+	const VulkanInstance& getVulkanInstance() const { return vulkanInstance; }
+	VulkanInstance& getVulkanInstance() { return vulkanInstance; }
+	const BlockRenderDataManager& getBlockRenderDataManager() const { return blockRenderDataManager; }
+	BlockRenderDataManager& getBlockRenderDataManager() { return blockRenderDataManager; }
+
 	// Windows ==================================================================================================================================
 	WindowId registerWindow(SdlWindow* window);
 	void resizeWindow(WindowId windowId, glm::vec2 size);
@@ -100,5 +106,6 @@ private:
 	std::map<ViewportId, ViewportRenderData> viewportRenderers;
 	BlockRenderDataManager blockRenderDataManager;
 };
+
 
 #endif /* mainRenderer_h */

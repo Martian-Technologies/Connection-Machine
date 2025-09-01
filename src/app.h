@@ -1,7 +1,7 @@
 #ifndef app_h
 #define app_h
 
-#include "environment.h"
+#include "environment/environment.h"
 #include "gui/mainWindow/mainWindow.h"
 #include "gui/rml/rmlInstance.h"
 #include "gui/rml/rmlRenderInterface.h"

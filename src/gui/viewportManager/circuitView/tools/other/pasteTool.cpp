@@ -2,7 +2,7 @@
 
 #include "../../circuitView.h"
 #include "backend/backend.h"
-
+#include "environment/environment.h"
 
 void PasteTool::activate() {
 	CircuitTool::activate();
@@ -53,7 +53,7 @@ void PasteTool::updateElements() {
 		blocks.reserve(copiedBlocks->getCopiedBlocks().size());
 		for (const CopiedBlocks::CopiedBlockData& block : copiedBlocks->getCopiedBlocks()) {
 			blocks.emplace_back(
-				block.blockType,
+				environment->getBlockRenderDataFeeder().getBlockRenderDataId(block.blockType),
 				lastPointerPosition + transformAmount * (block.position - copiedBlocks->getMinPosition()) - transformAmount.transformVectorWithArea(Vector(0), circuit->getBlockContainer()->getBlockDataManager()->getBlockSize(block.blockType, block.orientation)),
 				transformAmount * block.orientation
 			);

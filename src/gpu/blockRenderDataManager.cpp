@@ -2,6 +2,15 @@
 
 #include "util/algorithm.h"
 
+const BlockRenderDataManager::BlockRenderData* BlockRenderDataManager::getBlockRenderData(BlockRenderDataId blockRenderDataId) {
+	auto iter = blockRenderData.find(blockRenderDataId);
+	if (iter == blockRenderData.end()) {
+		logError("Failed to get BlockRenderData with BlockRenderDataId {}.", "BlockRenderDataManager", blockRenderDataId);
+		return nullptr;
+	}
+	return &(iter->second);
+}
+
 BlockRenderDataId BlockRenderDataManager::addBlockRenderData() {
 	BlockRenderDataId newBlockRenderDataId = findUnusedKey<BlockRenderDataId>(blockRenderData, 1);
 	blockRenderData.try_emplace(newBlockRenderDataId);

@@ -1,7 +1,6 @@
 #ifndef areaMoveTool_h
 #define areaMoveTool_h
 
-#include "backend/selection.h"
 #include "selectionHelperTool.h"
 
 class AreaCreationTool : public SelectionHelperTool {

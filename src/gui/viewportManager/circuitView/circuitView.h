@@ -15,7 +15,7 @@ class Backend;
 class CircuitView {
 	friend class Backend;
 public:
-	CircuitView(ViewportId viewportId);
+	CircuitView(Environment* environment, ViewportId viewportId);
 
 	// --------------- Gettters ---------------
 

@@ -233,13 +233,8 @@ void BlockCreationWindow::resetMenu() {
 		connection_end_id_t endId = iter.first;
 		bool isInputBool = iter.second.second;
 		Vector positionOnBlock = iter.second.first;
-		const std::string* connectionNamePtr = blockData->getConnectionIdToName(endId);
-		std::string connectionName;
-		if (connectionNamePtr) {
-			connectionName = *connectionNamePtr;
-		} else {
-			connectionName = "";
-		}
+		std::optional<std::string> connectionName = blockData->getConnectionIdToName(endId);
+		if (!connectionName) connectionName = "";
 		const Position* positionPtr = circuitBlockData->getConnectionIdToPosition(endId);
 		Rml::ElementPtr row = document->CreateElement("div");
 		// name
@@ -249,7 +244,7 @@ void BlockCreationWindow::resetMenu() {
 		nameAttributes["size"] = "7";
 		Rml::ElementPtr name = Rml::Factory::InstanceElement(document, "input", "input", nameAttributes);
 		Rml::ElementFormControlInput* nameElement = rmlui_dynamic_cast<Rml::ElementFormControlInput*>(name.get());
-		nameElement->SetValue(connectionName);
+		nameElement->SetValue(*connectionName);
 		// positionOnBlock
 		Rml::XMLAttributes positionOnBlockAttributes;
 		positionOnBlockAttributes["type"] = "text";

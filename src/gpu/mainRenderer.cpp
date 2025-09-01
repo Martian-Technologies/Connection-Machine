@@ -12,7 +12,7 @@ void MainRenderer::kill() {
 }
 
 WindowId MainRenderer::registerWindow(SdlWindow* sdlWindow) {
-	auto pair = windowRenderers.try_emplace(getNewWindowId(), sdlWindow, &vulkanInstance);
+	auto pair = windowRenderers.try_emplace(getNewWindowId(), sdlWindow);
 	return lastWindowId;
 }
 

@@ -21,6 +21,8 @@ public:
 		std::map<BlockPortRenderDataId, BlockPortRenderData> blockPortRenderData;
 	};
 
+	const BlockRenderData* getBlockRenderData(BlockRenderDataId blockRenderDataId);
+
 	BlockRenderDataId addBlockRenderData();
 	void removeBlockRenderData(BlockRenderDataId blockRenderDataId);
 	void setBlockName(BlockRenderDataId blockRenderDataId, const std::string& blockName);

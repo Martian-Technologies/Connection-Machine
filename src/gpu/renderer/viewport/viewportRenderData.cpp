@@ -6,6 +6,7 @@
 
 #include "backend/selection.h"
 #include "gpu/renderer/viewport/elements/elementRenderer.h"
+#include "gpu/mainRenderer.h"
 
 ViewportRenderData::ViewportRenderData(VulkanDevice* device, Rml::Element* element) : element(element), chunker(device) {}
 
@@ -187,15 +188,16 @@ ElementId ViewportRenderData::addBlockPreview(BlockPreview&& blockPreview) {
 	ElementId newElement = ++currentElementId;
 
 	blockPreviews.reserve(blockPreviews.size() + blockPreview.blocks.size());
-		
+
 	for (const BlockPreview::Block& block : blockPreview.blocks) {
 		BlockPreviewRenderData newPreview;
 		newPreview.position = glm::vec2(block.position.x, block.position.y);
 		newPreview.orientation = block.orientation;
-		Size size(1);
-		// if (circuit) size = circuit->getBlockContainer()->getBlockDataManager()->getBlockSize(block.type, block.orientation);
+		const BlockRenderDataManager::BlockRenderData* blockRenderData = MainRenderer::get().getBlockRenderDataManager().getBlockRenderData(block.blockRenderDataId);
+		if (!blockRenderData) continue;
+		Size size = block.orientation * blockRenderData->size;
 		newPreview.size = glm::vec2(size.w, size.h);
-		newPreview.type = block.type;
+		newPreview.textureIndex = blockRenderData->textureIndex;
 
 		// insert new block preview into map
 		blockPreviews.emplace(newElement, newPreview);

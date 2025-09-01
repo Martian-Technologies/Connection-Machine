@@ -13,7 +13,7 @@
 
 #include "settingsWindow/settingsWindow.h"
 #include "computerAPI/directoryManager.h"
-#include "environment.h"
+#include "environment/environment.h"
 
 MainWindow::MainWindow(Environment* environment) :
 	sdlWindow("Connection Machine"), environment(environment), toolManagerManager(environment->getBackend().getDataUpdateEventManager()) {
@@ -164,7 +164,7 @@ void MainWindow::updateRml() {
 }
 
 void MainWindow::createCircuitViewWidget(Rml::Element* element) {
-	circuitViewWidgets.push_back(std::make_shared<CircuitViewWidget>(&environment->getCircuitFileManager(), rmlDocument, this, windowId, element));
+	circuitViewWidgets.push_back(std::make_shared<CircuitViewWidget>(environment, rmlDocument, this, windowId, element));
 	circuitViewWidgets.back()->getCircuitView()->setBackend(&environment->getBackend());
 	toolManagerManager.addCircuitView(circuitViewWidgets.back()->getCircuitView());
 	activeCircuitViewWidget = circuitViewWidgets.back(); // if it is created, it should be used

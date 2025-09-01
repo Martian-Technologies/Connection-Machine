@@ -6,14 +6,17 @@
 #include "toolStackInterface.h"
 #include "../events/eventRegister.h"
 
+class Environment;
 class CircuitView;
 class ToolStack;
+
 typedef std::function<bool(const Event* event)> EventFunction;
 typedef unsigned long long EventRegistrationSignature;
 
 class CircuitTool {
 	friend class ToolStack;
 public:
+	void setEnvironment(const Environment* environment) { this->environment = environment; }
 	virtual ~CircuitTool() { unregisterFunctions(); }
 	bool isHelper() const { return helper; }
 	inline virtual std::vector<std::string> getModes() const { return {}; }
@@ -48,6 +51,7 @@ protected:
 	CircuitView* circuitView;
 	ElementCreator elementCreator;
 	ToolStackInterface* toolStackInterface;
+	const Environment* environment;
 
 private:
 	// This will also tell the tool to reset.

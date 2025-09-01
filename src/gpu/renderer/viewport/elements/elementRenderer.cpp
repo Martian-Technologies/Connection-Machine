@@ -112,7 +112,7 @@ void ElementRenderer::renderBlockPreviews(Frame& frame, const glm::mat4& viewMat
 			blockPreviewConstant.position = preview.position;
 			blockPreviewConstant.size = preview.size;
 			blockPreviewConstant.orientation = preview.orientation.rotation + 4 * preview.orientation.flipped;
-			blockPreviewConstant.uvOffsetX = device->getBlockTextureManager()->getTileset().getTopLeftUV(preview.type + 1 + (preview.type >= BlockType::CUSTOM), 0).x;
+			blockPreviewConstant.uvOffsetX = device->getBlockTextureManager()->getTileset().getTopLeftUV(preview.textureIndex, 0).x;
 
 			blockPreviewPipeline.cmdPushConstants(frame.mainCommandBuffer, &blockPreviewConstant);
 			vkCmdDraw(frame.mainCommandBuffer, 6, 1, 0, 0);
