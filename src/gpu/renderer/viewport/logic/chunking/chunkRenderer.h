@@ -4,8 +4,6 @@
 #include "backend/evaluator/evaluator.h"
 #include "gpu/renderer/frameManager.h"
 #include "gpu/abstractions/vulkanPipeline.h"
-#include "gpu/abstractions/vulkanDescriptor.h"
-#include "gpu/renderer/viewport/blockTextureManager.h"
 #include "vulkanChunker.h"
 
 struct ChunkPushConstants {
@@ -18,13 +16,13 @@ class ChunkRenderer {
 public:
 	void init(VulkanDevice* device, VkRenderPass& renderPass);
 	void cleanup();
-	
+
 	void render(Frame& frame, const glm::mat4& viewMatrix, Evaluator* evaluator, const Address& address, const std::vector<std::shared_ptr<VulkanChunkAllocation>>& chunks);
 
 private:
 	Pipeline blockPipeline;
 	Pipeline wirePipeline;
-	
+
 	// state buffer descriptor layout
 	VkDescriptorSetLayout stateBufferDescriptorSetLayout;
 

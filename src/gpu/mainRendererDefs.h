@@ -1,7 +1,6 @@
 #ifndef mainRendererDefs_h
 #define mainRendererDefs_h
 
-#include "backend/position/position.h"
 #include "backend/selection.h"
 #include "gpu/blockRenderDataManager.h"
 
