@@ -544,9 +544,7 @@ std::optional<EvalConnectionPoint> Evaluator::getConnectionPoint(
 		return std::nullopt;
 	}
 
-	if (isInterCircuit) {
-		circuitPortDependencies.insert({ circuitId, portId.value() });
-	}
+	circuitPortDependencies.insert({ circuitId, portId.value() });
 	return getConnectionPoint(node->getId(), *internalPosition, direction, circuitPortDependencies, circuitNodeDependencies, true);
 }
 
