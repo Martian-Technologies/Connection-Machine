@@ -42,7 +42,7 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 				if (blockType == BlockType::TRISTATE_BUFFER) statePosition = position + orientation.transformVectorWithArea(Vector(0, 1), Size(1, 2));
 				else statePosition = position;
 			}
-			MainRenderer::get().addBlock(viewportId, blockType, position, blockDataManager->getBlockSize(blockType, orientation), orientation, statePosition);
+			MainRenderer::get().addBlock(viewportId, blockType, position, orientation, statePosition);
 			renderedBlocks.emplace(position, RenderedBlock(blockType, orientation));
 			break;
 		}
@@ -137,7 +137,7 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 			iter->second.orientation = newOrientation;
 
 			// MOVE BLOCK
-			MainRenderer::get().moveBlock(viewportId, curPosition, newPosition, newOrientation, blockDataManager->getBlockSize(iter->second.type, newOrientation));
+			MainRenderer::get().moveBlock(viewportId, curPosition, newPosition, newOrientation);
 
 			Size blockSize = blockDataManager->getBlockSize(iter->second.type, curOrientation);
 			Orientation transformAmount = newOrientation.relativeTo(curOrientation);

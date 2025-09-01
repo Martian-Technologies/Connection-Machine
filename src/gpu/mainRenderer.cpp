@@ -227,13 +227,13 @@ void MainRenderer::stopMakingEdits(ViewportId viewportId) {
 	iter->second.getChunker().stopMakingEdits();
 }
 
-void MainRenderer::addBlock(ViewportId viewportId, BlockType type, Position position, Size size, Orientation orientation, Position statePosition) {
+void MainRenderer::addBlock(ViewportId viewportId, BlockRenderDataId blockRenderDataId, Position position, Orientation orientation, Position statePosition) {
 	auto iter = viewportRenderers.find(viewportId);
 	if (iter == viewportRenderers.end()) {
 		logError("Failed to call startMakingEdits on non existent viewport {}", "MainRenderer", viewportId);
 		return;
 	}
-	iter->second.getChunker().addBlock(type, position, size, orientation, statePosition);
+	iter->second.getChunker().addBlock(blockRenderDataId, position, orientation, statePosition);
 }
 
 void MainRenderer::removeBlock(ViewportId viewportId, Position position) {
@@ -245,13 +245,13 @@ void MainRenderer::removeBlock(ViewportId viewportId, Position position) {
 	iter->second.getChunker().removeBlock(position);
 }
 
-void MainRenderer::moveBlock(ViewportId viewportId, Position curPos, Position newPos, Orientation newOrientation, Size newSize) {
+void MainRenderer::moveBlock(ViewportId viewportId, Position curPos, Position newPos, Orientation newOrientation) {
 	auto iter = viewportRenderers.find(viewportId);
 	if (iter == viewportRenderers.end()) {
 		logError("Failed to call moveBlock on non existent viewport {}", "MainRenderer", viewportId);
 		return;
 	}
-	iter->second.getChunker().moveBlock(curPos, newPos, newOrientation, newSize);
+	iter->second.getChunker().moveBlock(curPos, newPos, newOrientation);
 }
 
 void MainRenderer::addWire(ViewportId viewportId, std::pair<Position, Position> points, std::pair<FVector, FVector> socketOffsets) {

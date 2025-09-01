@@ -8,6 +8,9 @@
 #include "backend/position/position.h"
 #include "logging/logging.h"
 
+#include "gpu/renderer/viewport/blockTextureManager.h"
+#include "gpu/mainRenderer.h"
+
 const int CHUNK_SIZE = 64;
 coordinate_t getChunk(coordinate_t in) {
 	return std::floor((float)in / (float)CHUNK_SIZE) * (int)CHUNK_SIZE;
@@ -17,8 +20,6 @@ Position getChunk(Position in) {
 	in.y = getChunk(in.y);
 	return in;
 }
-
-#include "gpu/renderer/viewport/blockTextureManager.h"
 
 // VulkanChunkAllocation
 // =========================================================================================================
@@ -32,14 +33,14 @@ VulkanChunkAllocation::VulkanChunkAllocation(VulkanDevice* device,const Rendered
 
 	std::vector<Position> positions;
 	std::vector<size_t> indexes;
-	
+
 	// Generate block instances
 	if (blocks.size() > 0) {
 		std::vector<BlockInstance> blockInstances;
 		blockInstances.reserve(blocks.size());
 		for (const auto& block : blocks) {
 			Position blockPosition = block.first;
-			Vec2 uvOrigin = device->getBlockTextureManager()->getTileset().getTopLeftUV(block.second.blockType + 1 + (block.second.blockType >= BlockType::CUSTOM), 0);
+			Vec2 uvOrigin = device->getBlockTextureManager()->getTileset().getTopLeftUV(block.second.textureIndex, 0);
 
 			BlockInstance instance;
 			instance.pos = glm::vec2(blockPosition.x, blockPosition.y);
@@ -208,10 +209,11 @@ void VulkanChunker::stopMakingEdits() {
 	mux.unlock();
 }
 
-void VulkanChunker::addBlock(BlockType type, Position position, Size size, Orientation orientation, Position statePosition) {
+void VulkanChunker::addBlock(BlockRenderDataId blockRenderDataId, Position position, Orientation orientation, Position statePosition) {
 	Position chunkPos = getChunk(position);
 	auto iter = chunks.find(chunkPos);
-	chunks[chunkPos].getRenderedBlocks().emplace(position, RenderedBlock(type, orientation, size.free(), statePosition));
+	const BlockRenderDataManager::BlockRenderData* blockRenderData = MainRenderer::get().getBlockRenderDataManager().getBlockRenderData(blockRenderDataId);
+	chunks[chunkPos].getRenderedBlocks().emplace(position, RenderedBlock(blockRenderData->textureIndex, orientation, (orientation * blockRenderData->size).free(), statePosition));
 	chunksToUpdate.insert(chunkPos);
 }
 
@@ -224,11 +226,11 @@ void VulkanChunker::removeBlock(Position position) {
 	}
 }
 
-void VulkanChunker::moveBlock(Position curPos, Position newPos, Orientation newOrientation, Size newSize) {
+void VulkanChunker::moveBlock(Position curPos, Position newPos, Orientation newOrientation) {
 	Position curChunkPos = getChunk(curPos);
 	Position newChunkPos = getChunk(newPos);
 
-	
+
 	auto curChunkIter = chunks.find(curChunkPos);
 	if (curChunkIter == chunks.end()) {
 		logError("Cound not find chunk {} to move block at {}", "VulkanChunker", curChunkPos, curPos);
@@ -237,9 +239,10 @@ void VulkanChunker::moveBlock(Position curPos, Position newPos, Orientation newO
 	auto blockIter = curChunkIter->second.getRenderedBlocks().find(curPos);
 	if (blockIter != curChunkIter->second.getRenderedBlocks().end()) {
 		RenderedBlock block = blockIter->second;
-		block.statePosition = newPos + newOrientation.relativeTo(block.orientation).transformVectorWithArea(block.statePosition - curPos, block.size.snap());
+		Orientation transformAmount = newOrientation.relativeTo(block.orientation);
+		block.statePosition = newPos + transformAmount.transformVectorWithArea(block.statePosition - curPos, block.size.snap());
 		block.orientation = newOrientation;
-		block.size = newSize.free();
+		block.size = transformAmount * block.size;
 		curChunkIter->second.getRenderedBlocks().erase(blockIter);
 		chunksToUpdate.insert(curChunkPos);
 
@@ -484,7 +487,7 @@ std::vector<ChunkIntersection> VulkanChunker::getNeededChunkIntersections(FPosit
 		}
 
 		// add point at current distance
-		
+
 		doAdd++;
 		if (currentDistance >= distance || doAdd == 3) {
 			doAdd = 0;

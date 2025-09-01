@@ -71,9 +71,9 @@ public:
 	// block and wires
 	void startMakingEdits(ViewportId viewportId);
 	void stopMakingEdits(ViewportId viewportId);
-	void addBlock(ViewportId viewportId, BlockType type, Position position, Size size, Orientation orientation, Position statePosition);
+	void addBlock(ViewportId viewportId, BlockRenderDataId blockRenderDataId, Position position, Orientation orientation, Position statePosition);
 	void removeBlock(ViewportId viewportId, Position position);
-	void moveBlock(ViewportId viewportId, Position curPos, Position newPos, Orientation newOrientation, Size newSize);
+	void moveBlock(ViewportId viewportId, Position curPos, Position newPos, Orientation newOrientation);
 	void addWire(ViewportId viewportId, std::pair<Position, Position> points, std::pair<FVector, FVector> socketOffsets);
 	void removeWire(ViewportId viewportId, std::pair<Position, Position> points);
 	void resetCircuit(ViewportId viewportId);

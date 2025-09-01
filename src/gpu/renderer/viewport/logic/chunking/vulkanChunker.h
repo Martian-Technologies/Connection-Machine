@@ -11,7 +11,9 @@
 #include "backend/address.h"
 #include "backend/position/position.h"
 #include "gpu/abstractions/vulkanBuffer.h"
+#include "gpu/blockRenderDataManager.h"
 #include "gpu/helper/nBuffer.h"
+
 class SimulatorMappingUpdate;
 
 // ====================================================================================================================
@@ -85,7 +87,7 @@ struct WireInstance {
 		attributeDescriptions[1].location = 1;
 		attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
 		attributeDescriptions[1].offset = offsetof(WireInstance, pointB);
-		
+
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;
 		attributeDescriptions[2].format = VK_FORMAT_R32_UINT;
@@ -97,7 +99,7 @@ struct WireInstance {
 
 // ====================================================================================================================
 struct RenderedBlock {
-	BlockType blockType;
+	unsigned int textureIndex;
 	Orientation orientation;
 	FSize size;
 	Position statePosition;
@@ -119,7 +121,7 @@ public:
 
 	inline const std::optional<AllocatedBuffer>& getBlockBuffer() const { return blockBuffer; }
 	inline uint32_t getNumBlockInstances() const { return numBlockInstances; }
-	
+
 	inline const std::optional<AllocatedBuffer>& getWireBuffer() const { return wireBuffer; }
 	inline uint32_t getNumWireInstances() const { return numWireInstances; }
 
@@ -130,7 +132,7 @@ public:
 	inline const phmap::flat_hash_map<Position, size_t>& getPortStateIndex() const { return portStateIndex; }
 
 	inline bool isAllocationComplete() const { return true; }
-	
+
 private:
 	std::optional<AllocatedBuffer> blockBuffer;
 	uint32_t numBlockInstances;
@@ -140,7 +142,7 @@ private:
 
 	std::optional<NBuffer> stateBuffer;
 	VkDescriptorBufferInfo stateDescriptorBufferInfo;
-	
+
 	std::vector<simulator_id_t> simulatorIds;
 	phmap::flat_hash_map<Position, size_t> blockStateIndex;
 	phmap::flat_hash_map<Position, size_t> portStateIndex;
@@ -153,12 +155,12 @@ public:
 	inline RenderedBlocks& getRenderedBlocks() { allocationDirty = true; return blocks; }
 	inline RenderedWires& getRenderedWires() { allocationDirty = true; return wires; }
 	void rebuildAllocation(VulkanDevice* device, const Evaluator* evaluator, const Address& address);
-	
+
 	std::optional<std::shared_ptr<VulkanChunkAllocation>> getAllocation();
-	
+
 private:
 	void annihilateOrphanGBs();
-	
+
 private:
 	RenderedBlocks blocks;
 	RenderedWires wires;
@@ -184,13 +186,13 @@ public:
 
 	void startMakingEdits();
 	void stopMakingEdits();
-	void addBlock(BlockType type, Position position, Size size, Orientation orientation, Position statePosition);
+	void addBlock(BlockRenderDataId blockRenderDataId, Position position, Orientation orientation, Position statePosition);
 	void removeBlock(Position position);
-	void moveBlock(Position curPos, Position newPos, Orientation newOrientation, Size newSize);
+	void moveBlock(Position curPos, Position newPos, Orientation newOrientation);
 	void addWire(std::pair<Position, Position> points, std::pair<FVector, FVector> socketOffsets);
-	void removeWire(std::pair<Position, Position> points);	
+	void removeWire(std::pair<Position, Position> points);
 	void reset();
-	
+
 	void updateSimulatorIds(const std::vector<SimulatorMappingUpdate>& simulatorMappingUpdates);
 	void setEvaluator(Evaluator* evaluator, const Address& address);
 
@@ -199,7 +201,7 @@ public:
 private:
 	std::vector<ChunkIntersection> getChunkIntersections(FPosition start, FPosition end);
 	std::vector<ChunkIntersection> getNeededChunkIntersections(FPosition start, FPosition end);
-	
+
 private:
 	phmap::flat_hash_map<Position, Chunk> chunks;
 	phmap::flat_hash_map<std::pair<Position, Position>, std::vector<Position>> chunksUnderWire;
