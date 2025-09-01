@@ -16,7 +16,7 @@ VulkanInstance::VulkanInstance() {
 
 	// Start creating vulkan instance
 	vkb::InstanceBuilder instanceBuilder(vkGetInstanceProcAddr);
-	
+
 	// Get Vulkan system information
 	auto systemInfoRet = vkb::SystemInfo::get_system_info(vkGetInstanceProcAddr);
 	if (!systemInfoRet) { throwFatalError("Could not fetch Vulkan system info. Error: " + systemInfoRet.error().message()); }
@@ -30,12 +30,12 @@ VulkanInstance::VulkanInstance() {
 		}
 	#endif
 #endif
-	
+
 	// Create Vulkan Instance
 	instanceBuilder.set_app_name("Gatality");
 	instanceBuilder.set_engine_name("Jack Jamison's Wacky-n-Wonderful Gatality Render-a-tron 3000 million!");
 	instanceBuilder.require_api_version(1,0,0);
-	auto instanceRet = instanceBuilder.build();	
+	auto instanceRet = instanceBuilder.build();
 	if (!instanceRet) { throwFatalError("Failed to create Vulkan instance. Error: " + instanceRet.error().message()); }
 	instance = instanceRet.value();
 
@@ -53,7 +53,7 @@ VulkanInstance::~VulkanInstance() {
 VulkanDevice* VulkanInstance::createOrGetDevice(VkSurfaceKHR surfaceForPresenting) {
 	// create device if one doesn't exist
 	if (!device.has_value()) {
-		device.emplace(this, surfaceForPresenting);
+		device.emplace(surfaceForPresenting);
 	}
 
 	return &device.value();

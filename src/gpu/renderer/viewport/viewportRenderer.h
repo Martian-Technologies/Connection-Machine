@@ -1,18 +1,18 @@
 #ifndef viewportRenderer_h
 #define viewportRenderer_h
 
-#include "elements/elementRenderer.h"
-#include "gpu/renderer/frameManager.h"
-#include "grid/gridRenderer.h"
 #include "logic/chunking/chunkRenderer.h"
-#include "viewportRenderInterface.h"
+#include "gpu/renderer/frameManager.h"
+#include "elements/elementRenderer.h"
+#include "viewportRenderData.h"
+#include "grid/gridRenderer.h"
 
 class ViewportRenderer {
 public:
 	void init(VulkanDevice* device, VkRenderPass renderPass);
 	void cleanup();
 
-	void render(Frame& frame, ViewportRenderInterface* viewport);
+	void render(Frame& frame, ViewportRenderData* viewport);
 
 private:
 	GridRenderer gridRenderer;

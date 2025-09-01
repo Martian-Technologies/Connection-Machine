@@ -713,7 +713,7 @@ void LogicSimulator::regenerateJobs() {
 	} else {
 		threadPool.resizeThreads(std::thread::hardware_concurrency() / 2);
 	}
-	logInfo("{} jobs created for the current round", "LogicSimulator::regenerateJobs", jobs.size());
+	// logInfo("{} jobs created for the current round", "LogicSimulator::regenerateJobs", jobs.size());
 }
 
 void LogicSimulator::execAND(void* jobInstruction) {

@@ -306,14 +306,10 @@ bool ConnectionMachineParser::save(const CircuitFileManager::FileData& fileData,
 					logError("Could not find position for connection: {}", "ConnectionMachineParser", pair.first);
 					id = 0;
 				}
-				const std::string* namePtr = blockData->getConnectionIdToName(pair.first);
-				std::string name;
-				if (namePtr) {
-					name = *namePtr;
-				} else {
-					name = "";
-				}
-				outputFile << "\t(" << (pair.second.second ? "IN, " : "OUT, ") << pair.first << ", " << id << ", " << pair.second.first.toString() << ", \"" << name << "\")\n";
+				std::optional<std::string> name = blockData->getConnectionIdToName(pair.first);
+				if (!name) name = "";
+
+				outputFile << "\t(" << (pair.second.second ? "IN, " : "OUT, ") << pair.first << ", " << id << ", " << pair.second.first.toString() << ", \"" << *name << "\")\n";
 			}
 		}
 

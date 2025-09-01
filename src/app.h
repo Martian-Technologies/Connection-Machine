@@ -1,16 +1,12 @@
 #ifndef app_h
 #define app_h
 
-#include "gpu/vulkanInstance.h"
+#include "environment/environment.h"
 #include "gui/mainWindow/mainWindow.h"
 #include "gui/rml/rmlInstance.h"
 #include "gui/rml/rmlRenderInterface.h"
 #include "gui/rml/rmlSystemInterface.h"
 #include "gui/sdl/sdlInstance.h"
-
-#include "backend/backend.h"
-#include "computerAPI/circuits/circuitFileManager.h"
-#include "computerAPI/fileListener/fileListener.h"
 
 class App {
 public:
@@ -19,14 +15,11 @@ public:
 	void runLoop();
 
 private:
-	Backend backend;
-	CircuitFileManager circuitFileManager;
-	FileListener fileListener;
+	Environment environment;
 
 	RmlRenderInterface rmlRenderInterface;
 	RmlSystemInterface rmlSystemInterface;
 
-	VulkanInstance vulkan;
 	SdlInstance sdl;
 	RmlInstance rml;
 

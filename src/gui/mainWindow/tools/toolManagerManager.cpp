@@ -2,13 +2,13 @@
 
 std::map<std::string, std::unique_ptr<ToolManagerManager::BaseToolTypeMaker>> ToolManagerManager::tools;
 
-#include "gui/viewPortManager/circuitView/tools/connection/connectionTool.h"
-#include "gui/viewPortManager/circuitView/tools/movement/moveTool.h"
-#include "gui/viewPortManager/circuitView/tools/placement/blockPlacementTool.h"
-#include "gui/viewPortManager/circuitView/tools/selection/selectionMakerTool.h"
-#include "gui/viewPortManager/circuitView/tools/other/pasteTool.h"
-#include "gui/viewPortManager/circuitView/tools/other/logicToucher.h"
-#include "gui/viewPortManager/circuitView/tools/other/modeChangerTool.h"
+#include "gui/viewportManager/circuitView/tools/connection/connectionTool.h"
+#include "gui/viewportManager/circuitView/tools/movement/moveTool.h"
+#include "gui/viewportManager/circuitView/tools/placement/blockPlacementTool.h"
+#include "gui/viewportManager/circuitView/tools/selection/selectionMakerTool.h"
+#include "gui/viewportManager/circuitView/tools/other/pasteTool.h"
+#include "gui/viewportManager/circuitView/tools/other/logicToucher.h"
+#include "gui/viewportManager/circuitView/tools/other/modeChangerTool.h"
 
 ToolManagerManager::ToolManagerManager(DataUpdateEventManager* dataUpdateEventManager) : dataUpdateEventManager(dataUpdateEventManager) {
 	ToolManagerManager::registerTool<ConnectionTool>();

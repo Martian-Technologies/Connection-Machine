@@ -1,5 +1,5 @@
 /*
-Nord Color Pallete: 
+Nord Color Pallete:
 #2e3440
 #3b4252
 #434c5e
@@ -28,7 +28,7 @@ Nord Color Pallete:
 	padding: 0.65rem 1rem;
 	border-bottom: 1dp #3a3a3a;
 }
-	
+
 .settings-search-wrapper {
 	display: flex;
 	align-items: center;
@@ -77,7 +77,7 @@ Nord Color Pallete:
 }
 
 #navigation-panel .active-nav {
-	background-color: #3d3d3c; 
+	background-color: #3d3d3c;
 	border-left-width: 20dp;
 	border-left-color: #0078d4;
 }
@@ -192,6 +192,14 @@ Nord Color Pallete:
 	background-color: #232323;
 	border-radius: 0.1em;
 	margin: 0 0.1em;
+}
+
+.settings-tree li .settings-tree-item {
+	display: block;
+	background-color: #232323;
+	border-radius: 0.1em;
+	margin: 0 0.1em;
+	width: auto;
 }
 
 .settings-tree .keybind {

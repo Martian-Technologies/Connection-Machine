@@ -2,28 +2,16 @@
 
 #include <SDL3/SDL.h>
 
-#include "gui/viewPortManager/circuitView/circuitView.h"
 #include "backend/settings/settings.h"
-#include "gui/helper/eventPasser.h"
 #include "backend/backend.h"
-#include "gui/viewPortManager/circuitView/events/customEvents.h"
 
-void SaveCallback(void* userData, const char* const* filePaths, int filter) {
-	CircuitViewWidget* circuitViewWidget = (CircuitViewWidget*)userData;
-	if (filePaths && filePaths[0]) {
-		std::string filePath = filePaths[0];
-		if (!circuitViewWidget->getCircuitView()->getCircuit()) {
-			logError("Circuit was null, could not save");
-			return;
-		}
-		const std::string& UUID = circuitViewWidget->getCircuitView()->getCircuit()->getUUID();
-		if (circuitViewWidget->getFileManager()->getSavePath(UUID) != nullptr)
-			logWarning("This circuit " + circuitViewWidget->getCircuitView()->getCircuit()->getCircuitName() + " will be saved with a new UUID");
-		circuitViewWidget->getFileManager()->saveToFile(filePath, UUID);
-	} else {
-		std::cout << "File dialog canceled." << std::endl;
-	}
-}
+#include "gui/viewportManager/circuitView/events/customEvents.h"
+#include "gui/viewportManager/circuitView/circuitView.h"
+#include "gui/mainWindow/mainWindow.h"
+#include "gui/helper/keybindHelpers.h"
+#include "gui/helper/eventPasser.h"
+
+#include "environment/environment.h"
 
 void LoadCallback(void* userData, const char* const* filePaths, int filter) {
 	CircuitViewWidget* circuitViewWidget = (CircuitViewWidget*)userData;
@@ -49,11 +37,21 @@ void LoadCallback(void* userData, const char* const* filePaths, int filter) {
 	}
 }
 
-CircuitViewWidget::CircuitViewWidget(CircuitFileManager* fileManager, Rml::ElementDocument* document, SDL_Window* window, WindowRenderer* windowRenderer, Rml::Element* element) : fileManager(fileManager), document(document), window(window), element(element) {
+CircuitViewWidget::CircuitViewWidget(
+	Environment* environment,
+	Rml::ElementDocument* document,
+	MainWindow* mainWindow,
+	WindowId windowId,
+	Rml::Element* element) :
+	fileManager(&environment->getCircuitFileManager()), document(document), mainWindow(mainWindow), windowId(windowId), element(element) {
 	// create circuitView
-	rendererInterface = std::make_unique<ViewportRenderInterface>(windowRenderer->getDevice(), element, windowRenderer);
-	circuitView = std::make_unique<CircuitView>(rendererInterface.get());
-	
+	int w = this->element->GetClientWidth();
+	int h = this->element->GetClientHeight();
+	int x = this->element->GetAbsoluteLeft() + this->element->GetClientLeft();
+	int y = this->element->GetAbsoluteTop() + this->element->GetClientTop();
+	viewportId = MainRenderer::get().registerViewport(windowId, {x, y}, {w, h}, element);
+	circuitView = std::make_unique<CircuitView>(environment, viewportId);
+
 	circuitView->getEventRegister().registerFunction("status bar changed", [this](const Event* event) -> bool {
 		auto eventData = event->cast2<std::string>();
 		if (eventData) setStatusBar(eventData->get());
@@ -67,7 +65,7 @@ CircuitViewWidget::CircuitViewWidget(CircuitFileManager* fileManager, Rml::Eleme
 	// set initial view
 	element->AddEventListener(Rml::EventId::Resize, new EventPasser([this](Rml::Event&){handleResize();}));
 	handleResize();
-	
+
 	// create keybind shortcuts and connect them
 	document->AddEventListener(Rml::EventId::Keydown, &keybindHandler);
 	keybindHandler.addListener(
@@ -194,7 +192,7 @@ CircuitViewWidget::CircuitViewWidget(CircuitFileManager* fileManager, Rml::Eleme
 			}
 		}
 	));
-	
+
 	element->AddEventListener("pinch", new EventPasser(
 		[this](Rml::Event& event) {
 			float delta = event.GetParameter<float>("delta", 0);
@@ -277,24 +275,11 @@ void CircuitViewWidget::setStatusBar(const std::string& text) {
 // save current circuit view widget we are viewing. Right now only works if it is the only widget in application.
 // Called via Ctrl-S keybind
 void CircuitViewWidget::save() {
-	if (fileManager && circuitView->getCircuit()) {
-		if (!fileManager->save(circuitView->getCircuit()->getUUID())) {
-			// if failed to save the circuit with out a path
-			static SDL_DialogFileFilter filter;
-			filter.name = "Circuit Files";
-			filter.pattern = "*.cir";
-			SDL_ShowSaveFileDialog(SaveCallback, this, window, &filter, 0, nullptr);
-		}
-	}
+	if (circuitView->getCircuit()) mainWindow->savePopUp(circuitView->getCircuit()->getUUID());
 }
 
 void CircuitViewWidget::asSave() {
-	if (fileManager && circuitView->getCircuit()) {
-		static SDL_DialogFileFilter filter;
-		filter.name = "Circuit Files";
-		filter.pattern = "*.cir";
-		SDL_ShowSaveFileDialog(SaveCallback, this, window, &filter, 0, nullptr);
-	}
+	if (circuitView->getCircuit()) mainWindow->saveAsPopUp(circuitView->getCircuit()->getUUID());
 }
 
 // for drag and drop load directly onto this circuit view widget
@@ -302,11 +287,12 @@ void CircuitViewWidget::load() {
 	if (!fileManager) return;
 
 	static const SDL_DialogFileFilter filters[] = {
-		{ "Circuit Files",  "*.cir" },
-		{ "OpenCircuit Files", "*.circiut" },
+		{ "Circuit Files",  ".cir" },
+		{ "Circuit Files",  ".blif" },
+		{ "Circuit Files",  ".wasm" },
 	};
 
-	SDL_ShowOpenFileDialog(LoadCallback, this, nullptr, nullptr, 0, nullptr, true);
+	SDL_ShowOpenFileDialog(LoadCallback, this, nullptr, filters, 3, nullptr, true);
 }
 
 void CircuitViewWidget::handleResize() {
@@ -316,6 +302,7 @@ void CircuitViewWidget::handleResize() {
 	int y = this->element->GetAbsoluteTop() + this->element->GetClientTop();
 
 	circuitView->getViewManager().setAspectRatio((float)w / (float)h);
+	MainRenderer::get().moveViewport(viewportId, windowId, {x, y}, {w, h});
 }
 
 inline Vec2 CircuitViewWidget::pixelsToView(const SDL_FPoint& point) const {

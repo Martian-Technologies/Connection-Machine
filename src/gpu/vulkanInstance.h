@@ -26,7 +26,7 @@ private:
 // - [x] Block textures
 // - [x] Wires
 // - [x] State
-// - [ ] Effects (elements)
+// - [x] Effects (elements)
 
 // VULKAN IMPROVEMENTS -
 // - [x] VkBootstrap

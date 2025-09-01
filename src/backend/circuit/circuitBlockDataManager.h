@@ -15,7 +15,7 @@ public:
 	}
 
 	void newCircuitBlockData(circuit_id_t circuitId, BlockType blockType) {
-		auto pair = circuitBlockData.emplace(circuitId, CircuitBlockData(circuitId, dataUpdateEventManager));
+		auto pair = circuitBlockData.try_emplace(circuitId, circuitId, dataUpdateEventManager);
 		if (pair.second) {
 			pair.first->second.setBlockType(blockType);
 			blockTypeToCircuitId[blockType] = circuitId;
@@ -35,7 +35,7 @@ public:
 	}
 
 	void newCircuitBlockData(circuit_id_t circuitId, BlockType blockType, const std::string& proceduralCircuitUUID) {
-		auto pair = circuitBlockData.emplace(circuitId, CircuitBlockData(circuitId, dataUpdateEventManager, proceduralCircuitUUID));
+		auto pair = circuitBlockData.try_emplace(circuitId, circuitId, dataUpdateEventManager, proceduralCircuitUUID);
 		if (pair.second) {
 			pair.first->second.setBlockType(blockType);
 			blockTypeToCircuitId[blockType] = circuitId;

@@ -239,18 +239,18 @@ void RmlRenderer::render(Frame& frame, VkExtent2D windowExtent) {
 }
 
 // =================================== RENDER INTERFACE ==================================================
-Rml::CompiledGeometryHandle RmlRenderer::CompileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) {
+Rml::CompiledGeometryHandle RmlRenderer::compileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) {
 	// get and increment handle
-	Rml::CompiledGeometryHandle newHandle = currentGeometryHandle++;
+	Rml::CompiledGeometryHandle newHandle = ++currentGeometryHandle;
 	// alocate new geometry
 	geometryAllocations[newHandle] = std::make_shared<RmlGeometryAllocation>(device, vertices, indices);
 	
 	return newHandle;
 }
-void RmlRenderer::ReleaseGeometry(Rml::CompiledGeometryHandle geometry) {
+void RmlRenderer::releaseGeometry(Rml::CompiledGeometryHandle geometry) {
 	geometryAllocations.erase(geometry);
 }
-void RmlRenderer::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f translation, Rml::TextureHandle texture) {
+void RmlRenderer::renderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f translation, Rml::TextureHandle texture) {
 	// find geometry
 	auto geometryItr = geometryAllocations.find(handle);
 	if (geometryItr == geometryAllocations.end()) {
@@ -271,10 +271,10 @@ void RmlRenderer::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector
 }
 
 // Textures
-Rml::TextureHandle RmlRenderer::LoadTexture(Rml::Vector2i& texture_dimensions, const Rml::String& source) {
+Rml::TextureHandle RmlRenderer::loadTexture(Rml::Vector2i& texture_dimensions, const Rml::String& source) {
 
 	// get and increment handle
-	Rml::TextureHandle newHandle = currentTextureHandle++;
+	Rml::TextureHandle newHandle = ++currentTextureHandle;
 
 	// load texture
 	int texWidth, texHeight, texChannels;
@@ -289,9 +289,9 @@ Rml::TextureHandle RmlRenderer::LoadTexture(Rml::Vector2i& texture_dimensions, c
 	
 	return newHandle;
 }
-Rml::TextureHandle RmlRenderer::GenerateTexture(Rml::Span<const Rml::byte> source, Rml::Vector2i source_dimensions) {
+Rml::TextureHandle RmlRenderer::generateTexture(Rml::Span<const Rml::byte> source, Rml::Vector2i source_dimensions) {
 	// get and increment handle
-	Rml::TextureHandle newHandle = currentTextureHandle++;
+	Rml::TextureHandle newHandle = ++currentTextureHandle;
 	
 	// alocate new texture
 	VkExtent3D size;
@@ -302,14 +302,14 @@ Rml::TextureHandle RmlRenderer::GenerateTexture(Rml::Span<const Rml::byte> sourc
 	
 	return newHandle;
 }
-void RmlRenderer::ReleaseTexture(Rml::TextureHandle texture_handle) {
+void RmlRenderer::releaseTexture(Rml::TextureHandle texture_handle) {
 	textures.erase(texture_handle);
 }
 
 // Scissor
-void RmlRenderer::EnableScissorRegion(bool enable) {
+void RmlRenderer::enableScissorRegion(bool enable) {
 	tempRenderInstructions.push_back(RmlEnableScissorInstruction(enable));
 }
-void RmlRenderer::SetScissorRegion(Rml::Rectanglei region) {
+void RmlRenderer::setScissorRegion(Rml::Rectanglei region) {
 	tempRenderInstructions.push_back(RmlSetScissorInstruction({region.Left(), region.Top()}, {region.Width(), region.Height()}));
 }

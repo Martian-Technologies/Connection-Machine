@@ -6,7 +6,10 @@
 
 class BlockDataManager {
 public:
-	BlockDataManager(DataUpdateEventManager* dataUpdateEventManager) : dataUpdateEventManager(dataUpdateEventManager) {
+	BlockDataManager(DataUpdateEventManager* dataUpdateEventManager) : dataUpdateEventManager(dataUpdateEventManager) { }
+
+	void initializeDefaults() {
+		assert(blockData.size() == 0); // should call this before doing anything
 		// load default data
 		for (unsigned int i = 0; i < 13; i++) addBlock();
 		getBlockData(BlockType::AND)->setName("And");
@@ -48,8 +51,20 @@ public:
 
 	inline BlockType addBlock() noexcept {
 		blockData.emplace_back((BlockType)(blockData.size() + 1), dataUpdateEventManager);
+		BlockType blockType = (BlockType)blockData.size();
+		// sending data events for default data
+		// pre
+		dataUpdateEventManager->sendEvent<std::pair<BlockType, Size>>("preBlockSizeChange", { blockType, Size(1) });
+		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("preBlockDataSetConnection", { blockType, 0 });
+		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("preBlockDataSetConnection", { blockType, 1 });
+		// post
+		dataUpdateEventManager->sendEvent<std::pair<BlockType, Size>>("postBlockSizeChange", { blockType, Size(1) });
+		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, 0 });
+		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, 1 });
+		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, 0 });
+		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, 1 });
 		sendBlockDataUpdate();
-		return (BlockType)blockData.size();
+		return blockType;
 	}
 
 	inline BlockType getBlockType(const std::string& blockPath) const {

@@ -1,14 +1,13 @@
 #include "vulkanDevice.h"
 
-#include "vulkanInstance.h"
 #include "gpu/renderer/viewport/blockTextureManager.h"
+#include "gpu/mainRenderer.h"
 
-VulkanDevice::VulkanDevice(VulkanInstance* instance, VkSurfaceKHR surfaceForPresenting)
-	: instance(instance) {
+VulkanDevice::VulkanDevice(VkSurfaceKHR surfaceForPresenting) {
 	logInfo("Creating Vulkan Device...", "Vulkan");
-		
+
 	// Select physical device
-	vkb::PhysicalDeviceSelector physicalDeviceSelector(instance->getVkbInstance());
+	vkb::PhysicalDeviceSelector physicalDeviceSelector(MainRenderer::get().getVulkanInstance().getVkbInstance());
 	physicalDeviceSelector.set_surface(surfaceForPresenting);
 	physicalDeviceSelector.add_required_extension("VK_KHR_push_descriptor");
 	auto physicalDeviceRet = physicalDeviceSelector.select();
@@ -46,7 +45,7 @@ VulkanDevice::~VulkanDevice() {
 
 	blockTextureManager->cleanup();
 	vmaDestroyAllocator(vmaAllocator);
-	
+
 	vkDestroyFence(device, immediateFence, nullptr);
 	vkDestroyCommandPool(device, immediateCommandPool, nullptr);
 	vkb::destroy_device(device);
@@ -69,7 +68,7 @@ VkResult VulkanDevice::submitPresent(VkPresentInfoKHR* presentInfo) {
 
 void VulkanDevice::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function) {
 	std::lock_guard<std::mutex> immediateLock(immediateSubmitMux);
-	
+
 	// set up
 	vkResetFences(device, 1, &immediateFence);
 	vkResetCommandBuffer(immediateCommandBuffer, 0);
@@ -107,13 +106,13 @@ void VulkanDevice::createAllocator() {
 		.vkGetInstanceProcAddr = vkGetInstanceProcAddr,
 		.vkGetDeviceProcAddr = vkGetDeviceProcAddr,
 	};
-	
+
 	VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.physicalDevice = physicalDevice;
     allocatorInfo.device = device;
-    allocatorInfo.instance = instance->getVkbInstance();
+    allocatorInfo.instance = MainRenderer::get().getVulkanInstance().getVkbInstance();
 	allocatorInfo.pVulkanFunctions = &vulkanFunctions;
-	
+
 	VmaAllocator alloc;
     if (vmaCreateAllocator(&allocatorInfo, &alloc) != VK_SUCCESS) { throwFatalError("Could not create Vulkan VMA allocator.");}
 	vmaAllocator = alloc;

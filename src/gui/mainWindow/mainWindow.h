@@ -5,32 +5,29 @@
 #include <SDL3/SDL_events.h>
 
 #include "gui/sdl/sdlWindow.h"
-#include "gpu/renderer/windowRenderer.h"
-#include "gui/rml/rmlRenderInterface.h"
-
-#include "computerAPI/circuits/circuitFileManager.h"
-#include "computerAPI/fileListener/fileListener.h"
-#include "backend/backend.h"
 
 #include "tools/toolManagerManager.h"
 #include "sideBar/icEditor/blockCreationWindow.h"
 #include "circuitView/simControlsManager.h"
-#include "circuitView/circuitViewWidget.h"
 #include "sideBar/selector/selectorWindow.h"
 #include "sideBar/simulation/evalWindow.h"
+#include "gui/helper/keybindHandler.h"
+
+class CircuitViewWidget;
+class Environment;
 
 class MainWindow {
 public:
-	MainWindow(Backend* backend, CircuitFileManager* circuitFileManager, RmlRenderInterface& rmlRenderInterface, VulkanInstance* vulkanInstance);
+	MainWindow(Environment* environment);
 	~MainWindow();
 
 	// no copy
 	MainWindow(const MainWindow&) = delete;
 	MainWindow& operator=(const MainWindow&) = delete;
-	
+
 public:
 	bool recieveEvent(SDL_Event& event);
-	void updateRml(RmlRenderInterface& renderInterface);
+	void updateRml();
 
 	inline SDL_Window* getSdlWindow() { return sdlWindow.getHandle(); };
 	inline float getSdlWindowScalingSize() const { return sdlWindow.getWindowScalingSize(); }
@@ -44,32 +41,38 @@ public:
 	void saveCircuit(circuit_id_t id, bool saveAs);
 	void loadCircuit();
 	void exportProject();
-	void setBlock(std::string blockPath);
-	void setTool(std::string tool);
-	void setMode(std::string tool);
 	void addPopUp(const std::string& message, const std::vector<std::pair<std::string, std::function<void()>>>& options);
+	void savePopUp(const std::string& circuitUUID);
+	void saveAsPopUp(const std::string& circuitUUID);
+
+	void setGlobalCssProperty(const std::string& property, const std::string& value);
 
 private:
 	void createPopUp(const std::string& message, const std::vector<std::pair<std::string, std::function<void()>>>& options);
 
-	Backend* backend;
+	WindowId windowId;
+	Environment* environment;
+
+	// inputs and tools
 	KeybindHandler keybindHandler;
-	CircuitFileManager* circuitFileManager;
-	SdlWindow sdlWindow;
-	WindowRenderer renderer;
 	ToolManagerManager toolManagerManager;
+
+	// widgets
 	std::optional<SelectorWindow> selectorWindow;
 	std::optional<EvalWindow> evalWindow;
 	std::optional<BlockCreationWindow> blockCreationWindow;
 	std::optional<SimControlsManager> simControlsManager;
 
+	std::vector<std::pair<std::string,const std::vector<std::pair<std::string, std::function<void()>>>>> popUpsToAdd;
+
+	// circuit view widget
 	std::shared_ptr<CircuitViewWidget> activeCircuitViewWidget;
 	std::vector<std::shared_ptr<CircuitViewWidget>> circuitViewWidgets;
-	
+
+	// rmlui and sdl
 	Rml::Context* rmlContext;
 	Rml::ElementDocument* rmlDocument;
-
-	std::vector<std::pair<std::string,const std::vector<std::pair<std::string, std::function<void()>>>>> popUpsToAdd;
+	SdlWindow sdlWindow;
 };
 
 #endif /* window_h */

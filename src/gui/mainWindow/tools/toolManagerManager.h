@@ -1,7 +1,7 @@
 #ifndef toolManagerManager_h
 #define toolManagerManager_h
 
-#include "gui/viewPortManager/circuitView/circuitView.h"
+#include "gui/viewportManager/circuitView/circuitView.h"
 
 class ToolManagerManager {
 public:

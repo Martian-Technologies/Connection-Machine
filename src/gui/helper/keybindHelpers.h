@@ -7,14 +7,27 @@
 
 inline Keybind makeKeybind(Rml::Input::KeyIdentifier key, unsigned int modifier = 0) {
 	switch (key) {
-	case Rml::Input::KeyIdentifier::KI_LSHIFT: return Keybind(modifier | Rml::Input::KeyModifier::KM_SHIFT);
-	case Rml::Input::KeyIdentifier::KI_RSHIFT: return Keybind(modifier | Rml::Input::KeyModifier::KM_SHIFT);
-	case Rml::Input::KeyIdentifier::KI_LCONTROL: return Keybind(modifier | Rml::Input::KeyModifier::KM_CTRL);
-	case Rml::Input::KeyIdentifier::KI_RCONTROL: return Keybind(modifier | Rml::Input::KeyModifier::KM_CTRL);
-	case Rml::Input::KeyIdentifier::KI_LMENU: return Keybind(modifier | Rml::Input::KeyModifier::KM_ALT);
-	case Rml::Input::KeyIdentifier::KI_RMENU: return Keybind(modifier | Rml::Input::KeyModifier::KM_ALT);
-	case Rml::Input::KeyIdentifier::KI_LMETA: return Keybind(modifier | Rml::Input::KeyModifier::KM_META);
-	case Rml::Input::KeyIdentifier::KI_RMETA: return Keybind(modifier | Rml::Input::KeyModifier::KM_META);
+	case Rml::Input::KeyIdentifier::KI_LSHIFT:
+	case Rml::Input::KeyIdentifier::KI_RSHIFT:
+		return Keybind(modifier | Rml::Input::KeyModifier::KM_SHIFT);
+	case Rml::Input::KeyIdentifier::KI_LMENU:
+	case Rml::Input::KeyIdentifier::KI_RMENU:
+		return Keybind(modifier | Rml::Input::KeyModifier::KM_ALT);
+#ifdef __APPLE__
+	case Rml::Input::KeyIdentifier::KI_LCONTROL:
+	case Rml::Input::KeyIdentifier::KI_RCONTROL:
+		return Keybind(modifier | Rml::Input::KeyModifier::KM_META);
+	case Rml::Input::KeyIdentifier::KI_LMETA:
+	case Rml::Input::KeyIdentifier::KI_RMETA:
+		return Keybind(modifier | Rml::Input::KeyModifier::KM_CTRL);
+#else
+	case Rml::Input::KeyIdentifier::KI_LCONTROL:
+	case Rml::Input::KeyIdentifier::KI_RCONTROL:
+		return Keybind(modifier | Rml::Input::KeyModifier::KM_CTRL);
+	case Rml::Input::KeyIdentifier::KI_LMETA:
+	case Rml::Input::KeyIdentifier::KI_RMETA:
+		return Keybind(modifier | Rml::Input::KeyModifier::KM_META);
+#endif
 	default: return Keybind((key << 8) + modifier);
 	}
 }
