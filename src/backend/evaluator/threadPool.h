@@ -1,6 +1,10 @@
 #ifndef threadPool_h
 #define threadPool_h
 
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
+
 class ThreadPool {
 public:
 	explicit ThreadPool(size_t nthreads = (std::thread::hardware_concurrency() / 2))
@@ -103,6 +107,9 @@ private:
 			uint32_t e = end.load(std::memory_order_acquire);
 
 			if (i < e) {
+#ifdef TRACY_PROFILER
+				ZoneScoped;
+#endif
 				// Safe because resetAndLoad keeps jobsRef stable for the round.
 				const Job j = (*jobsRef)[i];
 				j.fn(j.arg);
