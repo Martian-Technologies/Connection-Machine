@@ -6,7 +6,9 @@
 
 class EvaluatorICTest : public ::testing::Test {
 public:
-    EvaluatorICTest() : backend(nullptr) {}
+    EvaluatorICTest() : backend(nullptr) {
+		backend.getCircuitManager().getBlockDataManager()->initializeDefaults();
+	}
 
 protected:
     void SetUp() override;
