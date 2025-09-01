@@ -9,15 +9,6 @@ Backend::Backend(CircuitFileManager* fileManager) : circuitManager(&dataUpdateEv
 	circuitManager.connectListener(&evaluatorManager, std::bind(&EvaluatorManager::applyDiff, &evaluatorManager, std::placeholders::_1, std::placeholders::_2), 0);
 }
 
-// void Backend::clear() {
-// 	for (auto iter : evaluatorManager.getEvaluators()) {
-// 		evaluatorManager.destroyEvaluator(iter.second->getEvaluatorId());
-// 	}
-// 	for (auto iter : circuitManager.getCircuits()) {
-// 		circuitManager.destroyCircuit(iter.second->getCircuitId());
-// 	}
-// }
-
 circuit_id_t Backend::createCircuit(const std::string& name, const std::string& uuid) {
 	return circuitManager.createNewCircuit(name, uuid);
 }
