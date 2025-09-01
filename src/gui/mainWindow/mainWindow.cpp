@@ -3,20 +3,27 @@
 #include <RmlUi/Core.h>
 #include <RmlUi/Debugger.h>
 
+#include "gpu/mainRenderer.h"
+
+#include "gui/mainWindow/circuitView/circuitViewWidget.h"
+#include "gui/mainWindow/menuBar/menuBar.h"
+#include "gui/rml/rmlSystemInterface.h"
+#include "gui/rml/rmlRenderInterface.h"
+#include "gui/helper/eventPasser.h"
+
 #include "settingsWindow/settingsWindow.h"
 #include "computerAPI/directoryManager.h"
-#include "gui/rml/rmlSystemInterface.h"
-#include "../helper/eventPasser.h"
-#include "menuBar/menuBar.h"
+#include "environment/environment.h"
 
-MainWindow::MainWindow(Backend* backend, CircuitFileManager* circuitFileManager, RmlRenderInterface& renderInterface, VulkanInstance* vulkanInstance) :
-	sdlWindow("Connection Machine"), renderer(&sdlWindow, vulkanInstance), backend(backend), toolManagerManager(backend->getDataUpdateEventManager()), circuitFileManager(circuitFileManager) {
+MainWindow::MainWindow(Environment* environment) :
+	sdlWindow("Connection Machine"), environment(environment), toolManagerManager(environment->getBackend().getDataUpdateEventManager()) {
+
+	windowId = MainRenderer::get().registerWindow(&sdlWindow);
 
 	// create rmlUI context
 	rmlContext = Rml::CreateContext("main", Rml::Vector2i(sdlWindow.getSize().first, sdlWindow.getSize().second)); // ptr managed by rmlUi (I think)
 
 	// create rmlUI document
-	renderer.activateRml(renderInterface);
 	rmlDocument = rmlContext->LoadDocument(DirectoryManager::getResourceDirectory().generic_string() + "/gui/mainWindow/mainWindow.rml");
 
 	// Rml::Debugger::Initialise(rmlContext);
@@ -28,21 +35,21 @@ MainWindow::MainWindow(Backend* backend, CircuitFileManager* circuitFileManager,
 
 	// eval menutree
 	Rml::Element* evalTreeParent = rmlDocument->GetElementById("eval-tree");
-	evalWindow.emplace(&(backend->getEvaluatorManager()), &(backend->getCircuitManager()), this, backend->getDataUpdateEventManager(), rmlDocument, evalTreeParent);
+	evalWindow.emplace(&(environment->getBackend().getEvaluatorManager()), &(environment->getBackend().getCircuitManager()), this, environment->getBackend().getDataUpdateEventManager(), rmlDocument, evalTreeParent);
 
 	//  blocks/tools menutree
 	selectorWindow.emplace(
-		backend->getBlockDataManager(),
-		backend->getDataUpdateEventManager(),
-		backend->getCircuitManager().getProceduralCircuitManager(),
+		environment->getBackend().getBlockDataManager(),
+		environment->getBackend().getDataUpdateEventManager(),
+		environment->getBackend().getCircuitManager().getProceduralCircuitManager(),
 		&toolManagerManager,
 		rmlDocument
 	);
 
 	Rml::Element* blockCreationMenu = rmlDocument->GetElementById("block-creation-form");
-	blockCreationWindow.emplace(&(backend->getCircuitManager()), this, backend->getDataUpdateEventManager(), &toolManagerManager, rmlDocument, blockCreationMenu);
+	blockCreationWindow.emplace(&(environment->getBackend().getCircuitManager()), this, environment->getBackend().getDataUpdateEventManager(), &toolManagerManager, rmlDocument, blockCreationMenu);
 
-	simControlsManager.emplace(rmlDocument, getCircuitViewWidget(0), backend->getDataUpdateEventManager());
+	simControlsManager.emplace(rmlDocument, getCircuitViewWidget(0), environment->getBackend().getDataUpdateEventManager());
 
 	SettingsWindow* settingsWindow = new SettingsWindow(rmlDocument);
 
@@ -88,10 +95,16 @@ MainWindow::MainWindow(Backend* backend, CircuitFileManager* circuitFileManager,
 	// 	std::make_pair<std::string, std::function<void()>>("B", [](){logInfo("B");}),
 	// 	std::make_pair<std::string, std::function<void()>>("C", [](){logInfo("C");})
 	// });
+
+	Settings::registerListener<SettingType::FILE_PATH>("Appearance/Font", [this](const std::string& fontFilePath) {
+		// Rml::LoadFontFace(fontFilePath);
+		logInfo("loaded, {}", "", fontFilePath);
+	});
 }
 
 MainWindow::~MainWindow() {
 	Rml::RemoveContext(rmlContext->GetName());
+	MainRenderer::get().deregisterWindow(windowId);
 	rmlContext = nullptr;
 }
 
@@ -109,11 +122,11 @@ bool MainWindow::recieveEvent(SDL_Event& event) {
 				if (id == 0) {
 					logError("Error", "Failed to load circuit file.");
 				} else {
-					getActiveCircuitViewWidget()->getCircuitView()->setCircuit(backend, id);
+					getActiveCircuitViewWidget()->getCircuitView()->setCircuit(&environment->getBackend(), id);
 					// circuitViewWidget->getCircuitView()->getBackend()->linkCircuitViewWithCircuit(circuitViewWidget->getCircuitView(), id);
-					for (auto& iter : backend->getEvaluatorManager().getEvaluators()) {
+					for (auto& iter : environment->getBackend().getEvaluatorManager().getEvaluators()) {
 						if (iter.second->getCircuitId(Address()) == id) {
-							getActiveCircuitViewWidget()->getCircuitView()->setEvaluator(backend, iter.first);
+							getActiveCircuitViewWidget()->getCircuitView()->setEvaluator(&environment->getBackend(), iter.first);
 							// circuitViewWidget->getCircuitView()->getBackend()->linkCircuitViewWithEvaluator(circuitViewWidget->getCircuitView(), iter.first, Address());
 						}
 					}
@@ -126,7 +139,7 @@ bool MainWindow::recieveEvent(SDL_Event& event) {
 
 		// let renderer know we if resized the window
 		if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) {
-			renderer.resize({ event.window.data1, event.window.data2 });
+			MainRenderer::get().resizeWindow(windowId, { event.window.data1, event.window.data2 });
 			rmlContext->Update();
 			for (auto circuitViewWidget : circuitViewWidgets) {
 				circuitViewWidget->handleResize();
@@ -135,36 +148,26 @@ bool MainWindow::recieveEvent(SDL_Event& event) {
 
 		return true;
 	}
-	
+
 	return false;
 }
 
-void MainWindow::updateRml(RmlRenderInterface& renderInterface) {
-	rmlContext->Update();
-
-	renderer.prepareForRml(renderInterface);
-	rmlContext->Render();
-	renderer.endRml();
+void MainWindow::updateRml() {
+	RmlRenderInterface* rmlRenderInterface = dynamic_cast<RmlRenderInterface*>(Rml::GetRenderInterface());
+	if (rmlRenderInterface) {
+		rmlContext->Update();
+		rmlRenderInterface->setWindowToRenderOn(windowId);
+		MainRenderer::get().prepareForRmlRender(windowId);
+		rmlContext->Render();
+		MainRenderer::get().endRmlRender(windowId);
+	}
 }
 
 void MainWindow::createCircuitViewWidget(Rml::Element* element) {
-	circuitViewWidgets.push_back(std::make_shared<CircuitViewWidget>(circuitFileManager, rmlDocument, sdlWindow.getHandle(), &renderer, element));
-	circuitViewWidgets.back()->getCircuitView()->setBackend(backend);
+	circuitViewWidgets.push_back(std::make_shared<CircuitViewWidget>(environment, rmlDocument, this, windowId, element));
+	circuitViewWidgets.back()->getCircuitView()->setBackend(&environment->getBackend());
 	toolManagerManager.addCircuitView(circuitViewWidgets.back()->getCircuitView());
 	activeCircuitViewWidget = circuitViewWidgets.back(); // if it is created, it should be used
-}
-
-void MainWindow::setBlock(std::string blockPath) {
-	BlockType blockType = backend->getBlockDataManager()->getBlockType(blockPath);
-	toolManagerManager.setBlock(blockType);
-}
-
-void MainWindow::setTool(std::string tool) {
-	toolManagerManager.setTool(tool);
-}
-
-void MainWindow::setMode(std::string mode) {
-	toolManagerManager.setMode(mode);
 }
 
 void MainWindow::addPopUp(const std::string& message, const std::vector<std::pair<std::string, std::function<void()>>>& options) {
@@ -194,3 +197,48 @@ void MainWindow::createPopUp(const std::string& message, const std::vector<std::
 	}
 }
 
+void SaveCallback(void* userData, const char* const* filePaths, int filter) {
+	std::pair<CircuitFileManager*, std::string>* data = (std::pair<CircuitFileManager*, std::string>*)userData;
+	if (filePaths && filePaths[0]) {
+		std::string filePath = filePaths[0];
+		if (data->first->getSavePath(data->second) != nullptr)
+			logWarning("This circuit " + data->second + " will be saved with a new UUID");
+		data->first->saveToFile(filePath, data->second);
+	} else {
+		std::cout << "File dialog canceled." << std::endl;
+	}
+	delete data;
+}
+
+void MainWindow::savePopUp(const std::string& circuitUUID) {
+	if (!environment->getCircuitFileManager().save(circuitUUID)) {
+		// if failed to save the circuit with out a path
+		static const SDL_DialogFileFilter filters[] = {
+			{ "Circuit Files",  ".cir" }
+		};
+		std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(&environment->getCircuitFileManager(), circuitUUID);
+		SDL_ShowSaveFileDialog(SaveCallback, data, sdlWindow.getHandle(), filters, 1, nullptr);
+	}
+}
+
+void MainWindow::saveAsPopUp(const std::string& circuitUUID) {
+	static const SDL_DialogFileFilter filters[] = {
+		{ "Circuit Files",  ".cir" }
+	};
+	std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(&environment->getCircuitFileManager(), circuitUUID);
+	SDL_ShowSaveFileDialog(SaveCallback, data, sdlWindow.getHandle(), filters, 1, nullptr);
+}
+
+void setGlobalCssPropertyRec(Rml::Element* element, const std::string& property, const std::string& value) {
+	if (!element) return;
+
+	element->SetProperty(property, value);
+	for (int i = 0; i < element->GetNumChildren(); i++) {
+		setGlobalCssPropertyRec(element->GetChild(i), property, value);
+	}
+}
+
+void MainWindow::setGlobalCssProperty(const std::string& property, const std::string& value) {
+	logInfo("Setting {} to {}", "", property, value);
+	setGlobalCssPropertyRec(rmlDocument, property, value);
+}

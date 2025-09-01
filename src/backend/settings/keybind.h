@@ -235,7 +235,11 @@ public:
 		};
 		if (keyCombined & 1U) {
 			if (keyString.size()) keyString += " + ";
-			keyString += "CTRL";
+			#ifdef __APPLE__
+				keyString += "COMMAND";
+			#else
+				keyString += "CTRL";
+			#endif
 		};
 		if (keyCombined & 2U) {
 			if (keyString.size()) keyString += " + ";
@@ -243,7 +247,11 @@ public:
 		};
 		if (keyCombined & 8U) {
 			if (keyString.size()) keyString += " + ";
-			keyString += "COMMAND";
+			#ifdef __APPLE__
+				keyString += "CTRL";
+			#else
+				keyString += "META";
+			#endif
 		};
 		KeyId key = (KeyId)(keyCombined >> 8);
 		if (key != 0) {

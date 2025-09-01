@@ -96,27 +96,27 @@ public:
 	
 public:
 	// -- Rml::RenderInterface --
-	Rml::CompiledGeometryHandle CompileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices);
-	void ReleaseGeometry(Rml::CompiledGeometryHandle geometry);
-	void RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f translation, Rml::TextureHandle texture);
+	Rml::CompiledGeometryHandle compileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices);
+	void releaseGeometry(Rml::CompiledGeometryHandle geometry);
+	void renderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f translation, Rml::TextureHandle texture);
 
-	Rml::TextureHandle LoadTexture(Rml::Vector2i& texture_dimensions, const Rml::String& source);
-	Rml::TextureHandle GenerateTexture(Rml::Span<const Rml::byte> source, Rml::Vector2i source_dimensions);
-	void ReleaseTexture(Rml::TextureHandle texture_handle);
+	Rml::TextureHandle loadTexture(Rml::Vector2i& texture_dimensions, const Rml::String& source);
+	Rml::TextureHandle generateTexture(Rml::Span<const Rml::byte> source, Rml::Vector2i source_dimensions);
+	void releaseTexture(Rml::TextureHandle texture_handle);
 
-	void EnableScissorRegion(bool enable);
-	void SetScissorRegion(Rml::Rectanglei region);
+	void enableScissorRegion(bool enable);
+	void setScissorRegion(Rml::Rectanglei region);
 private:
 	// pipelines
 	Pipeline untexturedPipeline;
 	Pipeline texturedPipeline;
 
 	// geometry allocations
-	Rml::CompiledGeometryHandle currentGeometryHandle = 1;
+	Rml::CompiledGeometryHandle currentGeometryHandle = 0;
 	std::unordered_map<Rml::CompiledGeometryHandle, std::shared_ptr<RmlGeometryAllocation>> geometryAllocations;
 
 	// texture allocations
-	Rml::TextureHandle currentTextureHandle = 1;
+	Rml::TextureHandle currentTextureHandle = 0;
 	std::unordered_map<Rml::TextureHandle, std::shared_ptr<RmlTexture>> textures;
 	
 	// texture descriptor

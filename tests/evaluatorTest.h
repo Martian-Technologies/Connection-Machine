@@ -6,7 +6,9 @@
 
 class EvaluatorTest : public ::testing::Test {
 public:
-	EvaluatorTest() : backend(nullptr) { }
+	EvaluatorTest() : backend(nullptr) {
+		backend.getCircuitManager().getBlockDataManager()->initializeDefaults();
+	}
 	void changeState(const Address& addr);
 	void readState(const Address& addr) const;
 

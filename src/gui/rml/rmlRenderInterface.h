@@ -3,16 +3,13 @@
 
 #include <RmlUi/Core/RenderInterface.h>
 
-#include "gpu/renderer/rml/rmlRenderer.h"
+#include "gpu/mainRendererDefs.h"
 
-// This class is basically a pointer to a windowRenderer that rmlUi uses
-
+// -- Inherited from Rml::RenderInterface --
 class RmlRenderInterface : public Rml::RenderInterface {
 public:
-	inline void pointToRenderer(RmlRenderer* renderer) { currentRenderer = renderer; };
-	
-// -- Inherited from Rml::RenderInterface --
-	
+	inline void setWindowToRenderOn(WindowId windowId) { currentWindowId = windowId; };
+
 	Rml::CompiledGeometryHandle CompileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) override;
 	void ReleaseGeometry(Rml::CompiledGeometryHandle geometry) override;
 	void RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f translation, Rml::TextureHandle texture) override;
@@ -25,7 +22,7 @@ public:
 	void SetScissorRegion(Rml::Rectanglei region) override;
 
 private:
-	RmlRenderer* currentRenderer = nullptr;
+	WindowId currentWindowId = 0;
 };
 
 #endif

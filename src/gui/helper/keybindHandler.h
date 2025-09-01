@@ -3,7 +3,7 @@
 
 #include <RmlUi/Core.h>
 
-#include "keybindHelpers.h"
+#include "backend/settings/keybind.h"
 
 class KeybindHandler : public Rml::EventListener {
 public:

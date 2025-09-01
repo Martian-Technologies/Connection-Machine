@@ -4,6 +4,7 @@
 
 void BlockTest::SetUp() {
 	blockDataManager.emplace(&dataUpdateEventManager);
+	blockDataManager->initializeDefaults();
 }
 
 void BlockTest::TearDown() {

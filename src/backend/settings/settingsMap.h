@@ -8,7 +8,8 @@ enum SettingType {
 	STRING,
 	INT,
 	BOOL,
-	KEYBIND
+	KEYBIND,
+	FILE_PATH
 };
 
 template<SettingType settingType>
@@ -17,7 +18,8 @@ struct SettingTypeToType {
 		settingType == SettingType::VOID ||
 		settingType == SettingType::STRING ||
 		settingType == SettingType::INT ||
-		settingType == SettingType::KEYBIND,
+		settingType == SettingType::KEYBIND ||
+		settingType == SettingType::FILE_PATH,
 		"Invalid SettingType. Must be one of VOID, STRING, INT, or KEYBIND."
 	);
 	using type = void;
@@ -28,6 +30,7 @@ template<> struct SettingTypeToType<SettingType::STRING> { using type = std::str
 template<> struct SettingTypeToType<SettingType::INT> { using type = int; };
 template<> struct SettingTypeToType<SettingType::BOOL> { using type = bool; };
 template<> struct SettingTypeToType<SettingType::KEYBIND> { using type = Keybind; };
+template<> struct SettingTypeToType<SettingType::FILE_PATH> { using type = std::string; };
 
 class SettingsMap {
 public:
@@ -50,7 +53,7 @@ public:
 		virtual ~SettingEntryBase() = default;
 		SettingType getType() const { return type; };
 		template<SettingType settingType>
-		void addListener(ListenerFunction<settingType> listener) {
+		void addListener(const ListenerFunction<settingType>& listener) {
 			listeners.emplace_back(std::make_unique<SettingListener<settingType>>(listener));
 		}
 	protected:
@@ -169,7 +172,7 @@ private:
 	template <SettingType settingType>
 	class SettingListener : public SettingListenerBase {
 	public:
-		SettingListener(ListenerFunction<settingType> listener) : SettingListenerBase(settingType), listener(listener) { }
+		SettingListener(const ListenerFunction<settingType>& listener) : SettingListenerBase(settingType), listener(listener) { }
 		void call(const SettingTypeToType<settingType>::type& value) const { listener(value); }
 
 	private:

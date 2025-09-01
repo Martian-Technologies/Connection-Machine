@@ -1,9 +1,6 @@
 #include "vulkanBuffer.h"
 
-#include "gpu/vulkanInstance.h"
-
 AllocatedBuffer createBuffer(VulkanDevice* device, size_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateFlags flags) {
-	
 	// allocate buffer
 	VkBufferCreateInfo bufferInfo = {};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;

@@ -63,7 +63,7 @@ std::vector<circuit_id_t> BLIFParser::load(const std::string& path) {
 			while (ss >> token) {
 				if (token.front() == '#') break;
 				current.parsedCircuit->addBlock(++current.blockIdCounter, BlockType::SWITCH);
-				current.nameToConnectionEnd.emplace(token, ConnectionEnd(current.blockIdCounter, 0));
+				current.nameToConnectionEnd.try_emplace(token, current.blockIdCounter, 0);
 				current.parsedCircuit->addConnectionPort(true, current.endId++, Vector(0, current.inPortY++), current.blockIdCounter, 0, token);
 			}
 		} else if (token == ".outputs") {

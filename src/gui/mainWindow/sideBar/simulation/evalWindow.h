@@ -1,7 +1,6 @@
 #ifndef evalWindow_h
 #define evalWindow_h
 
-// #include "gui/viewPortManager/tools/toolManagerManager.h"
 #include "backend/evaluator/evalAddressTree.h"
 #include "gui/helper/menuTree.h"
 

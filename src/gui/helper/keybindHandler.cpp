@@ -1,7 +1,8 @@
 #include "keybindHandler.h"
 
-#include "util/algorithm.h"
 #include "backend/settings/settings.h"
+
+#include "keybindHelpers.h"
 
 void KeybindHandler::ProcessEvent(Rml::Event& event) {
 	for (auto [iter, iterEnd] = listenerFunctions.equal_range(makeKeybind(event)); iter != iterEnd; ++iter) {

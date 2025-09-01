@@ -18,7 +18,7 @@ public:
 		return containerId;
 	}
 private:
-	circuit_id_t containerId;
+	circuit_id_t containerId = 0;
 	std::unordered_map<Position, EvalAddressTree> branches;
 };
 
