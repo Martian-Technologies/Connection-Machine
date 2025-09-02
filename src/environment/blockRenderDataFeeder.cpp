@@ -29,7 +29,7 @@ void BlockRenderDataFeeder::newBlockTypeUpdate(const DataUpdateEventManager::Eve
 	if (!data) return;
 	BlockRenderDataId blockRenderDataId = MainRenderer::get().registerBlockRenderData();
 	blockTypeToRenderIdData.emplace(data->get(), blockRenderDataId);
-	MainRenderer::get().setBlockTextureIndex(blockRenderDataId, data->get() + 1);
+	MainRenderer::get().setBlockTextureIndex(blockRenderDataId, data->get() >= BlockType::CUSTOM ? 1 : (data->get() + 1));
 }
 
 void BlockRenderDataFeeder::postBlockSizeChangeUpdate(const DataUpdateEventManager::EventData* dataEvent) {
