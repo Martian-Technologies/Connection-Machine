@@ -8,10 +8,10 @@ typedef float f_coordinate_t;
 
 struct Vector;
 struct FVector;
-struct Size;
-struct FSize;
 struct Position;
 struct FPosition;
+struct Size;
+struct FSize;
 
 struct Vector {
 	class Iterator;
@@ -189,139 +189,6 @@ struct FVector {
 template <>
 struct fmt::formatter<FVector> : fmt::formatter<std::string> {
 	auto format(FVector v, format_context& ctx) const {
-		return formatter<std::string>::format(v.toString(), ctx);
-	}
-};
-
-struct Size {
-	class Iterator;
-
-	inline Size() noexcept : w(0), h(0) { }
-	inline Size(coordinate_t w, coordinate_t h) noexcept : w(w), h(h) { }
-	// makes the size for hypercube with some edges length
-	inline Size(coordinate_t sideLength) noexcept : w(sideLength), h(sideLength) { }
-	inline FSize free() const noexcept;
-
-	inline void extentToFit(Vector vector) noexcept {
-		w = std::max(w, vector.dx + 1);
-		h = std::max(h, vector.dy + 1);
-	}
-	inline std::string toString() const noexcept { return std::to_string(w) + "x" + std::to_string(h); }
-
-	inline bool operator==(Size other) const noexcept { return w == other.w && h == other.h; }
-	inline bool operator!=(Size other) const noexcept { return !operator==(other); }
-
-	// w != 0 and h != 0
-	inline bool isValid() const noexcept { return w > 0 && h > 0; }
-
-	inline coordinate_t area() const noexcept { return w * h; }
-	inline coordinate_t perimeter() const noexcept { return w * 2 + h * 2; }
-
-	inline Iterator iter() const noexcept;
-
-	inline Vector getLargestVectorInArea() { return Vector(w - 1, h - 1); }
-
-	coordinate_t w, h;
-};
-
-template <>
-struct fmt::formatter<Size> : fmt::formatter<std::string> {
-	auto format(Size v, format_context& ctx) const {
-		return formatter<std::string>::format(v.toString(), ctx);
-	}
-};
-
-class Size::Iterator {
-public:
-	inline Iterator(Size size) {
-		if (!size.isValid()) {
-			notDone = false;
-			end = 0;
-			width = 0;
-			return;
-		}
-		width = size.w;
-		end = size.area() - 1;
-	}
-	inline Iterator& operator++() {
-		next();
-		return *this;
-	}
-	inline Iterator& operator--() {
-		prev();
-		return *this;
-	}
-	inline Iterator operator++(int) {
-		Iterator tmp = *this;
-		next();
-		return tmp;
-	}
-	inline Iterator operator--(int) {
-		Iterator tmp = *this;
-		prev();
-		return tmp;
-	}
-	inline explicit operator bool() const { return notDone; }
-	inline Vector operator*() const {
-#ifndef DEBUG // I dont know if this works
-		if (!width) {
-			logError("Reading Size::Iterator iterating over invalid size not valid. Fix this!");
-		}
-#endif
-		return Vector(cur % width, cur / width);
-	}
-	// inline Vector operator->() const { return *(*this); }
-
-private:
-
-	inline void next() {
-		notDone = cur != end;
-		cur += notDone;
-	}
-	inline void prev() {
-		cur -= cur != 0;
-		notDone = (bool)end;
-	}
-	unsigned int end;
-	unsigned int cur = 0;
-	unsigned width;
-	bool notDone = true;
-};
-
-Size::Iterator Size::iter() const noexcept { return Iterator(*this); }
-
-bool Vector::widthInSize(Size size) const noexcept { return dx < size.w && dx >= 0 && dy < size.h && dy >= 0; }
-
-struct FSize {
-	// class Iterator;
-
-	inline FSize() noexcept : w(0), h(0) { }
-	inline FSize(f_coordinate_t w, f_coordinate_t h) noexcept : w(w), h(h) { }
-	inline Size snap() const noexcept;
-
-	inline void extentToFit(FVector vector) noexcept {
-		w = std::max(w, vector.dx + 1);
-		h = std::max(h, vector.dy + 1);
-	}
-	inline std::string toString() const noexcept { return std::to_string(w) + "x" + std::to_string(h); }
-
-	inline bool operator==(FSize other) const noexcept { return w == other.w && h == other.h; }
-	inline bool operator!=(FSize other) const noexcept { return !operator==(other); }
-
-	// w != 0 and h != 0
-	inline bool isValid() const noexcept { return !(w && h); }
-
-	inline f_coordinate_t area() const noexcept { return w * h; }
-	inline f_coordinate_t perimeter() const noexcept { return w * 2 + h * 2; }
-
-	// inline Iterator iter() const noexcept;
-
-	f_coordinate_t w, h;
-};
-
-template <>
-struct fmt::formatter<FSize> : fmt::formatter<std::string> {
-	auto format(FSize v, format_context& ctx) const {
 		return formatter<std::string>::format(v.toString(), ctx);
 	}
 };
@@ -516,6 +383,138 @@ inline bool areaWithinArea(FPosition area1Small, FPosition area1Large, FPosition
 template <>
 struct fmt::formatter<FPosition> : fmt::formatter<std::string> {
 	auto format(FPosition v, format_context& ctx) const {
+		return formatter<std::string>::format(v.toString(), ctx);
+	}
+};
+
+struct Size {
+	class Iterator;
+
+	inline Size() noexcept : w(0), h(0) { }
+	inline Size(coordinate_t w, coordinate_t h) noexcept : w(w), h(h) { }
+	// makes the size for hypercube with some edges length
+	inline Size(coordinate_t sideLength) noexcept : w(sideLength), h(sideLength) { }
+	inline Size(Position cornerA, Position cornerB) noexcept : w(Abs(cornerA.x - cornerB.x)), h(Abs(cornerA.y - cornerB.y)) { }
+	inline FSize free() const noexcept;
+
+	inline void extentToFit(Vector vector) noexcept {
+		w = std::max(w, vector.dx + 1);
+		h = std::max(h, vector.dy + 1);
+	}
+	inline std::string toString() const noexcept { return std::to_string(w) + "x" + std::to_string(h); }
+
+	inline bool operator==(Size other) const noexcept { return w == other.w && h == other.h; }
+	inline bool operator!=(Size other) const noexcept { return !operator==(other); }
+
+	// w != 0 and h != 0
+	inline bool isValid() const noexcept { return w > 0 && h > 0; }
+
+	inline coordinate_t area() const noexcept { return w * h; }
+	inline coordinate_t perimeter() const noexcept { return w * 2 + h * 2; }
+
+	inline Iterator iter() const noexcept;
+
+	inline Vector getLargestVectorInArea() { return Vector(w - 1, h - 1); }
+
+	coordinate_t w, h;
+};
+
+template <>
+struct fmt::formatter<Size> : fmt::formatter<std::string> {
+	auto format(Size v, format_context& ctx) const {
+		return formatter<std::string>::format(v.toString(), ctx);
+	}
+};
+
+class Size::Iterator {
+public:
+	inline Iterator(Size size) {
+		if (!size.isValid()) {
+			notDone = false;
+			end = 0;
+			width = 0;
+			return;
+		}
+		width = size.w;
+		end = size.area() - 1;
+	}
+	inline Iterator& operator++() {
+		next();
+		return *this;
+	}
+	inline Iterator& operator--() {
+		prev();
+		return *this;
+	}
+	inline Iterator operator++(int) {
+		Iterator tmp = *this;
+		next();
+		return tmp;
+	}
+	inline Iterator operator--(int) {
+		Iterator tmp = *this;
+		prev();
+		return tmp;
+	}
+	inline explicit operator bool() const { return notDone; }
+	inline Vector operator*() const {
+#ifndef DEBUG // I dont know if this works
+		if (!width) {
+			logError("Reading Size::Iterator iterating over invalid size not valid. Fix this!");
+		}
+#endif
+		return Vector(cur % width, cur / width);
+	}
+	// inline Vector operator->() const { return *(*this); }
+
+private:
+
+	inline void next() {
+		notDone = cur != end;
+		cur += notDone;
+	}
+	inline void prev() {
+		cur -= cur != 0;
+		notDone = (bool)end;
+	}
+	unsigned int end;
+	unsigned int cur = 0;
+	unsigned width;
+	bool notDone = true;
+};
+
+Size::Iterator Size::iter() const noexcept { return Iterator(*this); }
+
+bool Vector::widthInSize(Size size) const noexcept { return dx < size.w && dx >= 0 && dy < size.h && dy >= 0; }
+
+struct FSize {
+	inline FSize() noexcept : w(0), h(0) { }
+	inline FSize(f_coordinate_t w, f_coordinate_t h) noexcept : w(w), h(h) { }
+	inline Size snap() const noexcept;
+
+	inline void extentToFit(FVector vector) noexcept {
+		w = std::max(w, vector.dx + 1);
+		h = std::max(h, vector.dy + 1);
+	}
+	inline std::string toString() const noexcept { return std::to_string(w) + "x" + std::to_string(h); }
+
+	inline bool operator==(FSize other) const noexcept { return w == other.w && h == other.h; }
+	inline bool operator!=(FSize other) const noexcept { return !operator==(other); }
+
+	// w != 0 and h != 0
+	inline bool isValid() const noexcept { return !(w && h); }
+
+	inline f_coordinate_t area() const noexcept { return w * h; }
+	inline f_coordinate_t perimeter() const noexcept { return w * 2 + h * 2; }
+
+	// inline Iterator iter() const noexcept;
+
+	f_coordinate_t w, h;
+};
+
+template <>
+struct fmt::formatter<FSize> : fmt::formatter<std::string> {
+	auto format(FSize v, format_context& ctx) const {
 		return formatter<std::string>::format(v.toString(), ctx);
 	}
 };

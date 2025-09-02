@@ -30,7 +30,7 @@ struct SelectionObjectElement {
 		ARROWS
 	};
 	SelectionObjectElement(SharedSelection selection, RenderMode renderMode = RenderMode::SELECTION)
-		: selection(selection), renderMode(renderMode) { }
+		: selection(std::move(selection)), renderMode(renderMode) { }
 
 	SharedSelection selection;
 	RenderMode renderMode;

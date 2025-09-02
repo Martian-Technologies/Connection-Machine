@@ -43,6 +43,59 @@ private:
 };
 typedef std::shared_ptr<const CellSelection> SharedCellSelection;
 
+// ---------------- Space Selection ----------------
+class SpaceSelection : public Selection {
+public:
+	virtual Position getCellPosition(unsigned int index) const = 0;
+	virtual unsigned int cellCount() const = 0;
+};
+typedef std::shared_ptr<const SpaceSelection> SharedSpaceSelection;
+
+// ---------------- Rect Selection ----------------
+class RectSelection : public SpaceSelection {
+public:
+	RectSelection(Position position, Size size) : position(position), size(size) {}
+	RectSelection(Position topLeftPosition, Position bottomRightPosition) : position(topLeftPosition), size(topLeftPosition, topLeftPosition) {}
+	Position getPosition() const { return position; }
+	Size getSize() const { return size; }
+	Position getCellPosition(unsigned int index) const override final {
+		return position + Vector(index % size.w, index / size.h);
+	}
+	unsigned int cellCount() const override final { return size.area();}
+private:
+	Position position;
+	Size size;
+};
+typedef std::shared_ptr<const RectSelection> SharedRectSelection;
+
+// ---------------- Rect Selection ----------------
+class MultiSpaceSelection : public SpaceSelection {
+public:
+	const std::vector<SharedSpaceSelection>& getSpaceSelections() const { return spaceSelections; }
+	Position getCellPosition(unsigned int index) const override final {
+		for (unsigned int i = 0; i < spaceSelections.size(); ++i) {
+			unsigned int cellCount = spaceSelections[i]->cellCount();
+			if (cellCount > index) {
+				return spaceSelections[i]->getCellPosition(index);
+			} else {
+				index -= cellCount;
+			}
+		}
+		logError("Failed to getCellPosition because index {} was too big.", "MultiSpaceSelection", index);
+		return Position();
+	}
+	unsigned int cellCount() const override final {
+		unsigned int sum = 0;
+		for (unsigned int i = 0; i < spaceSelections.size(); ++i) {
+			sum += spaceSelections[i]->cellCount();
+		}
+		return sum;
+	}
+private:
+	std::vector<SharedSpaceSelection> spaceSelections;
+};
+typedef std::shared_ptr<const MultiSpaceSelection> SharedMultiSpaceSelection;
+
 // ---------------- Shift Selection ----------------
 SharedSelection shiftSelection(SharedSelection selection, Vector shift);
 class ShiftSelection : public DimensionalSelection {
@@ -63,7 +116,7 @@ typedef std::shared_ptr<const ShiftSelection> SharedShiftSelection;
 
 // used to safely shift a selection
 inline SharedSelection shiftSelection(SharedSelection selection, Vector shift) {
-	if (shift.dx == 0 && shift.dy == 0) return selection;
+	if (shift.dx == 0 && shift.dy == 0) return std::move(selection);
 	SharedDimensionalSelection dimensionalSelection = selectionCast<DimensionalSelection>(selection);
 	if (dimensionalSelection) {
 		SharedShiftSelection shiftSelection_ = selectionCast<ShiftSelection>(dimensionalSelection);
@@ -85,7 +138,7 @@ public:
 	inline ProjectionSelection(Position position, Vector step, dimensional_selection_size_t count) :
 		selection(std::make_shared<CellSelection>(position)), step(step), count(count) { }
 	inline ProjectionSelection(SharedSelection selection, Vector step, dimensional_selection_size_t count) :
-		selection(selection), step(step), count(count) { }
+		selection(std::move(selection)), step(step), count(count) { }
 
 	inline SharedSelection getSelection(dimensional_selection_size_t index) const override {
 		return shiftSelection(selection, step * index);
@@ -135,7 +188,7 @@ inline Position getSelectionOrigin(const SharedSelection& selection) {
 	logError("Could not find origin of selection. Selection not Cell or Dimensional Selection.", "Selection");
 	return Position();
 }
-inline void flattenSelection(SharedSelection selection, std::unordered_set<Position>& positions) {
+inline void flattenSelection(const SharedSelection& selection, std::unordered_set<Position>& positions) {
 	// Cell Selection
 	SharedCellSelection cellSelection = selectionCast<CellSelection>(selection);
 	if (cellSelection) {
