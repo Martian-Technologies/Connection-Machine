@@ -22,7 +22,7 @@ void EvalCircuitContainer::removeCircuit(eval_circuit_id_t evalCircuitId) {
 }
 
 std::optional<CircuitNode> EvalCircuitContainer::getNode(EvalPosition pos) const noexcept {
-	if (pos.evalCircuitId < 0 || pos.evalCircuitId >= static_cast<eval_circuit_id_t>(circuits.size())) {
+	if (pos.evalCircuitId >= static_cast<eval_circuit_id_t>(circuits.size())) {
 		return std::nullopt;
 	}
 	EvalCircuit* circuit = circuits.at(pos.evalCircuitId);
