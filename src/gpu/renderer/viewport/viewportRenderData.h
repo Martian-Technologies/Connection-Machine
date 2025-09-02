@@ -68,7 +68,6 @@ private:
 	Address address;
 	std::mutex addressMux;
 
-	
 	// Vulkan
 	VulkanChunker chunker;
 
