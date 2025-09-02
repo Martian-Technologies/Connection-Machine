@@ -1,6 +1,5 @@
 #include "circuitFileManager.h"
 
-#include "openCircuitsParser.h"
 #include "BLIFParser.h"
 #include "connectionMachineParser.h"
 
@@ -29,15 +28,6 @@ std::vector<circuit_id_t> CircuitFileManager::loadFromFile(const std::string& pa
 			logWarning("No circuits loaded from {}. This may be a error", "CircuitFileManager", path);
 		}
 		return circuits;
-	// } else if (path.size() >= 8 && path.substr(path.size() - 8) == ".circuit") { // does not work and will not be used
-	// 	SharedParsedCircuit parsedCircuit = std::make_shared<ParsedCircuit>();
-	// 	// open circuit file parser function
-	// 	OpenCircuitsParser parser(this, circuitManager);
-	// 	std::vector<circuit_id_t> circuits = parser.load(path);
-	// 	if (circuits.empty()) {
-	// 		logWarning("No circuits loaded from {}. This may be a error", "CircuitFileManager", path);
-	// 	}
-	// 	return circuits;
 	} else if (path.size() >= 5 && path.substr(path.size() - 5) == ".blif") {
 		SharedParsedCircuit parsedCircuit = std::make_shared<ParsedCircuit>();
 		// open circuit file parser function

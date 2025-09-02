@@ -29,7 +29,7 @@ namespace Settings {
 	}
 	template<SettingType settingType>
 	inline void registerListener(const std::string& key, SettingsMap::ListenerFunction<settingType> listener) {
-		getSettingsMap().registerListener<settingType>(key, listener);
+		getSettingsMap().registerListener<settingType>(key, std::move(listener));
 	}
 };
 

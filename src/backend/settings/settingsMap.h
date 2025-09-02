@@ -53,8 +53,8 @@ public:
 		virtual ~SettingEntryBase() = default;
 		SettingType getType() const { return type; };
 		template<SettingType settingType>
-		void addListener(const ListenerFunction<settingType>& listener) {
-			listeners.emplace_back(std::make_unique<SettingListener<settingType>>(listener));
+		void addListener(ListenerFunction<settingType> listener) {
+			listeners.emplace_back(std::make_unique<SettingListener<settingType>>(std::move(listener)));
 		}
 	protected:
 		std::vector<std::unique_ptr<SettingListenerBase>> listeners;
@@ -84,9 +84,9 @@ public:
 	void registerListener(std::string key, ListenerFunction<settingType> listener) {
 		std::unordered_map<std::string, std::unique_ptr<SettingEntryBase>>::iterator iter = mappings.find(key);
 		if (iter == mappings.end()) {
-			(mappings[key] = std::make_unique<SettingEntryBase>(SettingType::VOID))->template addListener<settingType>(listener);
+			(mappings[key] = std::make_unique<SettingEntryBase>(SettingType::VOID))->template addListener<settingType>(std::move(listener));
 		} else {
-			iter->second->addListener<settingType>(listener);
+			iter->second->addListener<settingType>(std::move(listener));
 		}
 	}
 
