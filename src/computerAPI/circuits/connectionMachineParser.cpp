@@ -112,7 +112,7 @@ std::vector<circuit_id_t> ConnectionMachineParser::load(const std::string& path)
 			circuitFileManager->loadFromFile(fPath);
 		} else if (token == "Circuit:") {
 			if (currentParsedCircuit) {
-				circuit_id_t circuitId = loadParsedCircuit(currentParsedCircuit);
+				circuit_id_t circuitId = loadParsedCircuit(*currentParsedCircuit);
 				if (circuitId != 0) circuitIds.push_back(circuitId);
 				currentParsedCircuit = nullptr;
 			}
@@ -198,7 +198,7 @@ std::vector<circuit_id_t> ConnectionMachineParser::load(const std::string& path)
 		}
 	}
 	if (currentParsedCircuit) {
-		circuit_id_t circuitId = loadParsedCircuit(currentParsedCircuit);
+		circuit_id_t circuitId = loadParsedCircuit(*currentParsedCircuit);
 		if (circuitId != 0) circuitIds.push_back(circuitId);
 	}
 	inputFile.close();

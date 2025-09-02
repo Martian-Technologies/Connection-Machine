@@ -27,11 +27,11 @@ public:
     // bool saveAsNewProject(const std::unordered_set<std::string>& UUIDs, const std::string& fileLocationPrefix);
 
 	void setSaveFilePath(const std::string& UUID, const std::string& fileLocation);
-	
+
 	const std::string* getSavePath(const std::string&) const;
 
 private:
-	circuit_id_t loadParsedCircuit(SharedParsedCircuit parsedCircuit);
+	circuit_id_t loadParsedCircuit(ParsedCircuit& parsedCircuit);
 
 	CircuitManager* circuitManager;
 	std::map<std::string, FileData> filePathToFile;

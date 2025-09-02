@@ -210,7 +210,7 @@ std::vector<circuit_id_t> BLIFParser::load(const std::string& path) {
 				port.internalBlockConnectionEndId
 			);
 		}
-		circuit_id_t id = loadParsedCircuit(cirData.parsedCircuit);
+		circuit_id_t id = loadParsedCircuit(*cirData.parsedCircuit);
 		circuitIds.push_back(id);
 		cirData.type = circuitManager->getCircuit(id)->getBlockType();
 	}

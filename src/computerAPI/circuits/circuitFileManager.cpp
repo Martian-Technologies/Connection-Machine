@@ -187,14 +187,14 @@ const std::string* CircuitFileManager::getSavePath(const std::string& UUID) cons
 	return &(iter->second);
 }
 
-circuit_id_t CircuitFileManager::loadParsedCircuit(SharedParsedCircuit parsedCircuit) {
-	CircuitValidator validator(*parsedCircuit, circuitManager->getBlockDataManager());
-	if (!parsedCircuit->isValid()) {
+circuit_id_t CircuitFileManager::loadParsedCircuit(ParsedCircuit& parsedCircuit) {
+	CircuitValidator validator(parsedCircuit, circuitManager->getBlockDataManager());
+	if (!parsedCircuit.isValid()) {
 		return 0;
 	}
-	circuit_id_t id = circuitManager->createNewCircuit(parsedCircuit.get());
-	if (parsedCircuit->getAbsoluteFilePath() != "") {
-		setSaveFilePath(circuitManager->getCircuit(id)->getUUID(), parsedCircuit->getAbsoluteFilePath());
+	circuit_id_t id = circuitManager->createNewCircuit(parsedCircuit);
+	if (parsedCircuit.getAbsoluteFilePath() != "") {
+		setSaveFilePath(circuitManager->getCircuit(id)->getUUID(), parsedCircuit.getAbsoluteFilePath());
 	}
 
 	return id; // 0 if circuit creation failed

@@ -35,13 +35,13 @@ CircuitManager::CircuitManager(DataUpdateEventManager* dataUpdateEventManager, E
 	dataUpdateEventReceiver.linkFunction("blockDataConnectionNameSet", [this](const DataUpdateEventManager::EventData* eventData) { linkedFunctionForUpdates<connection_end_id_t>(eventData); });
 }
 
-circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit* parsedCircuit, bool createEval) {
-	if (!parsedCircuit->isValid()) {
+circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit& parsedCircuit, bool createEval) {
+	if (!parsedCircuit.isValid()) {
 		logError("parsedCircuit is not validated", "CircuitManager");
 		return 0;
 	}
 
-	std::string uuid = parsedCircuit->getUUID();
+	std::string uuid = parsedCircuit.getUUID();
 	if (uuid.empty()) {
 		logInfo("Setting a uuid for parsed circuit", "CircuitManager");
 		uuid = generate_uuid_v4();
@@ -61,12 +61,12 @@ circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit* parsedCircuit
 		}
 	}
 
-	circuit_id_t id = createNewCircuit(parsedCircuit->getName(), uuid, createEval);
+	circuit_id_t id = createNewCircuit(parsedCircuit.getName(), uuid, createEval);
 	SharedCircuit circuit = getCircuit(id);
-	circuit->tryInsertParsedCircuit(*parsedCircuit, Position());
+	circuit->tryInsertParsedCircuit(parsedCircuit, Position());
 
 	// if is custom
-	if (!parsedCircuit->isCustom()) {
+	if (!parsedCircuit.isCustom()) {
 		return id;
 	}
 
@@ -83,7 +83,7 @@ circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit* parsedCircuit
 	blockData->setDefaultData(false);
 	blockData->setPrimitive(false);
 	blockData->setPath("Custom");
-	blockData->setSize(parsedCircuit->getSize());
+	blockData->setSize(parsedCircuit.getSize());
 
 	// Circuit Block Data
 	circuitBlockDataManager.newCircuitBlockData(id, blockType);
@@ -96,7 +96,7 @@ circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit* parsedCircuit
 	}
 
 	// Connections
-	const std::vector<ParsedCircuit::ConnectionPort>& ports = parsedCircuit->getConnectionPorts();
+	const std::vector<ParsedCircuit::ConnectionPort>& ports = parsedCircuit.getConnectionPorts();
 
 	for (const ParsedCircuit::ConnectionPort& port : ports) {
 		if (port.isInput) blockData->setConnectionInput(port.positionOnBlock, port.connectionEndId);
@@ -105,7 +105,7 @@ circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit* parsedCircuit
 			blockData->setConnectionIdName(port.connectionEndId, port.portName);
 		}
 		if (port.internalBlockId != 0) {
-			const ParsedCircuit::BlockData* parsedBlock = parsedCircuit->getBlock(port.internalBlockId);
+			const ParsedCircuit::BlockData* parsedBlock = parsedCircuit.getBlock(port.internalBlockId);
 			circuitBlockData->setConnectionIdPosition(
 				port.connectionEndId,
 				parsedBlock->position.snap() + blockDataManager.getConnectionVector(parsedBlock->type, port.internalBlockConnectionEndId).value()
@@ -118,18 +118,18 @@ circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit* parsedCircuit
 	return id;
 }
 
-circuit_id_t CircuitManager::createNewCircuit(const GeneratedCircuit* generatedCircuit, bool createEval) {
-	if (!generatedCircuit->isValid()) {
+circuit_id_t CircuitManager::createNewCircuit(const GeneratedCircuit& generatedCircuit, bool createEval) {
+	if (!generatedCircuit.isValid()) {
 		logError("GeneratedCircuit is not validated", "CircuitManager");
 		return 0;
 	}
 
 	std::string uuid = generate_uuid_v4();
-	circuit_id_t id = createNewCircuit(generatedCircuit->getName(), uuid, createEval);
+	circuit_id_t id = createNewCircuit(generatedCircuit.getName(), uuid, createEval);
 	SharedCircuit circuit = getCircuit(id);
-	circuit->tryInsertGeneratedCircuit(*generatedCircuit, Position());
+	circuit->tryInsertGeneratedCircuit(generatedCircuit, Position());
 
-	if (!generatedCircuit->isCustom()) {
+	if (!generatedCircuit.isCustom()) {
 		return id;
 	}
 
@@ -146,7 +146,7 @@ circuit_id_t CircuitManager::createNewCircuit(const GeneratedCircuit* generatedC
 	blockData->setDefaultData(false);
 	blockData->setPrimitive(false);
 	blockData->setPath("Custom");
-	blockData->setSize(generatedCircuit->getSize());
+	blockData->setSize(generatedCircuit.getSize());
 
 	// Circuit Block Data
 	circuitBlockDataManager.newCircuitBlockData(id, blockType);
@@ -159,7 +159,7 @@ circuit_id_t CircuitManager::createNewCircuit(const GeneratedCircuit* generatedC
 	}
 
 	// Connections
-	const std::vector<GeneratedCircuit::ConnectionPort>& ports = generatedCircuit->getConnectionPorts();
+	const std::vector<GeneratedCircuit::ConnectionPort>& ports = generatedCircuit.getConnectionPorts();
 
 	for (const GeneratedCircuit::ConnectionPort& port : ports) {
 		if (port.isInput) blockData->setConnectionInput(port.positionOnBlock, port.connectionEndId);
@@ -170,7 +170,7 @@ circuit_id_t CircuitManager::createNewCircuit(const GeneratedCircuit* generatedC
 		if (port.internalBlockId == 0) {
 			logError("Can't find port.internalBlockId should not be 0.", "CircuitManager");
 		} else {
-			const GeneratedCircuit::GeneratedCircuitBlockData* blockData = generatedCircuit->getBlock(port.internalBlockId);
+			const GeneratedCircuit::GeneratedCircuitBlockData* blockData = generatedCircuit.getBlock(port.internalBlockId);
 			circuitBlockData->setConnectionIdPosition(
 				port.connectionEndId,
 				blockData->position + blockDataManager.getConnectionVector(blockData->type, blockData->orientation, port.internalBlockConnectionEndId).value()

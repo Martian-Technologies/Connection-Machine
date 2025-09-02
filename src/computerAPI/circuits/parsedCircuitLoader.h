@@ -12,7 +12,7 @@ public:
 
 	virtual std::vector<circuit_id_t> load(const std::string& path) = 0;
 
-	circuit_id_t loadParsedCircuit(SharedParsedCircuit parsedCircuit) {
+	circuit_id_t loadParsedCircuit(ParsedCircuit& parsedCircuit) {
         return circuitFileManager->loadParsedCircuit(parsedCircuit);
     }
 

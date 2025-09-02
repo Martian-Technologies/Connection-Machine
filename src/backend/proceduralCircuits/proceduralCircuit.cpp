@@ -103,7 +103,7 @@ circuit_id_t ProceduralCircuit::getCircuitId(const ProceduralCircuitParameters& 
 	if (!(generatedCircuit.isValid())) return 0;
 
 	// Create the circuit if it has not been generated
-	circuit_id_t id = circuitManager->createNewCircuit(&generatedCircuit, false);
+	circuit_id_t id = circuitManager->createNewCircuit(generatedCircuit, false);
 
 	// Add the circuit id to the generated circuits
 	generatedCircuits[realParameters] = id;
