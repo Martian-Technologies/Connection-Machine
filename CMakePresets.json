@@ -53,7 +53,7 @@
 		{
 			"name": "distribute",
 			"displayName": "Distribute",
-			"binaryDir": "build-release",
+			"binaryDir": "build-distribute",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
