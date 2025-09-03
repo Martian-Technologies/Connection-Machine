@@ -11,7 +11,7 @@ VulkanInstance::VulkanInstance() {
 
 	// Initialize volk loader
 	if (volkInitialize() != VK_SUCCESS) {
-		throwFatalError("Failed to find Vulkan loader, Gatality requires Vulkan. Please make sure that your graphics drivers are installed and up to date.");
+		throwFatalError("Failed to find Vulkan loader, Connection Machine requires Vulkan. Please make sure that your graphics drivers are installed and up to date.");
 	}
 
 	// Start creating vulkan instance
@@ -32,8 +32,8 @@ VulkanInstance::VulkanInstance() {
 #endif
 
 	// Create Vulkan Instance
-	instanceBuilder.set_app_name("Gatality");
-	instanceBuilder.set_engine_name("Jack Jamison's Wacky-n-Wonderful Gatality Render-a-tron 3000 million!");
+	instanceBuilder.set_app_name("Connection Machine");
+	instanceBuilder.set_engine_name("Jack Jamison's Wacky-n-Wonderful Connection Machine Render-a-tron 3000 million!");
 	instanceBuilder.require_api_version(1,0,0);
 	auto instanceRet = instanceBuilder.build();
 	if (!instanceRet) { throwFatalError("Failed to create Vulkan instance. Error: " + instanceRet.error().message()); }

@@ -1,6 +1,6 @@
-#ifndef gatalityFatal_h
-#define gatalityFatal_h
+#ifndef fatal_h
+#define fatal_h
 
 void throwFatalError(const std::string& message);
 
-#endif /* gatalityFatal_h */
+#endif /* fatal_h */

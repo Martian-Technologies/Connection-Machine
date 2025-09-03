@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
 
 	} catch (const std::exception& e) {
 		// Top level fatal error catcher, logs issue
-		logFatalError("Exiting Gatality because of fatal error: '{}'", "", e.what());
+		logFatalError("Exiting Connection Machine because of fatal error: '{}'", "", e.what());
 		return EXIT_FAILURE;
 	}
 
