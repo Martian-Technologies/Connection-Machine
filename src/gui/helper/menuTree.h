@@ -18,7 +18,7 @@ public:
 
 	// Access underlying root element for external DOM operations (e.g., programmatic selection).
 	Rml::Element* getRootElement() const { return parent; }
-	
+
 private:
 	std::string getPath(Rml::Element* item);
 	void setPaths(const std::vector<std::vector<std::string>>& paths, Rml::Element* current);
@@ -30,4 +30,4 @@ private:
 	bool startOpen;
 };
 
-#endif /* menuTree_h */ 
+#endif /* menuTree_h */

@@ -19,8 +19,12 @@ SelectorWindow::SelectorWindow(
 	dataUpdateEventReceiver.linkFunction("proceduralCircuitPathUpdate", [this](const DataUpdateEventManager::EventData*) { refreshSidebar(true); });
 
 	Rml::Element* modeTreeParent = document->GetElementById("mode-selection-tree");
-	modeMenuTree.emplace(document, modeTreeParent, false);
-	modeMenuTree->setListener(std::bind(&SelectorWindow::updateSelectedMode, this, std::placeholders::_1));
+	modeList.emplace(document, modeTreeParent, [this](const std::string& item, Rml::Element* element) {
+		element->AppendChild(std::move(this->document->CreateTextNode(item)));
+	});
+	modeList->addEventListener(Rml::EventId::Click, std::bind(&SelectorWindow::updateSelectedMode, this, std::placeholders::_1));
+	dataUpdateEventReceiver.linkFunction("setToolModeUpdate", [this](const DataUpdateEventManager::EventData*) { updateToolModeOptions(); });
+
 	dataUpdateEventReceiver.linkFunction("setToolUpdate", [this](const DataUpdateEventManager::EventData*) { refreshSidebar(false); });
 
 	parameterMenu = document->GetElementById("parameter-menu");
@@ -74,14 +78,16 @@ void SelectorWindow::updateList() {
 	menuTree->setPaths(paths);
 }
 
-void SelectorWindow::updateToolModeOptions() { refreshSidebar(false); }
+void SelectorWindow::updateToolModeOptions() {
+	auto modes = toolManagerManager->getActiveToolModes();
+	modeList->setItems(modes.value_or(std::vector<std::string>()));
+	highlightActiveMode();
+}
 
 void SelectorWindow::refreshSidebar(bool rebuildItems) {
 	if (rebuildItems) updateList();
-	auto modes = toolManagerManager->getActiveToolModes();
-	modeMenuTree->setPaths(modes.value_or(std::vector<std::string>()));
 	highlightActiveToolInSidebar();
-	applyAndHighlightActiveMode();
+	updateToolModeOptions();
 }
 
 void SelectorWindow::highlightActiveToolInSidebar() {
@@ -134,28 +140,14 @@ void SelectorWindow::highlightActiveToolInSidebar() {
 	}
 }
 
-void SelectorWindow::applyAndHighlightActiveMode() {
-	auto modes = toolManagerManager->getActiveToolModes();
-	if (!(modes && !modes->empty())) return;
-	std::string modeToApply;
-	if (auto stored = toolManagerManager->getActiveToolStoredMode(); stored && std::find(modes->begin(), modes->end(), *stored) != modes->end()) {
-		modeToApply = *stored;
-	} else {
-		modeToApply = (*modes)[0];
+void SelectorWindow::highlightActiveMode() {
+	for (unsigned int i = 0; i < modeList->getSize(); i++) {
+		modeList->getItem(i)->SetClass("selected", false);
 	}
-	toolManagerManager->setMode(modeToApply);
-	if (!modeMenuTree) return;
-	if (Rml::Element* modeRoot = document->GetElementById("mode-selection-tree")) {
-		Rml::ElementList rows; modeRoot->GetElementsByTagName(rows, "li");
-		for (auto* row : rows) row->SetClass("selected", false);
-		for (auto* row : rows) {
-			std::string id = row->GetId();
-			if (id.size() >= 5) {
-				std::string path = id.substr(0, id.size() - 5);
-				if (path == modeToApply) { row->SetClass("selected", true); break; }
-			}
-		}
-	}
+	std::optional<std::string> mode = toolManagerManager->getActiveToolMode();
+	if (!mode) return;
+	Rml::Element* item = modeList->getItem(*mode);
+	if (item) item->SetClass("selected", true);
 }
 
 

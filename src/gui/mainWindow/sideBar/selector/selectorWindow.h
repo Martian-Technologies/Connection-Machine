@@ -4,6 +4,7 @@
 #include "backend/blockData/blockDataManager.h"
 #include "gui/mainWindow/tools/toolManagerManager.h"
 #include "gui/helper/menuTree.h"
+#include "gui/helper/elementList.h"
 
 class SelectorWindow {
 public:
@@ -26,14 +27,14 @@ private:
 	void hideProceduralCircuitParameterMenu();
 
 	void highlightActiveToolInSidebar();
-	void applyAndHighlightActiveMode();
+	void highlightActiveMode();
 
 	SharedProceduralCircuit selectedProceduralCircuit = nullptr;
 
 	Rml::ElementDocument* document;
 	Rml::Element* parameterMenu;
 	std::optional<MenuTree> menuTree;
-	std::optional<MenuTree> modeMenuTree;
+	std::optional<ElementList> modeList;
 	const BlockDataManager* blockDataManager;
 	ProceduralCircuitManager* proceduralCircuitManager;
 	ToolManagerManager* toolManagerManager;

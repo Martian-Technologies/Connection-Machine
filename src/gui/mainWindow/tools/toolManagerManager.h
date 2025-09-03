@@ -2,6 +2,7 @@
 #define toolManagerManager_h
 
 #include "gui/viewportManager/circuitView/circuitView.h"
+#include "util/algorithm.h"
 
 class ToolManagerManager {
 public:
@@ -46,21 +47,32 @@ public:
 		return selectedBlock;
 	}
 
-	inline void setMode(const std::string& tool) {
+	inline void setMode(const std::string& mode) {
 		if (activeTool.empty()) return; // this should never happen
 
 		for (auto view : circuitViews) {
-			view->getToolManager().setMode(tool);
+			view->getToolManager().setMode(mode);
 		}
 
-		lastToolModes[activeTool] = tool;
+		dataUpdateEventManager->sendEvent("setToolModeUpdate");
+
+		lastToolModes[activeTool] = mode;
 	}
 
 	// Returns the last stored mode for the active tool, if any.
-	inline std::optional<std::string> getActiveToolStoredMode() const {
-		auto it = lastToolModes.find(activeTool);
-		if (it == lastToolModes.end()) return std::nullopt;
-		return it->second;
+	inline std::optional<std::string> getActiveToolMode() {
+		auto toolIter = tools.find(activeTool);
+		if (toolIter == tools.end()) return std::nullopt;
+		std::vector<std::string> modes = toolIter->second->getModes();
+		if (modes.empty()) return std::nullopt;
+		auto modesIter = lastToolModes.find(activeTool);
+		if (modesIter != lastToolModes.end() && contains(modes.begin(), modes.end(), modesIter->second)) {
+			return modesIter->second;
+		}
+		const std::string& toolMode = modes[0];
+		lastToolModes[activeTool] = toolMode;
+		setMode(toolMode);
+		return toolMode;
 	}
 
 	const std::optional<std::vector<std::string>> getActiveToolModes() const {

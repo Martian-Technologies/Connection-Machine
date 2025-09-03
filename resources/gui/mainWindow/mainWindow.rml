@@ -3,6 +3,7 @@
 	<head>
 		<title>Connection Machine</title>
 		<link type="text/rcss" href="mainWindow.rcss"/>
+		<link type="text/rcss" href="../helper/elementList.rcss"/>
 		<link type="text/rcss" href="../helper/menuTree.rcss"/>
 		<link type="text/rcss" href="../helper/base.rcss"/>
 		<link type="text/template" href="menuBar/menuBar.rml"/>
@@ -23,7 +24,7 @@
 					<template src="sideBar"></template>
 				</div>
 
-				
+
 				<!-- <div id="center-container"> -->
 				<div id="circuit-view-container">
 					<template src="circuitView"></template>

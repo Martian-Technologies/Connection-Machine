@@ -51,13 +51,13 @@ void MenuTree::setPaths(const std::vector<std::vector<std::string>>& paths, Rml:
 		}
 	}
 
-	Rml::Element* listElement;
+	Rml::Element* elementList;
 	elements.clear();
 	div->GetElementsByTagName(elements, "ul");
 	if (elements.empty()) {
 		Rml::ElementPtr newList = document->CreateElement("ul");
 		current->SetClass("collapsed", !startOpen && current != parent);
-		listElement = div->AppendChild(std::move(newList));
+		elementList = div->AppendChild(std::move(newList));
 		current->SetClass("parent", true);
 		if (current != parent) {
 			Rml::ElementPtr arrow = document->CreateElement("span");
@@ -66,10 +66,10 @@ void MenuTree::setPaths(const std::vector<std::vector<std::string>>& paths, Rml:
 			current->InsertBefore(std::move(arrow), div);
 		}
 	} else {
-		listElement = elements[0];
+		elementList = elements[0];
 		std::vector<Rml::Element*> children;
-		for (unsigned int i = 0; i < listElement->GetNumChildren(); i++) {
-			children.push_back(listElement->GetChild(i));
+		for (unsigned int i = 0; i < elementList->GetNumChildren(); i++) {
+			children.push_back(elementList->GetChild(i));
 		}
 		for (auto element : children) {
 			getPath(element);
@@ -78,7 +78,7 @@ void MenuTree::setPaths(const std::vector<std::vector<std::string>>& paths, Rml:
 			while (index != 0 && id[index] != '/') index--;
 			auto iter = pathsByRoot.find(id.substr(index + (index != 0), id.size() - 5 - index - (index != 0)));
 			if (iter == pathsByRoot.end()) {
-				listElement->RemoveChild(element);
+				elementList->RemoveChild(element);
 				continue;
 			}
 			setPaths(iter->second, element);
@@ -176,7 +176,7 @@ void MenuTree::setPaths(const std::vector<std::vector<std::string>>& paths, Rml:
 		Rml::ElementPtr newDiv = document->CreateElement("div");
 		newDiv->AppendChild(std::move(document->CreateTextNode(iter.first)));
 		newItem->AppendChild(std::move(newDiv));
-		Rml::Element* newItem2 = listElement->AppendChild(std::move(newItem));
+		Rml::Element* newItem2 = elementList->AppendChild(std::move(newItem));
 		if (!iter.second.empty()) {
 			setPaths(iter.second, newItem2);
 		}
