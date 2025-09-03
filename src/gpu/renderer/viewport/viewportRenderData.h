@@ -7,8 +7,6 @@
 #include "elements/elementRenderer.h"
 #include "gpu/mainRendererDefs.h"
 
-namespace Rml { class Element; }
-
 struct ViewportViewData {
 	glm::mat4 viewportViewMat;
 	std::pair<FPosition, FPosition> viewBounds;
@@ -18,7 +16,7 @@ struct ViewportViewData {
 
 class ViewportRenderData {
 public:
-	ViewportRenderData(VulkanDevice* device, Rml::Element* element);
+	ViewportRenderData(VulkanDevice* device);
 
 	ViewportViewData getViewData();
 	inline VulkanChunker& getChunker() { return chunker; }
@@ -42,8 +40,6 @@ public:
 	void updateViewFrame(glm::vec2 origin, glm::vec2 size);
 	void updateView(FPosition topLeft, FPosition bottomRight);
 
-	float getLastFrameTimeMs() const;
-
 	// elements
 	ElementId addSelectionObjectElement(const SelectionObjectElement& selection);
 	ElementId addSelectionElement(const SelectionElement& selection);
@@ -60,9 +56,6 @@ public:
 	void removeHalfConnectionPreview(ElementId halfConnectionPreview);
 
 private:
-	// From the UI Side
-	Rml::Element* element;
-
 	Evaluator* evaluator = nullptr;
 	std::mutex evaluatorMux;
 	Address address;

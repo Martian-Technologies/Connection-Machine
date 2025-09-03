@@ -160,13 +160,13 @@ void MainRenderer::setBlockPortName(BlockRenderDataId blockRenderDataId, BlockPo
 	blockRenderDataManager.setBlockPortName(blockRenderDataId, blockPortRenderDataId, newPortName);
 }
 
-ViewportId MainRenderer::registerViewport(WindowId windowId, glm::vec2 origin, glm::vec2 size, Rml::Element* element) {
+ViewportId MainRenderer::registerViewport(WindowId windowId, glm::vec2 origin, glm::vec2 size) {
 	auto iter = windowRenderers.find(windowId);
 	if (iter == windowRenderers.end()) {
 		logError("Failed to call registerViewport on non existent window {}", "MainRenderer", windowId);
 		return 0;
 	}
-	auto pair = viewportRenderers.try_emplace(getNewViewportId(), iter->second.getDevice(), element);
+	auto pair = viewportRenderers.try_emplace(getNewViewportId(), iter->second.getDevice());
 	iter->second.registerViewportRenderData(&(pair.first->second));
 	return lastViewportId;
 }

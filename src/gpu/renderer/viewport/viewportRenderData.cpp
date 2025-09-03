@@ -8,7 +8,7 @@
 #include "gpu/renderer/viewport/elements/elementRenderer.h"
 #include "gpu/mainRenderer.h"
 
-ViewportRenderData::ViewportRenderData(VulkanDevice* device, Rml::Element* element) : element(element), chunker(device) {}
+ViewportRenderData::ViewportRenderData(VulkanDevice* device) : chunker(device) {}
 
 ViewportViewData ViewportRenderData::getViewData() {
 	std::lock_guard<std::mutex> lock(viewMux);
@@ -40,10 +40,6 @@ void ViewportRenderData::updateView(FPosition topLeft, FPosition bottomRight) {
 	std::lock_guard<std::mutex> lock(viewMux);
 	viewData.viewportViewMat = glm::ortho(topLeft.x, bottomRight.x, topLeft.y, bottomRight.y);
 	viewData.viewBounds = { topLeft, bottomRight };
-}
-
-float ViewportRenderData::getLastFrameTimeMs() const {
-	return 0.0f;
 }
 
 ElementId ViewportRenderData::addSelectionObjectElement(const SelectionObjectElement& selection) {

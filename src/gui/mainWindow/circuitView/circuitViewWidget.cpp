@@ -49,7 +49,7 @@ CircuitViewWidget::CircuitViewWidget(
 	int h = this->element->GetClientHeight();
 	int x = this->element->GetAbsoluteLeft() + this->element->GetClientLeft();
 	int y = this->element->GetAbsoluteTop() + this->element->GetClientTop();
-	viewportId = MainRenderer::get().registerViewport(windowId, {x, y}, {w, h}, element);
+	viewportId = MainRenderer::get().registerViewport(windowId, {x, y}, {w, h});
 	circuitView = std::make_unique<CircuitView>(environment, viewportId);
 
 	circuitView->getEventRegister().registerFunction("status bar changed", [this](const Event* event) -> bool {
