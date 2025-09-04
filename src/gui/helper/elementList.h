@@ -24,7 +24,7 @@ public:
 	Rml::Element* getItem(const std::string& item, unsigned int matchesToSkip = 0) const { return getItem(getIndex(item, matchesToSkip)); }
 
 	// Events
-	typedef std::function<void(std::string)> ListenerFunction;
+	typedef std::function<void(const std::string&)> ListenerFunction;
 	void addEventListener(Rml::EventId eventId, ListenerFunction listenerFunction);
 
 private:

@@ -3,7 +3,7 @@
 
 #include "backend/blockData/blockDataManager.h"
 #include "gui/mainWindow/tools/toolManagerManager.h"
-#include "gui/helper/menuTree.h"
+#include "gui/helper/elementTree.h"
 #include "gui/helper/elementList.h"
 
 class SelectorWindow {
@@ -33,7 +33,7 @@ private:
 
 	Rml::ElementDocument* document;
 	Rml::Element* parameterMenu;
-	std::optional<MenuTree> menuTree;
+	std::optional<ElementTree> selectionTree;
 	std::optional<ElementList> modeList;
 	const BlockDataManager* blockDataManager;
 	ProceduralCircuitManager* proceduralCircuitManager;

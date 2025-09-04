@@ -1,6 +1,6 @@
-/* Element List Styles */
+/* Element Tree Styles */
 
-.element-list {
+.element-tree {
 	background-color: #2e2e2e;
 	border-radius: 0.3em;
 	margin: 0.5em 0.1em;
@@ -9,25 +9,25 @@
 	min-height: 2rem;
 }
 
-.element-list * {
+.element-tree * {
 	display: block;
 }
 
-.element-list ul ul {
+.element-tree ul ul {
 	padding-left: 0.5rem;
 }
 
-.element-list li span {
+.element-tree li span {
 	padding: 0em 0.2em;
 	display: inline;
 	vertical-align: top;
 }
 
-.element-list li div {
+.element-tree li div {
 	display: inline-block;
 }
 
-.element-list li {
+.element-tree li {
 	padding: 0.1em 0.1em;
 }
 
@@ -36,35 +36,35 @@
 }
 
 /* Base row styling */
-.element-list li {
+.element-tree li {
 	line-height: 1.2em;
 	min-height: 18dp;
 	border-left: 2dp transparent; /* space for accent on selection */
 	border-radius: 4dp;
 }
 
-.element-list li.hovered-leaf { background-color: #1d1d1d; }
-.element-list li.hovered-leaf:active { background-color: #151515; }
+.element-tree li.hovered-leaf { background-color: #1d1d1d; }
+.element-tree li.hovered-leaf:active { background-color: #151515; }
 
 /* Do not highlight non-selectable parent categories at any depth when root has no-parent-select */
-.element-list.no-parent-select li.parent.hovered-leaf { background-color: transparent; }
+.element-tree.no-parent-select li.parent.hovered-leaf { background-color: transparent; }
 
 /* Selected state hook (apply class externally) */
-.element-list li.selected {
+.element-tree li.selected {
 	background-color: #2e2e2e;
 	border-left-color: #d1963a;
 	color: #f5f5f5;
 }
 
 /* When a selected row is hovered, prefer the hover background for clear feedback */
-.element-list li.selected.hovered-leaf {
+.element-tree li.selected.hovered-leaf {
 	background-color: #1d1d1d;
 }
 
-.element-list.alt-rows > ul > li:nth-child(even) {
+.element-tree.alt-rows > ul > li:nth-child(even) {
 	background-color: #101010;
 }
 
-.element-list.alt-rows > ul > li:nth-child(even):hover {
+.element-tree.alt-rows > ul > li:nth-child(even):hover {
 	background-color: #1d1d1d;
 }

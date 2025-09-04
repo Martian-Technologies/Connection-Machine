@@ -11,10 +11,10 @@ SelectorWindow::SelectorWindow(
 	Rml::ElementDocument* document
 ) : blockDataManager(blockDataManager), proceduralCircuitManager(proceduralCircuitManager), toolManagerManager(toolManagerManager), dataUpdateEventReceiver(dataUpdateEventManager), document(document) {
 	Rml::Element* itemTreeParent = document->GetElementById("item-selection-tree");
-	menuTree.emplace(document, itemTreeParent, false);
-	menuTree->setListener(std::bind(&SelectorWindow::updateSelected, this, std::placeholders::_1));
+	selectionTree.emplace(document, itemTreeParent);
+	selectionTree->addEventListener(Rml::EventId::Click, std::bind(&SelectorWindow::updateSelected, this, std::placeholders::_1));
 	// In Blocks/Tools tree, prevent selecting category dropdown parents ("Blocks" / "Tools")
-	menuTree->disallowParentSelection(true);
+	// menuTree->disallowParentSelection(true);
 	dataUpdateEventReceiver.linkFunction("blockDataUpdate", [this](const DataUpdateEventManager::EventData*) { refreshSidebar(true); });
 	dataUpdateEventReceiver.linkFunction("proceduralCircuitPathUpdate", [this](const DataUpdateEventManager::EventData*) { refreshSidebar(true); });
 
@@ -75,7 +75,7 @@ void SelectorWindow::updateList() {
 		std::vector<std::string>& path = paths.emplace_back(1, "Blocks");
 		stringSplitInto(iter.second->getPath(), '/', path);
 	}
-	menuTree->setPaths(paths);
+	selectionTree->setItems(paths);
 }
 
 void SelectorWindow::updateToolModeOptions() {
@@ -91,7 +91,7 @@ void SelectorWindow::refreshSidebar(bool rebuildItems) {
 }
 
 void SelectorWindow::highlightActiveToolInSidebar() {
-	if (!menuTree) return;
+	if (!selectionTree) return;
 	const std::string& activeTool = toolManagerManager->getActiveTool();
 	if (activeTool.empty()) return;
 	std::string activeToolId = std::string("Tools/") + activeTool + "-menu";

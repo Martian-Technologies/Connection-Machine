@@ -26,8 +26,8 @@ MainWindow::MainWindow(Environment* environment) :
 	// create rmlUI document
 	rmlDocument = rmlContext->LoadDocument(DirectoryManager::getResourceDirectory().generic_string() + "/gui/mainWindow/mainWindow.rml");
 
-	// Rml::Debugger::Initialise(rmlContext);
-	// Rml::Debugger::SetVisible(true);
+	Rml::Debugger::Initialise(rmlContext);
+	Rml::Debugger::SetVisible(true);
 
 	// get widget for circuit view
 	Rml::Element* circuitViewWidgetElement = rmlDocument->GetElementById("circuit-view-rendering-area");
