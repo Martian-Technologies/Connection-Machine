@@ -1,18 +1,18 @@
-#ifndef elementTree_h
-#define elementTree_h
+#ifndef itemTree_h
+#define itemTree_h
 
 #include <RmlUi/Core.h>
 
-class ElementTree {
+class ItemTree {
 	struct TreeItem {
 		TreeItem(const std::string& string) : string(string) {}
 		std::string string;
 		bool isItem = false;
-		std::unique_ptr<ElementTree> tree;
+		std::unique_ptr<ItemTree> tree;
 	};
 public:
 	typedef std::function<void(const std::string&, Rml::Element*)> GeneratorFunction;
-	ElementTree(
+	ItemTree(
 		Rml::ElementDocument* document,
 		Rml::Element* parent,
 		std::optional<GeneratorFunction> generatorFunction,
@@ -20,7 +20,7 @@ public:
 		bool reverseOrder = false,
 		const std::string& pathToTree = ""
 	);
-	ElementTree(
+	ItemTree(
 		Rml::ElementDocument* document,
 		Rml::Element* parent,
 		bool startOpen = true,
@@ -61,4 +61,4 @@ private:
 	bool startOpen;
 };
 
-#endif /* elementTree_h */
+#endif /* itemTree_h */

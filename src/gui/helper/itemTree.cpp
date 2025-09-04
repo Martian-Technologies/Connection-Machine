@@ -1,17 +1,16 @@
-#include "elementTree.h"
+#include "itemTree.h"
 
 #include "eventPasser.h"
 
-ElementTree::ElementTree(
+ItemTree::ItemTree(
 	Rml::ElementDocument* document,
 	Rml::Element* root,
-	std::optional<GeneratorFunction> generatorFunction,
 	bool startOpen,
 	bool reverseOrder,
 	const std::string& pathToTree
-) : document(document), root(root), generatorFunction(generatorFunction), startOpen(startOpen), reverseOrder(reverseOrder), pathToTree(pathToTree) {
+) : document(document), root(root), startOpen(startOpen), reverseOrder(reverseOrder), pathToTree(pathToTree) {
 	if (root->GetNumChildren() != 0) {
-		logWarning("ElementTree root should be empty when creating a ElementTree. This can lead to unexpected behavior.", "ElementTree");
+		logWarning("ItemTree root should be empty when creating a ItemTree. This can lead to unexpected behavior.", "ItemTree");
 	}
 
 	// setup classes
@@ -28,7 +27,7 @@ ElementTree::ElementTree(
 	}
 	// create tree
 	Rml::Element* container = root->AppendChild(std::move(document->CreateElement("div")));
-	if (!pathToTree.empty() && generatorFunction.has_value()) {
+	if (!pathToTree.empty()) {
 		size_t split = pathToTree.find_last_of('/');
 		if (split == std::string::npos) {
 			container->AppendChild(this->document->CreateTextNode(pathToTree));
@@ -44,15 +43,15 @@ ElementTree::ElementTree(
 	}
 }
 
-ElementTree::ElementTree(
+ItemTree::ItemTree(
 	Rml::ElementDocument* document,
 	Rml::Element* root,
 	bool startOpen,
 	bool reverseOrder,
 	const std::string& pathToTree
-) : ElementTree(document, root, std::nullopt, startOpen, reverseOrder, pathToTree) {}
+) : ItemTree(document, root, std::nullopt, startOpen, reverseOrder, pathToTree) {}
 
-void ElementTree::setItems(const std::vector<std::string>& items, bool reuseItems) {
+void ItemTree::setItems(const std::vector<std::string>& items, bool reuseItems) {
 	if (reuseItems) {
 		std::map<std::string, std::pair<bool, std::vector<std::string>>> itemsMap;
 		for (const std::string& item : items) {
@@ -105,7 +104,7 @@ void ElementTree::setItems(const std::vector<std::string>& items, bool reuseItem
 				}
 			} else { // shuold have sub tree
 				if (!treeItems[i].tree) {
-					treeItems[i].tree = std::make_unique<ElementTree>(document, bottomTreeItem, generatorFunction, startOpen, reverseOrder, (pathToTree.empty()) ? string : (pathToTree + "/" + string));
+					treeItems[i].tree = std::make_unique<ItemTree>(document, bottomTreeItem, startOpen, reverseOrder, (pathToTree.empty()) ? string : (pathToTree + "/" + string));
 					treeItems[i].tree->setItems(iter->second.second);
 					for (const auto& listenerFunction : listenerFunctions) {
 						treeItems[i].tree->addEventListener(listenerFunction.first, listenerFunction.second);
@@ -128,7 +127,7 @@ void ElementTree::setItems(const std::vector<std::string>& items, bool reuseItem
 	}
 }
 
-void ElementTree::setItems(const std::vector<std::vector<std::string>>& items, bool reuseItems) {
+void ItemTree::setItems(const std::vector<std::vector<std::string>>& items, bool reuseItems) {
 	std::vector<std::string> itemsVec;
 	itemsVec.reserve(items.size());
 	for (const std::vector<std::string>& item : items) {
@@ -143,14 +142,14 @@ void ElementTree::setItems(const std::vector<std::vector<std::string>>& items, b
 	setItems(itemsVec, reuseItems);
 }
 
-void ElementTree::clearItems() {
+void ItemTree::clearItems() {
 	while (tree->HasChildNodes()) {
 		tree->RemoveChild(tree->GetLastChild());
 	}
 	treeItems.clear();
 }
 
-void ElementTree::addItem(const std::string& item) {
+void ItemTree::addItem(const std::string& item) {
 	if (item.empty()) return;
 	size_t index = item.find_first_of('/');
 	std::string string;
@@ -189,13 +188,11 @@ void ElementTree::addItem(const std::string& item) {
 				));
 			}
 		} else {
-			if (!generatorFunction) {
-				topTreeItem->AppendChild(document->CreateTextNode(string))->AddEventListener("click", new EventPasser([](Rml::Event& event){
-					Rml::Element* target = event.GetCurrentElement()->GetParentNode();
-					target->SetClass("collapsed", target->GetClassNames().find("collapsed"));
-				}));
-			}
-			treeItems[itemIndex].tree = std::make_unique<ElementTree>(document, bottomTreeItem.get(), generatorFunction, startOpen, reverseOrder, (pathToTree.empty()) ? string : (pathToTree + "/" + string));
+			topTreeItem->AppendChild(document->CreateTextNode(string))->AddEventListener("click", new EventPasser([](Rml::Event& event){
+				Rml::Element* target = event.GetCurrentElement()->GetParentNode();
+				target->SetClass("collapsed", target->GetClassNames().find("collapsed"));
+			}));
+			treeItems[itemIndex].tree = std::make_unique<ItemTree>(document, bottomTreeItem.get(), startOpen, reverseOrder, (pathToTree.empty()) ? string : (pathToTree + "/" + string));
 			treeItems[itemIndex].tree->addItem(restOfItem);
 			for (const auto& listenerFunction : listenerFunctions) {
 				treeItems[itemIndex].tree->addEventListener(listenerFunction.first, listenerFunction.second);
@@ -224,7 +221,7 @@ void ElementTree::addItem(const std::string& item) {
 			itemIter->tree->addItem(restOfItem);
 		} else { // adding list here and item later
 			Rml::Element* bottomTreeItem = tree->GetChild(distance(treeItems.begin(), itemIter))->GetLastChild();
-			itemIter->tree = std::make_unique<ElementTree>(document, bottomTreeItem, generatorFunction, startOpen, reverseOrder, (pathToTree.empty()) ? string : (pathToTree + "/" + string));
+			itemIter->tree = std::make_unique<ItemTree>(document, bottomTreeItem, startOpen, reverseOrder, (pathToTree.empty()) ? string : (pathToTree + "/" + string));
 			itemIter->tree->addItem(restOfItem);
 			for (const auto& listenerFunction : listenerFunctions) {
 				itemIter->tree->addEventListener(listenerFunction.first, listenerFunction.second);
@@ -236,7 +233,7 @@ void ElementTree::addItem(const std::string& item) {
 // adding a star to the end of the path will remove all items that follow that path
 // "top/mid/*" works, "top/mid/bot*" won't work
 // returns if the tree is now empty
-bool ElementTree::removeItem(const std::string& item) {
+bool ItemTree::removeItem(const std::string& item) {
 	if (item.empty()) return !(tree->HasChildNodes());
 	if (item == "*") {
 		clearItems();
@@ -281,7 +278,7 @@ bool ElementTree::removeItem(const std::string& item) {
 	return !(tree->HasChildNodes());
 }
 
-void ElementTree::addEventListener(Rml::EventId eventId, ListenerFunction listenerFunction) {
+void ItemTree::addEventListener(Rml::EventId eventId, ListenerFunction listenerFunction) {
 	for (unsigned int i = 0; i < treeItems.size(); i++) {
 		if (treeItems[i].isItem) {
 			Rml::Element* topTreeItem = tree->GetChild(i)->GetFirstChild();
@@ -298,16 +295,12 @@ void ElementTree::addEventListener(Rml::EventId eventId, ListenerFunction listen
 	listenerFunctions.emplace_back(eventId, listenerFunction);
 }
 
-void ElementTree::setupItem(const std::string& item, Rml::Element* element) {
-	if (generatorFunction) {
-		(*generatorFunction)(item, element);
+void ItemTree::setupItem(const std::string& item, Rml::Element* element) {
+	size_t split = item.find_last_of('/');
+	if (split == std::string::npos) {
+		element->AppendChild(this->document->CreateTextNode(item));
 	} else {
-		size_t split = item.find_last_of('/');
-		if (split == std::string::npos) {
-			element->AppendChild(this->document->CreateTextNode(item));
-		} else {
-			element->AppendChild(this->document->CreateTextNode(item.substr(split + 1, std::string::npos)));
-		}
+		element->AppendChild(this->document->CreateTextNode(item.substr(split + 1, std::string::npos)));
 	}
 	// Precise hover highlighting: only the deepest target under the cursor should have the class.
 	element->AddEventListener("mouseover", new EventPasser(

@@ -28,6 +28,8 @@
 }
 
 .element-tree li {
+	display: flex;
+	flex-direction: column;
 	padding: 0.1em 0.1em;
 }
 
