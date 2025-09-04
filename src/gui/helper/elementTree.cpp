@@ -80,10 +80,8 @@ void ElementTree::setItems(const std::vector<std::string>& items, bool reuseItem
 			size_t index = item.find_first_of('/');
 			if (index == std::string::npos) {
 				itemsMap.try_emplace(item).first->second.first = true;
-				logInfo(item);
 			} else {
 				itemsMap.try_emplace(item.substr(0, index)).first->second.second.emplace_back(item.substr(index + 1, std::string::npos));
-				logInfo(item.substr(0, index));
 			}
 		}
 		for (unsigned int i = 0; i < treeItems.size(); i++) {
@@ -177,7 +175,6 @@ void ElementTree::clearItems() {
 }
 
 void ElementTree::addItem(const std::string& item) {
-	logInfo("adding item {}", "", item);
 	if (item.empty()) return;
 	size_t index = item.find_first_of('/');
 	std::string string;
