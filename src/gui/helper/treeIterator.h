@@ -183,12 +183,12 @@ public:
 			indexToPutChild = count-1;
 			li = ul->AppendChild(document->CreateElement("li"));
 		} else {
-			li = ul->InsertBefore(document->CreateElement("li"), ul->GetChild(int index));
+			li = ul->InsertBefore(document->CreateElement("li"), ul->GetChild(indexToPutChild));
 		}
 		li->AppendChild(document->CreateElement("div"));
 		Rml::Element* bottomContainer = li->AppendChild(document->CreateElement("div"));
 		bottomContainer->AppendChild(document->CreateElement("div"));
-		return TreeIterator(li);
+		return TreeIterator(li, indexToPutChild);
 	}
 
 private:
