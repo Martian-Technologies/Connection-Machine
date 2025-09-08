@@ -9,8 +9,20 @@ public:
 	using iterator_category = std::random_access_iterator_tag;
 
 	// constructors
-	TreeIterator(Rml::Element* curentElement) : curentElement(curentElement) { assert(curentElement); updateIndex(); }
-	TreeIterator(Rml::Element* curentElement, unsigned int index) : curentElement(curentElement), index(index) { assert(curentElement); updateIndex(); }
+	TreeIterator(Rml::Element* currentElement) : TreeIterator(currentElement, 0) {}
+	TreeIterator(Rml::Element* currentElement, unsigned int index) : currentElement(currentElement), index(index) {
+		assert(currentElement);
+		if (currentElement->GetTagName() == "ul") {
+			index = 0;
+			if (currentElement->HasChildNodes()) {
+				currentElement = currentElement->GetChild(0);
+			} else {
+				atUl = true;
+			}
+		} else {
+			updateIndex();
+		}
+	}
 
 	// compare
 	inline bool operator==(const TreeIterator& other) const {
@@ -59,18 +71,21 @@ public:
 	// assumes they have the same parent
 	inline int operator-(const TreeIterator& other) const { return index - other.index; }
 	// assumes they have the same parent
-	inline int operator>(const TreeIterator& other) const { return index > other.index; }
+	inline bool operator>(const TreeIterator& other) const { return index > other.index; }
 	// assumes they have the same parent
-	inline int operator>=(const TreeIterator& other) const { return index >= other.index; }
+	inline bool operator>=(const TreeIterator& other) const { return index >= other.index; }
 	// assumes they have the same parent
-	inline int operator<(const TreeIterator& other) const { return index < other.index; }
+	inline bool operator<(const TreeIterator& other) const { return index < other.index; }
 	// assumes they have the same parent
-	inline int operator<=(const TreeIterator& other) const { return index <= other.index; }
-	inline bool atEnd() const { return index == curentElement->GetParentNode()->GetNumChildren(); }
+	inline bool operator<=(const TreeIterator& other) const { return index <= other.index; }
+	inline bool atEnd() const { return index == getEndIndex(); }
 	inline bool atBegin() const { return index == 0; }
 	inline unsigned int getIndex() const { return index; }
-	inline unsigned int getEndIndex() const { return curentElement->GetParentNode()->GetNumChildren(); }
-	inline bool sameParent(const TreeIterator& other) const { return curentElement->GetParentNode() == other.curentElement->GetParentNode(); }
+	inline unsigned int getEndIndex() const { if (atUl) return 0; return currentElement->GetParentNode()->GetNumChildren(); }
+	inline bool sameParent(const TreeIterator& other) const {
+		if (atUl || other.atUl) return currentElement == other.currentElement;
+		return currentElement->GetParentNode() == other.currentElement->GetParentNode();
+	}
 
 	// parent/child
 	inline std::optional<TreeIterator> getParent() const {
@@ -80,47 +95,60 @@ public:
 	}
 	inline std::optional<TreeIterator> getChild(unsigned int indexOfChild) const {
 		Rml::Element* childParent = getChildParentElement();
-		if (!childParent->HasChildNodes()) return std::nullopt;
+		if (!(childParent && childParent->HasChildNodes())) return std::nullopt;
 		unsigned int count = childParent->GetNumChildren();
-		if (count >= indexOfChild) return TreeIterator(childParent->GetChild(count-1), count);
+		if (count < indexOfChild) return std::nullopt;
+		if (count == indexOfChild) {
+			if (count == 0) return TreeIterator(childParent); // is the end iter because childParent is "ul"
+			return TreeIterator(childParent->GetChild(count-1), count); // is the end iter because index = count of children
+		}
 		return TreeIterator(childParent->GetChild(indexOfChild), indexOfChild);
 	}
 	inline std::optional<TreeIterator> getBeginChild() const {
 		Rml::Element* childParent = getChildParentElement();
-		if (!childParent->HasChildNodes()) return std::nullopt;
+		if (!childParent) return std::nullopt;
+		if (!childParent->HasChildNodes()) return TreeIterator(childParent);
 		return TreeIterator(childParent->GetChild(0), 0);
 	}
 	inline std::optional<TreeIterator> getEndChild() const {
 		Rml::Element* childParent = getChildParentElement();
-		if (!childParent->HasChildNodes()) return std::nullopt;
+		if (!childParent) return std::nullopt;
 		unsigned int count = childParent->GetNumChildren();
-		return TreeIterator(childParent->GetChild(count-1), count);
+		if (count == 0) return TreeIterator(childParent);
+		return TreeIterator(childParent->GetChild(count-1), count); // is the end iter because index = count of children
 	}
 	inline bool toParent() {
 		Rml::Element* parent = getParentLiElement();
 		if (parent) {
-			curentElement = parent;
+			currentElement = parent;
 			updateIndex();
 		}
 		return parent != nullptr;
 	}
 	inline bool toChild() {
 		Rml::Element* childParent = getChildParentElement();
-		if (!childParent->HasChildNodes()) return false;
-		curentElement = childParent->GetChild(0);
+		if (!(childParent && childParent->HasChildNodes())) return false;
+		currentElement = childParent->GetChild(0);
 		index = 0;
 		return true;
 	}
 	inline bool toChild(unsigned int indexOfChild) {
 		Rml::Element* childParent = getChildParentElement();
-		if (!childParent->HasChildNodes()) return false;
+		if (!(childParent && childParent->HasChildNodes())) return false;
 		unsigned int count = childParent->GetNumChildren();
-		if (count >= indexOfChild) {
-			curentElement = childParent->GetChild(count-1);
-			index = count;
+		if (count < indexOfChild) return false;
+		if (count == indexOfChild) {
+			if (indexOfChild == 0) {
+				currentElement = childParent;
+				atUl = true;
+				index = 0;
+			} else {
+				currentElement = childParent->GetChild(count-1);
+				index = count;
+			}
 			return true;
 		}
-		curentElement = childParent->GetChild(indexOfChild);
+		currentElement = childParent->GetChild(indexOfChild);
 		index = indexOfChild;
 		return true;
 	}
@@ -129,18 +157,18 @@ public:
 	}
 	inline bool atBottom() const {
 		Rml::Element* childParent = getChildParentElement();
-		if (childParent == nullptr) return false;
-		return childParent->HasChildNodes();
+		if (childParent == nullptr) return true;
+		return !(childParent->HasChildNodes());
 	}
 
 	// content
 	Rml::Element* getTopContent() {
 		if (atEnd()) return nullptr;
-		return curentElement->GetFirstChild();
+		return currentElement->GetFirstChild();
 	}
 	Rml::Element* getMiddleContent() {
 		if (atEnd()) return nullptr;
-		Rml::Element* bottomContainer = curentElement->GetLastChild();
+		Rml::Element* bottomContainer = currentElement->GetLastChild();
 		if (bottomContainer->GetNumChildren() == 3) return bottomContainer->GetChild(1);
 		return bottomContainer->GetFirstChild();
 	}
@@ -148,7 +176,7 @@ public:
 	// modifying
 	Rml::Element* addList() {
 		if (atEnd()) return nullptr;
-		Rml::Element* bottomContainer = curentElement->GetLastChild();
+		Rml::Element* bottomContainer = currentElement->GetLastChild();
 		if (bottomContainer->GetNumChildren() == 3) return bottomContainer->GetLastChild();
 		Rml::ElementPtr arrow = bottomContainer->GetOwnerDocument()->CreateElement("span");
 		arrow->SetInnerRML(">");
@@ -158,7 +186,7 @@ public:
 	}
 	void removeList() {
 		if (atEnd()) return;
-		Rml::Element* bottomContainer = curentElement->GetLastChild();
+		Rml::Element* bottomContainer = currentElement->GetLastChild();
 		if (bottomContainer->GetNumChildren() == 1) return;
 		bottomContainer->RemoveChild(bottomContainer->GetFirstChild());
 		bottomContainer->RemoveChild(bottomContainer->GetLastChild());
@@ -171,7 +199,7 @@ public:
 		li->AppendChild(document->CreateElement("div"));
 		Rml::Element* bottomContainer = li->AppendChild(document->CreateElement("div"));
 		bottomContainer->AppendChild(document->CreateElement("div"));
-		return TreeIterator(li, ul->GetNumChildren(0));
+		return TreeIterator(li, ul->GetNumChildren()-1);
 	}
 	std::optional<TreeIterator> addChild(unsigned int indexToPutChild) {
 		Rml::Element* ul = addList();
@@ -179,8 +207,8 @@ public:
 		Rml::ElementDocument* document = ul->GetOwnerDocument();
 		unsigned int count = ul->GetNumChildren();
 		Rml::Element* li;
-		if (count >= indexToPutChild) {
-			indexToPutChild = count-1;
+		if (count < indexToPutChild) return std::nullopt;
+		if (count == indexToPutChild) {
 			li = ul->AppendChild(document->CreateElement("li"));
 		} else {
 			li = ul->InsertBefore(document->CreateElement("li"), ul->GetChild(indexToPutChild));
@@ -190,47 +218,97 @@ public:
 		bottomContainer->AppendChild(document->CreateElement("div"));
 		return TreeIterator(li, indexToPutChild);
 	}
+	// this points at the new element
+	void addAtIterator() {
+		if (atUl) {
+			Rml::ElementDocument* document = currentElement->GetOwnerDocument();
+			currentElement = currentElement->AppendChild(document->CreateElement("li"));
+			currentElement->AppendChild(document->CreateElement("div"));
+			Rml::Element* bottomContainer = currentElement->AppendChild(document->CreateElement("div"));
+			bottomContainer->AppendChild(document->CreateElement("div"));
+			return;
+		}
+		Rml::Element* ul = currentElement->GetParentNode();
+		Rml::ElementDocument* document = ul->GetOwnerDocument();
+		if (index >= ul->GetNumChildren()) {
+			currentElement = ul->AppendChild(document->CreateElement("li"));
+		} else {
+			currentElement = ul->InsertBefore(document->CreateElement("li"), ul->GetChild(index));
+		}
+		currentElement->AppendChild(document->CreateElement("div"));
+		Rml::Element* bottomContainer = currentElement->AppendChild(document->CreateElement("div"));
+		bottomContainer->AppendChild(document->CreateElement("div"));
+	}
+	// this points to the element after the removed element
+	void removeAtIterator() {
+		if (atEnd()) return;
+		Rml::Element* ul = currentElement->GetParentNode();
+		bool getLast = false;
+		if (ul->GetLastChild() == currentElement) getLast = true;
+		ul->RemoveChild(currentElement);
+		if (getLast) {
+			if (index == 0) {
+				currentElement = ul;
+				atUl = true;
+			} else {
+				currentElement = ul->GetLastChild();
+			}
+		}
+		else currentElement = ul->GetChild(index);
+	}
 
 private:
 	// should return a "ul"
 	Rml::Element* getChildParentElement() const {
 		if (atEnd()) return nullptr;
-		Rml::Element* bottomContainer = curentElement->GetLastChild();
+		Rml::Element* bottomContainer = currentElement->GetLastChild();
 		if (bottomContainer->GetNumChildren() == 1) return nullptr;
 		return bottomContainer->GetLastChild();
 	}
 	// should return a "li"
 	Rml::Element* getParentLiElement() const {
-		Rml::Element* li = curentElement->GetParentNode()->GetParentNode()->GetParentNode();
+		Rml::Element* li;
+		if (!atUl)
+			li = currentElement->GetParentNode()->GetParentNode();
+		else
+			li = currentElement->GetParentNode()->GetParentNode()->GetParentNode();
 		if (li->GetTagName() == "li") return li;
 		return nullptr;
 	}
 	void updateIndex() {
-		Rml::Element* parent = curentElement->GetParentNode();
+		if (currentElement->GetTagName() == "ul") {
+			index = 0;
+			atUl = true;
+			return;
+		}
+		atUl = false;
+		Rml::Element* parent = currentElement->GetParentNode();
 		unsigned int count = parent->GetNumChildren();
 		if (index >= count) { // is end iter
 			index = count;
 			return;
 		}
-		if (parent->GetChild(index) == curentElement) return;
+		if (parent->GetChild(index) == currentElement) return;
 		for (unsigned int i = 0; i < count; i++) {
 			if (index == i) continue;
-			if (parent->GetChild(i) == curentElement) {
+			if (parent->GetChild(i) == currentElement) {
 				index = i;
 				return;
 			}
 		}
-		logError("Failed to find index of element {}. This should not happen.", "TreeIterator", curentElement);
+		logError("Failed to find index of element {}. This should not happen.", "TreeIterator", currentElement);
 	}
 	void next() {
-		Rml::Element* parent = curentElement->GetParentNode();
+		if (atUl) return;
+		Rml::Element* parent = currentElement->GetParentNode();
 		unsigned int count = parent->GetNumChildren();
 		if (index == count || ++index == count) return;
-		curentElement = parent->GetChild(index);
+		currentElement = parent->GetChild(index);
 	}
 	void next(unsigned int amount) {
+		if (atUl) return;
 		if (amount == 0) return;
-		Rml::Element* parent = curentElement->GetParentNode();
+		Rml::Element* parent = currentElement->GetParentNode();
 		unsigned int count = parent->GetNumChildren();
 		if (index == count) return;
 		index += amount;
@@ -238,22 +316,23 @@ private:
 			index = count;
 			return;
 		}
-		curentElement = parent->GetChild(index);
+		currentElement = parent->GetChild(index);
 	}
 	void previous() {
 		if (index == 0) return;
 		--index;
-		curentElement = curentElement->GetParentNode()->GetChild(index);
+		currentElement = currentElement->GetParentNode()->GetChild(index);
 	}
 	void previous(unsigned int amount) {
 		if (index == 0 || amount == 0) return;
-		index -= amount;
-		if (index < 0) index = 0;
-		curentElement = curentElement->GetParentNode()->GetChild(index);
+		if (index < amount) index = 0;
+		else index -= amount;
+		currentElement = currentElement->GetParentNode()->GetChild(index);
 	}
 
-	unsigned int index = 0;
-	Rml::Element* curentElement; // should be a "li"
+	unsigned int index;
+	Rml::Element* currentElement; // should be a "li" unless atUl is true and it should be a "ul"
+	bool atUl = false;
 };
 
 #endif /* treeIterator_h */
