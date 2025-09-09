@@ -90,7 +90,7 @@ public:
 
 	void setSprinting(bool sprint) {
 		sprinting.store(sprint, std::memory_order_release);
-		logInfo("ThreadPool: sprinting mode {}", sprint ? "enabled" : "disabled");
+		// logInfo("ThreadPool: sprinting mode {}", "ThreadPool::setSprinting", sprint ? "enabled" : "disabled");
 	}
 
 private:
