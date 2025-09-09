@@ -11,6 +11,9 @@ LogicSimulator::LogicSimulator(
 			SimPauseGuard pauseGuard(*this);
 			this->regenerateJobs();
 		}
+		bool shouldSprint = (this->evalConfig.isRunning() && !this->evalConfig.isTickrateLimiterEnabled());
+		this->threadPool.setSprinting(shouldSprint);
+
 		std::lock_guard<std::mutex> lk(cvMutex);
 		cv.notify_all();
 	});

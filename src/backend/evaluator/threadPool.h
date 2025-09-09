@@ -43,20 +43,22 @@ public:
 	}
 
 	void waitForEmpty() {
+		bool sprintingNow = sprinting.load(std::memory_order_acquire);
 		while (true) {
 			uint32_t n = next.load(std::memory_order_acquire);
 			uint32_t e = end.load(std::memory_order_acquire);
 			if (n >= e) break;
-			std::this_thread::yield();
+			if (!sprintingNow) { std::this_thread::yield(); }
 		}
 	}
 
 	void waitForCompletion() {
+		bool sprintingNow = sprinting.load(std::memory_order_acquire);
 		while (true) {
 			uint32_t c = completed.load(std::memory_order_acquire);
 			uint32_t e = end.load(std::memory_order_acquire);
 			if (c >= e) break;
-			std::this_thread::yield();
+			if (!sprintingNow) { std::this_thread::yield(); }
 		}
 	}
 
@@ -85,6 +87,11 @@ public:
 	}
 
 	size_t threadCount() const { return workers.size(); }
+
+	void setSprinting(bool sprint) {
+		sprinting.store(sprint, std::memory_order_release);
+		logInfo("ThreadPool: sprinting mode {}", sprint ? "enabled" : "disabled");
+	}
 
 private:
 	struct Worker {
@@ -133,11 +140,12 @@ private:
 
 	std::vector<std::unique_ptr<Worker>> workers;
 	const std::vector<Job>* jobsRef{nullptr}; // reference to current round’s jobs
-	std::atomic<uint32_t> next{0};          // next index to claim
-	std::atomic<uint32_t> end{0};           // jobsRef->size()
-	std::atomic<uint32_t> completed{0};      // number of jobs fully executed
-	std::atomic<bool> stop{false};          // global shutdown (idle-only)
-	std::atomic<uint64_t> round{0};         // generation/epoch for cv wakeups
+	std::atomic<uint32_t> next{0}; // next index to claim
+	std::atomic<uint32_t> end{0}; // jobsRef->size()
+	std::atomic<uint32_t> completed{0}; // number of jobs fully executed
+	std::atomic<bool> stop{false}; // global shutdown (idle-only)
+	std::atomic<bool> sprinting{false}; // will make waiting for completion not yield
+	std::atomic<uint64_t> round{0}; // generation/epoch for cv wakeups
 
 	std::mutex mtx;
 	std::condition_variable cv;
