@@ -19,6 +19,8 @@ public:
 	
 	inline SDL_Window* getHandle() { return handle; }
 
+	void toggleBorderlessFullscreen();
+
 private:
 	// TODO - smart pointer with custom deleter?
 	SDL_Window* handle;

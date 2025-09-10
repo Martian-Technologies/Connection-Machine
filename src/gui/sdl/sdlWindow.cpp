@@ -55,3 +55,21 @@ VkSurfaceKHR SdlWindow::createVkSurface(VkInstance instance) {
 	vkSurface = surface;
 	return surface;
 }
+
+void SdlWindow::toggleBorderlessFullscreen() {
+	Uint32 flags = SDL_GetWindowFlags(handle);
+	bool is_fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0;
+	if (!is_fullscreen) {
+		if (!SDL_SetWindowFullscreen(handle, true)) {
+			logError("Failed to enter fullscreen: {}", "SdlWindow", SDL_GetError());
+		} else {
+			logInfo("Entered borderless fullscreen");
+		}
+	} else {
+		if (!SDL_SetWindowFullscreen(handle, false)) {
+			logError("Failed to exit fullscreen: {}", "SdlWindow", SDL_GetError());
+		} else {
+			logInfo("Exited borderless fullscreen");
+		}
+	}
+}

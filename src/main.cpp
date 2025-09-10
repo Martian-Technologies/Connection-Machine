@@ -33,6 +33,7 @@ int main(int argc, char* argv[]) {
 		Settings::registerSetting<SettingType::KEYBIND>("Keybinds/Editing/Tool Invert Mode", Keybind(Keybind::KeyId::KI_Q));
 		Settings::registerSetting<SettingType::KEYBIND>("Keybinds/Camera/Zoom", Keybind(Keybind::KeyId::KI_UNKNOWN, Keybind::KeyMod::KM_SHIFT));
 		Settings::registerSetting<SettingType::BOOL>("Keybinds/Camera/Scroll Panning", true);
+		Settings::registerSetting<SettingType::KEYBIND>("Keybinds/Window/Toggle Fullscreen", Keybind(Keybind::KeyId::KI_F11));
 
 		App app;
 		app.runLoop();

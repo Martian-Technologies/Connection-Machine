@@ -85,6 +85,10 @@ MainWindow::MainWindow(Environment* environment) :
 		"Keybinds/Editing/Tools/Selection Maker",
 		[this]() { toolManagerManager.setTool("selection maker"); }
 	);
+	keybindHandler.addListener(
+		"Keybinds/Window/Toggle Fullscreen",
+		[this]() { sdlWindow.toggleBorderlessFullscreen(); }
+	);
 
 	// show rmlUi document
 	rmlDocument->Show();
