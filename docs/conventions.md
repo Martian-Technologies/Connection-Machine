@@ -35,7 +35,7 @@ The preprocessor define should be the name of the file with an underscore.
 
 - variable and function names should be **camalCase**
 - const variable and enum state names should be **MACRO_CASE**
-- type names should **PascalCase**
+- type names should be **PascalCase**
 
 ### Using Raw and Smart Pointers
 Dont use the `new` keyword except when creating windows for qt to own.
