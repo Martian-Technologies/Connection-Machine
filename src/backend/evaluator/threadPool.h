@@ -7,10 +7,9 @@
 
 class ThreadPool {
 public:
-	explicit ThreadPool(size_t nthreads = (std::thread::hardware_concurrency() / 2))
+	explicit ThreadPool(size_t nthreads = 0)
 		: stop(false)
 	{
-		if (nthreads == 0) nthreads = 1;
 		workers.reserve(nthreads);
 		for (size_t i = 0; i < nthreads; ++i) spawnOne();
 	}
@@ -45,6 +44,7 @@ public:
 	void waitForEmpty() {
 		bool sprintingNow = sprinting.load(std::memory_order_acquire);
 		while (true) {
+			if (tryRunOne()) continue;
 			uint32_t n = next.load(std::memory_order_acquire);
 			uint32_t e = end.load(std::memory_order_acquire);
 			if (n >= e) break;
@@ -61,13 +61,13 @@ public:
 			uint32_t c = completed.load(std::memory_order_acquire);
 			uint32_t e = end.load(std::memory_order_acquire);
 			if (c >= e) break;
+			if (tryRunOne()) continue;
 			if (!sprintingNow) { std::this_thread::yield(); }
 		}
 	}
 
 	void resizeThreads(size_t new_count) {
 		size_t cur = workers.size();
-		new_count = std::max(new_count, size_t(1));
 		if (new_count > cur) {
 			size_t add = new_count - cur;
 			workers.reserve(workers.size() + add);
@@ -112,20 +112,7 @@ private:
 	void workerLoop(Worker* self) {
 		uint64_t local_round = round.load(std::memory_order_acquire);
 		while (true) {
-			// Claim an index.
-			uint32_t i = next.fetch_add(1, std::memory_order_acq_rel);
-			uint32_t e = end.load(std::memory_order_acquire);
-
-			if (i < e) {
-#ifdef TRACY_PROFILER
-				ZoneScoped;
-#endif
-				// Safe because resetAndLoad keeps jobsRef stable for the round.
-				const Job j = (*jobsRef)[i];
-				j.fn(j.arg);
-				completed.fetch_add(1, std::memory_order_acq_rel);
-				continue;
-			}
+			if (tryRunOne()) continue;
 
 			if (sprinting.load(std::memory_order_acquire)) {
 				while (true) {
@@ -149,6 +136,22 @@ private:
 			}
 			local_round = round.load(std::memory_order_acquire);
 		}
+	}
+
+	inline bool tryRunOne() {
+		uint32_t i = next.fetch_add(1, std::memory_order_acq_rel);
+		uint32_t e = end.load(std::memory_order_acquire);
+		if (i < e) {
+#ifdef TRACY_PROFILER
+			ZoneScoped;
+#endif
+			// Safe because resetAndLoad keeps jobsRef stable for the duration of the round.
+			const Job j = (*jobsRef)[i];
+			j.fn(j.arg);
+			completed.fetch_add(1, std::memory_order_acq_rel);
+			return true;
+		}
+		return false;
 	}
 
 	std::vector<std::unique_ptr<Worker>> workers;
