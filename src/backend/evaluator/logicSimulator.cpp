@@ -712,7 +712,7 @@ void LogicSimulator::regenerateJobs() {
 		JobInstruction* ji = makeJI(i, std::min(i + batch, copySelfOutputGates.size()));
 		jobs.push_back(ThreadPool::Job{ &LogicSimulator::execCopySelfOutput, ji });
 	}
-	threadPool.resizeThreads(min(jobs.size(), evalConfig.getMaxThreadCount()));
+	updateThreadCount(min(jobs.size(), evalConfig.getMaxThreadCount()));
 	// logInfo("{} jobs created for the current round", "LogicSimulator::regenerateJobs", jobs.size());
 }
 
