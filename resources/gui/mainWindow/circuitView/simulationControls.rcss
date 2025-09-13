@@ -2,67 +2,82 @@
 	display: flex;
 	flex-direction: column;
 	gap: 4dp;
-	padding: 2dp;
+	padding: 6dp;
 	font-size: 16dp;
-	border-radius: 0.3em;
+	border-radius: 6dp;
+	position: absolute;
+	top: 8dp;
+	left: 8dp;
+	background-color: #1d1d1dea;
+	border: 1dp #2e2e2e;
 }
 
 #sim-controls-buttons {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	gap: 8dp;
-	padding: 2dp;
-	font-size: 16dp;
-	border-radius: 0.3em;
+	gap: 6dp;
+	padding: 0;
+	font-size: 12dp;
+}
+
+#sim-controls-buttons pre {
+	display: inline-block;
+	margin: 0;
+	padding: 0;
 }
 
 #toggle-simulation {
-	color: #252525;
+	color: #f5f5f5;
 	height: 20dp;
-	background-color: #ffffff90;
+	line-height: 18dp;
+	background-color: #474747;
 	font-size: 12dp;
-	border-radius: 0.3em;
-	padding: 0.2em;
+	border-radius: 6dp;
+	padding: 0 8dp;
+	border: 1dp #484848;
 }
 
 #real-tps-display {
-	color: #252525;
-	height: 20dp;
+	color: #c9c9c9;
+	height: 18dp;
 	width: auto;
 	font-size: 12dp;
-	padding: 0.2em;
+	padding: 0 2dp;
 }
 
 #toggle-simulation:hover {
-	background-color: #efefef90;;
+	background-color: #555555;
 }
-
 #toggle-simulation:active, #toggle-simulation.checked {
-	background-color: #c5c5c590;;
+	background-color: #717171;
 }
 
 #realistic-button {
 	color: #ffffff;
 	height: 20dp;
-	width: 20dp;
+	width: 22dp;
+	line-height: 18dp;
 	background-color: #4d6fb8e0;
 	font-size: 12dp;
 	font-weight: bold;
-	border-radius: 0.3em;
-	padding: 0.2em;
+	border-radius: 6dp;
+	padding: 0;
 	text-align: center;
+	border: 1dp #3f5c99;
 }
 
 #realistic-button:hover {
 	background-color: #376cdee0;
 }
 
-#realistic-button:active, #realistic-button.checked {
+#realistic-button:active,
+#realistic-button.checked {
 	background-color: #b84d4de0;
+	border-color: #de3737;
 }
-
-#realistic-button:active:hover, #realistic-button.checked:hover {
+#realistic-button:active:hover,
+#realistic-button.checked:hover {
 	background-color: #de3737e0;
 }
 
@@ -71,7 +86,7 @@
 	width: 20dp;
 	height: 20dp;
 	border: 1dp #3d8d3dff;
-	border-radius: 0.3em;
+	border-radius: 4dp;
 	background-color: #3aa53a20;
 	padding: 0;
 	display: inline-flex;
@@ -95,6 +110,9 @@
 #tps-input {
 	background-color: #252525;
 	color: #fff;
-	height: 18dp;
-	width: 60dp;
+	height: 20dp;
+	width: 64dp;
+	border: 1dp #3b3b3b;
+	border-radius: 4dp;
+	padding: 0 4dp;
 }
