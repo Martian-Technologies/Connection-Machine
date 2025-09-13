@@ -1,5 +1,6 @@
 #include "logicSimulator.h"
 #include "gateType.h"
+#include "util/fastMath.h"
 
 LogicSimulator::LogicSimulator(
 	EvalConfig& evalConfig,
@@ -711,11 +712,7 @@ void LogicSimulator::regenerateJobs() {
 		JobInstruction* ji = makeJI(i, std::min(i + batch, copySelfOutputGates.size()));
 		jobs.push_back(ThreadPool::Job{ &LogicSimulator::execCopySelfOutput, ji });
 	}
-	if (jobs.size() < std::thread::hardware_concurrency() / 2) {
-		threadPool.resizeThreads(jobs.size());
-	} else {
-		threadPool.resizeThreads(std::thread::hardware_concurrency() / 2);
-	}
+	threadPool.resizeThreads(min(jobs.size(), evalConfig.getMaxThreadCount()));
 	// logInfo("{} jobs created for the current round", "LogicSimulator::regenerateJobs", jobs.size());
 }
 
