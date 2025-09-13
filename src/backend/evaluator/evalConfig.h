@@ -1,9 +1,13 @@
 #ifndef evalConfig_h
 #define evalConfig_h
 
+#include "backend/settings/settings.h"
+
 class EvalConfig {
 public:
-	EvalConfig() = default;
+	EvalConfig() {
+		Settings::registerListener<SettingType::UINT>("Simulation/Max Thread Count", [this](const int& newMaxThreadCount) { this->setMaxThreadCount(newMaxThreadCount); });
+	}
 
 	inline double getTargetTickrate() const {
 		return targetTickrate.load();
@@ -38,6 +42,15 @@ public:
 
 	inline void setRealistic(bool value) {
 		realistic.store(value);
+		notifySubscribers();
+	}
+
+	inline int getMaxThreadCount() const {
+		return maxThreadCount.load();
+	}
+
+	inline void setMaxThreadCount(int value) {
+		maxThreadCount.store(value);
 		notifySubscribers();
 	}
 
@@ -81,6 +94,7 @@ private:
 	std::atomic<bool> running = false;
 	std::atomic<bool> realistic = false;
 	std::atomic<int> sprintCounter = 0;
+	std::atomic<int> maxThreadCount = std::thread::hardware_concurrency() / 2;
 
 	std::vector<std::function<void()>> subscribers;
 	std::mutex subscribersMutex;

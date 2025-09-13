@@ -7,6 +7,8 @@ enum SettingType {
 	VOID,
 	STRING,
 	INT,
+	UINT,
+	DECIMAL,
 	BOOL,
 	KEYBIND,
 	FILE_PATH
@@ -15,12 +17,8 @@ enum SettingType {
 template<SettingType settingType>
 struct SettingTypeToType {
 	static_assert(
-		settingType == SettingType::VOID ||
-		settingType == SettingType::STRING ||
-		settingType == SettingType::INT ||
-		settingType == SettingType::KEYBIND ||
-		settingType == SettingType::FILE_PATH,
-		"Invalid SettingType. Must be one of VOID, STRING, INT, or KEYBIND."
+		settingType == SettingType::VOID,
+		"Invalid SettingType. Must ."
 	);
 	using type = void;
 };
@@ -28,6 +26,8 @@ struct SettingTypeToType {
 template<> struct SettingTypeToType<SettingType::VOID> { using type = char; };
 template<> struct SettingTypeToType<SettingType::STRING> { using type = std::string; };
 template<> struct SettingTypeToType<SettingType::INT> { using type = int; };
+template<> struct SettingTypeToType<SettingType::UINT> { using type = unsigned int; };
+template<> struct SettingTypeToType<SettingType::DECIMAL> { using type = double; };
 template<> struct SettingTypeToType<SettingType::BOOL> { using type = bool; };
 template<> struct SettingTypeToType<SettingType::KEYBIND> { using type = Keybind; };
 template<> struct SettingTypeToType<SettingType::FILE_PATH> { using type = std::string; };

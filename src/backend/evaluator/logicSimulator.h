@@ -42,6 +42,8 @@ public:
 	void removeConnection(simulator_id_t sourceId, connection_port_id_t sourcePort, simulator_id_t destinationId, connection_port_id_t destinationPort);
 	void endEdit();
 
+	const std::vector<simulator_id_t> getOutputs(simulator_id_t simId);
+
 private:
 	EvalConfig& evalConfig;
 	std::thread simulationThread;
@@ -199,6 +201,11 @@ private:
 			statesA.resize(id + 1, logic_state_t::UNDEFINED);
 			statesB.resize(id + 1, logic_state_t::UNDEFINED);
 		}
+	}
+
+	void updateThreadCount(size_t threadCount) {
+		threadCount = std::max(threadCount, size_t(1));
+		threadPool.resizeThreads(threadCount - 1);
 	}
 };
 

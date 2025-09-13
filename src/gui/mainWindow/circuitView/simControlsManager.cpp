@@ -43,11 +43,27 @@ void SimControlsManager::update() {
 		} else {
 			limitSpeedElement->RemoveAttribute("checked");
 		}
-		std::string tpsStr = fmt::format("{:.1f}", evaluator->getTickrate());
-		if (tpsStr.back() == '0') tpsStr.pop_back();
-		if (tpsStr.back() == '.') tpsStr.pop_back();
-		tpsInputElement->SetInnerRML(std::string(tpsStr.size(), ' ') + "tps");
-		tpsInputElement->SetAttribute<Rml::String>("value", tpsStr);
+		Rml::String value = tpsInputElement->GetAttribute<Rml::String>("value", "");
+		std::string correctValue;
+		bool foundDecimal = false;
+		for (char c : value) {
+			if (('0' <= c && c <= '9') || (correctValue.empty() && c == '-')) {
+				correctValue += c;
+			} else if (c == '.' && !foundDecimal) {
+				foundDecimal = true;
+				correctValue += c;
+			}
+		}
+		std::stringstream ss(correctValue);
+		double tps = 0;
+		ss >> tps;
+		if (!approx_equals(evaluator->getTickrate(), tps)) {
+			std::string tpsStr = fmt::format("{:.1f}", evaluator->getTickrate());
+			if (tpsStr.back() == '0') tpsStr.pop_back();
+			if (tpsStr.back() == '.') tpsStr.pop_back();
+			tpsInputElement->SetInnerRML(std::string(tpsStr.size(), ' ') + "tps");
+			tpsInputElement->SetAttribute<Rml::String>("value", tpsStr);
+		}
 	} else {
 		toggleSimElement->SetClass("checked", false);
 		realisticElement->SetClass("checked", false);
@@ -90,35 +106,24 @@ void SimControlsManager::setTPS() {
 	Evaluator* evaluator = circuitViewWidget->getCircuitView()->getEvaluator();
 	if (evaluator) {
 		Rml::String value = tpsInputElement->GetAttribute<Rml::String>("value", "");
-		std::stringstream ss(value);
+		std::string correctValue;
+		bool foundDecimal = false;
+		for (char c : value) {
+			if (('0' <= c && c <= '9') || (correctValue.empty() && c == '-')) {
+				correctValue += c;
+			} else if (c == '.' && !foundDecimal) {
+				foundDecimal = true;
+				correctValue += c;
+			}
+		}
+		std::stringstream ss(correctValue);
 		double tps = 0;
 		ss >> tps;
-		if (tps == 0) {
-			std::string tpsStr = "";
-			for (char c : value) {
-				if (c == '0') {
-					if (tpsStr.empty()) tpsStr += "0";
-				} else if (c == '.') {
-					tpsStr += ".";
-					break;
-				} else {
-					break;
-				}
-			}
-			tpsInputElement->SetInnerRML(std::string(tpsStr.size(), ' ') + "tps");
-			tpsInputElement->SetAttribute<Rml::String>("value", tpsStr);
-			return;
-		}
-		if (value.back() == '.') {
-			std::string tpsStr = fmt::format("{:.1f}", tps);
-			if (tpsStr.back() == '0') tpsStr.pop_back();
-			if (tpsStr.back() == '.') {
-				tpsInputElement->SetInnerRML(std::string(tpsStr.size(), ' ') + "tps");
-				tpsInputElement->SetAttribute<Rml::String>("value", tpsStr);
-				return;
-			}
-		}
+		tpsInputElement->SetInnerRML(std::string(correctValue.size(), ' ') + "tps");
+		tpsInputElement->SetAttribute<Rml::String>("value", correctValue);
 		evaluator->setTickrate(tps);
+	} else {
+		tpsInputElement->SetInnerRML("tps");
 	}
 	update();
 }
