@@ -5,6 +5,7 @@
 #include "gui/helper/eventPasser.h"
 #include "backend/settings/settings.h"
 #include "util/algorithm.h"
+#include "gui/helper/eventPasser.h"
 
 ContentManager::ContentManager(Rml::ElementDocument* document) : document(document) {
 	contentPanel = document->GetElementById("settings-content-panel");
@@ -159,8 +160,101 @@ Rml::ElementPtr ContentManager::generateItem(const std::string& key) {
 	Rml::ElementPtr item = document->CreateElement("div");
 	item->SetClass("settings-tree-item", true);
 	switch (Settings::getType(key)) {
-	case SettingType::INT:
+	case SettingType::INT: {
+		Rml::XMLAttributes attributes;
+		// attributes["type"] = "text";
+		attributes["maxlength"] = "20";
+		attributes["rows"] = "1";
+		attributes["cols"] = "20";
+		Rml::ElementPtr inputBox = Rml::Factory::InstanceElement(document, "textarea", "textarea", attributes);
+		inputBox->AddEventListener("change", new EventPasser([this, key, inputBox = inputBox.get()](Rml::Event& event){
+			Rml::String value = inputBox->GetAttribute<Rml::String>("value", "");
+			std::string correctValue;
+			for (char c : value) {
+				if (('0' <= c && c <= '9') || (correctValue.empty() && c == '-')) {
+					correctValue += c;
+				} else if (c == '.') {
+					break;
+				}
+			}
+			std::stringstream ss(correctValue);
+			int number = 0;
+			ss >> number;
+			inputBox->SetInnerRML(std::string(correctValue.size(), ' '));
+			inputBox->SetAttribute<Rml::String>("value", correctValue);
+			Settings::set<SettingType::INT>(key, number);
+		}));
+		std::string initValue = fmt::format("{}", *Settings::get<SettingType::INT>(key));
+		inputBox->SetInnerRML(initValue);
+		inputBox->SetAttribute<Rml::String>("value", initValue);
+		item->AppendChild(std::move(inputBox));
 		break;
+	}
+	case SettingType::UINT: {
+		Rml::XMLAttributes attributes;
+		// attributes["type"] = "text";
+		attributes["maxlength"] = "20";
+		attributes["rows"] = "1";
+		attributes["cols"] = "20";
+		Rml::ElementPtr inputBox = Rml::Factory::InstanceElement(document, "textarea", "textarea", attributes);
+		inputBox->AddEventListener("change", new EventPasser([this, key, inputBox = inputBox.get()](Rml::Event& event){
+			Rml::String value = inputBox->GetAttribute<Rml::String>("value", "");
+			std::string correctValue;
+			for (char c : value) {
+				if (correctValue.empty() && c == '-') {
+					correctValue = "0";
+					break;
+				} else if ('0' <= c && c <= '9') {
+					correctValue += c;
+				} else if (c == '.') {
+					break;
+				}
+			}
+			std::stringstream ss(correctValue);
+			unsigned int number = 0;
+			ss >> number;
+			inputBox->SetInnerRML(std::string(correctValue.size(), ' '));
+			inputBox->SetAttribute<Rml::String>("value", correctValue);
+			Settings::set<SettingType::UINT>(key, number);
+		}));
+		std::string initValue = fmt::format("{}", *Settings::get<SettingType::UINT>(key));
+		inputBox->SetInnerRML(initValue);
+		inputBox->SetAttribute<Rml::String>("value", initValue);
+		item->AppendChild(std::move(inputBox));
+		break;
+	}
+	case SettingType::DECIMAL: {
+		Rml::XMLAttributes attributes;
+		// attributes["type"] = "text";
+		attributes["maxlength"] = "20";
+		attributes["rows"] = "1";
+		attributes["cols"] = "20";
+		Rml::ElementPtr inputBox = Rml::Factory::InstanceElement(document, "textarea", "textarea", attributes);
+		inputBox->AddEventListener("change", new EventPasser([this, key, inputBox = inputBox.get()](Rml::Event& event){
+			Rml::String value = inputBox->GetAttribute<Rml::String>("value", "");
+			std::string correctValue;
+			bool foundDecimal = false;
+			for (char c : value) {
+				if (('0' <= c && c <= '9') || (correctValue.empty() && c == '-')) {
+					correctValue += c;
+				} else if (c == '.' && !foundDecimal) {
+					foundDecimal = true;
+					correctValue += c;
+				}
+			}
+			std::stringstream ss(correctValue);
+			double number = 0;
+			ss >> number;
+			inputBox->SetInnerRML(std::string(correctValue.size(), ' '));
+			inputBox->SetAttribute<Rml::String>("value", correctValue);
+			Settings::set<SettingType::DECIMAL>(key, number);
+		}));
+		std::string initValue = fmt::format("{:.3f}", *Settings::get<SettingType::DECIMAL>(key));
+		inputBox->SetInnerRML(initValue);
+		inputBox->SetAttribute<Rml::String>("value", initValue);
+		item->AppendChild(std::move(inputBox));
+		break;
+	}
 	case SettingType::BOOL: {
 		Rml::ElementPtr button = document->CreateElement("button");
 		button->AppendChild(std::move(document->CreateTextNode((*Settings::get<SettingType::BOOL>(key)) ? "Enabled" : "Disabled")));

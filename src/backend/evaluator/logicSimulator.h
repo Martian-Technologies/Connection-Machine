@@ -42,6 +42,8 @@ public:
 	void removeConnection(simulator_id_t sourceId, connection_port_id_t sourcePort, simulator_id_t destinationId, connection_port_id_t destinationPort);
 	void endEdit();
 
+	const std::vector<simulator_id_t> getOutputs(simulator_id_t simId);
+
 private:
 	EvalConfig& evalConfig;
 	std::thread simulationThread;

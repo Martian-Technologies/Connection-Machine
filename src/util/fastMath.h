@@ -12,6 +12,9 @@ constexpr T FastPower(T x) {
 
 constexpr unsigned int Abs(unsigned int x) { assert(false || "WHY DO YOU DO THIS?????"); return x; }
 
+constexpr int max(int a, int b) { return a < b ? b : a; }
+constexpr int min(int a, int b) { return a < b ? a : b; }
+
 constexpr int Abs(int x) { return x < 0 ? -x : x; }
 
 constexpr double Abs(double x) {
