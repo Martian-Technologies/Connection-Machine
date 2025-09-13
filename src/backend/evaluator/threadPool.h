@@ -54,6 +54,9 @@ public:
 
 	void waitForCompletion() {
 		bool sprintingNow = sprinting.load(std::memory_order_acquire);
+#ifdef TRACY_PROFILER
+		ZoneScoped;
+#endif
 		while (true) {
 			uint32_t c = completed.load(std::memory_order_acquire);
 			uint32_t e = end.load(std::memory_order_acquire);
