@@ -152,7 +152,10 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 				if (otherBlockPos == curPosition) {
 					Position outputPos = newPosition + transformAmount.transformVectorWithArea(posPair.first - curPosition, blockSize);
 					Position inputPos = newPosition + transformAmount.transformVectorWithArea(posPair.second - curPosition, blockSize);
-					MainRenderer::get().addWire(viewportId, { outputPos, inputPos }, { FVector(), FVector() });
+					MainRenderer::get().addWire(viewportId, { outputPos, inputPos }, {
+							getOutputOffset(iter->second.type, newOrientation),
+							getInputOffset(iter->second.type, newOrientation)
+						});
 					iter->second.connectionsToOtherBlock.emplace(std::make_pair(outputPos, inputPos), newPosition);
 				} else {
 					auto otherIter = renderedBlocks.find(otherBlockPos);
