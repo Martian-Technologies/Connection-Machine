@@ -124,12 +124,22 @@ private:
 				continue;
 			}
 
-			std::unique_lock lk(mtx);
-			cv.wait(lk, [this, self, &local_round]{
-				return self->retire.load(std::memory_order_relaxed)
+			if (sprinting.load(std::memory_order_acquire)) {
+				while (true) {
+					if (self->retire.load(std::memory_order_relaxed)
+						|| stop.load(std::memory_order_relaxed)
+						|| round.load(std::memory_order_acquire) != local_round) {
+						break;
+					}
+				}
+			} else {
+				std::unique_lock lk(mtx);
+				cv.wait(lk, [this, self, &local_round]{
+					return self->retire.load(std::memory_order_relaxed)
 					   || stop.load(std::memory_order_relaxed)
 					   || round.load(std::memory_order_acquire) != local_round;
-			});
+				});
+			}
 			if (self->retire.load(std::memory_order_relaxed) ||
 				stop.load(std::memory_order_relaxed)) {
 				return;
