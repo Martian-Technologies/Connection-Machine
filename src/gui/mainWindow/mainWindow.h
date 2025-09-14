@@ -29,8 +29,8 @@ public:
 	bool recieveEvent(SDL_Event& event);
 	void updateRml();
 
-	inline SDL_Window* getSdlWindow() { return sdlWindow.getHandle(); };
-	inline float getSdlWindowScalingSize() const { return sdlWindow.getWindowScalingSize(); }
+	inline SDL_Window* getSdlWindow() { return sdlWindow->getHandle(); };
+	inline float getSdlWindowScalingSize() const { return sdlWindow->getWindowScalingSize(); }
 	inline std::vector<std::shared_ptr<CircuitViewWidget>> getCircuitViewWidgets() { return circuitViewWidgets; };
 	inline std::shared_ptr<CircuitViewWidget> getCircuitViewWidget(unsigned int i) { return circuitViewWidgets[i]; };
 	inline std::shared_ptr<CircuitViewWidget> getActiveCircuitViewWidget() { return activeCircuitViewWidget; };
@@ -72,7 +72,7 @@ private:
 	// rmlui and sdl
 	Rml::Context* rmlContext;
 	Rml::ElementDocument* rmlDocument;
-	SdlWindow sdlWindow;
+	std::shared_ptr<SdlWindow> sdlWindow;
 };
 
 #endif /* window_h */

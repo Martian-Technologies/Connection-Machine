@@ -3,22 +3,26 @@
 .menu-bar {
 	display: flex;
 	background-color: #2e2e2e;
+	align-items: center;
 	color: white;
+	height: 24dp;
 }
 
 .menu {
 	min-width: 60dp;
-	border-radius: 6dp;
-	margin: 4dp 4dp;
+	height: 100%;
+	/* border-radius: 6dp; */
+	/* margin: 4dp 4dp; */
 	text-align: center;
-	background-color: #1d1d1d;
+	/* background-color: #1d1d1d; */
 	position: relative;
-	cursor: pointer;
-	border: 1dp #232323;
+	/* cursor: pointer; */
+	/* border: 1dp transparent; */
 }
 
 .menu:hover {
-	border: 1dp #e2a74a;
+	background-color: #1d1d1d;
+	/* border: 1dp #e2a74a; */
 }
 
 .menu-title {

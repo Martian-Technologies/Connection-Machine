@@ -1,12 +1,12 @@
 /* List Element Styles */
 
 .element-list {
-	background-color: #2e2e2e;
+	/* background-color: #2e2e2e;
 	border-radius: 0.3em;
-	margin: 0.5em 0.1em;
+	margin: 0.5em 0.1em; */
 	display: flex;
 	flex-direction: column;
-	min-height: 2rem;
+	/* min-height: 2rem; */
 }
 
 .element-list * {

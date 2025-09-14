@@ -6,8 +6,29 @@
 
 #include "gui/mainWindow/circuitView/circuitViewWidget.h"
 
-App::App() : rml(&rmlSystemInterface, &rmlRenderInterface) {
-	windows.push_back(std::make_unique<MainWindow>(&environment));
+std::optional<App> appSingleton;
+
+App& App::get() {
+	if (!appSingleton) {
+		appSingleton.emplace();
+		appSingleton->windows.push_back(std::make_unique<MainWindow>(&appSingleton->environment));
+	}
+	return *appSingleton;
+}
+
+void App::kill() {
+	appSingleton.reset();
+}
+
+App::App() : rml(&rmlSystemInterface, &rmlRenderInterface) {}
+
+std::shared_ptr<SdlWindow> App::registerWindow(const std::string& windowName) {
+	return sdlWindows.emplace_back(std::make_shared<SdlWindow>(std::move(windowName)));
+}
+
+void App::deregisterWindow(std::shared_ptr<SdlWindow> sdlWindow) {
+	auto iter = std::find(sdlWindows.begin(), sdlWindows.end(), sdlWindow);
+	if (iter != sdlWindows.end()) sdlWindows.erase(iter);
 }
 
 #ifdef TRACY_PROFILER
@@ -24,7 +45,6 @@ void App::runLoop() {
 #ifdef TRACY_PROFILER
 		FrameMarkStart(addLoopTracyName);
 #endif
-
 		// process events (TODO - should probably just have a map of window ids to windows)
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
@@ -36,22 +56,20 @@ void App::runLoop() {
 			}
 			case SDL_EVENT_WINDOW_CLOSE_REQUESTED: {
 				// Single window was closed, check which window was closed and remove it
-				auto itr = windows.begin();
-				while (itr != windows.end()) {
+				for (auto itr = sdlWindows.begin(); itr != sdlWindows.end(); ++itr) {
 					if ((*itr)->recieveEvent(event)) {
-						windows.erase(itr);
+						sdlWindows.erase(itr);
 						break;
 					}
-					++itr;
 				}
 				break;
 			}
 			case SDL_EVENT_WINDOW_FOCUS_GAINED: {
 				// Window focus switched, check which window gained focus
-				for (auto& window : windows) {
-					if (window->recieveEvent(event)) {
+				for (auto& sdlWindow : sdlWindows) {
+					if (sdlWindow->recieveEvent(event)) {
 						// tell system interface about focus change
-						rmlSystemInterface.SetWindow(window->getSdlWindow());
+						rmlSystemInterface.SetWindow(sdlWindow->getHandle());
 						break;
 					}
 				}
@@ -59,20 +77,16 @@ void App::runLoop() {
 			}
 			default: {
 				// Send event to all windows
-				for (auto& window : windows) {
-					window->recieveEvent(event);
+				for (auto& sdlWindow : sdlWindows) {
+					sdlWindow->recieveEvent(event);
 				}
 			}
 			}
 		}
 
 		// tell all windows to update rml
-		for (auto& window : windows) {
-			window->updateRml();
-			// update circuit view widget UI components like TPS display
-			for (auto circuitViewWidget : window->getCircuitViewWidgets()) {
-				circuitViewWidget->render();
-			}
+		for (auto& sdlWindow : sdlWindows) {
+			sdlWindow->render();
 		}
 		if (firstPass) {
 			firstPass = false;

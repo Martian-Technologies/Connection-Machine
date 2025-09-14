@@ -5,7 +5,6 @@
 
 	<body>
 		<div id="menu-bar" class="menu-bar">
-
 			<div class="menu" id="menu-app">
 				<div class="menu-title">CM</div>
 				<div class="dropdown">

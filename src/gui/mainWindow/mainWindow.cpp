@@ -14,20 +14,56 @@
 #include "settingsWindow/settingsWindow.h"
 #include "computerAPI/directoryManager.h"
 #include "environment/environment.h"
+#include "app.h"
 
 MainWindow::MainWindow(Environment* environment) :
-	sdlWindow("Connection Machine"), environment(environment), toolManagerManager(environment->getBackend().getDataUpdateEventManager()) {
+	sdlWindow(App::get().registerWindow("Connection Machine")), environment(environment), toolManagerManager(environment->getBackend().getDataUpdateEventManager()) {
+	sdlWindow->setRecieveEventFunction(std::bind(&MainWindow::recieveEvent, this, std::placeholders::_1));
+	sdlWindow->setRenderFunction(std::bind(&MainWindow::updateRml, this));
 
-	windowId = MainRenderer::get().registerWindow(&sdlWindow);
+	windowId = MainRenderer::get().registerWindow(sdlWindow.get());
 
 	// create rmlUI context
-	rmlContext = Rml::CreateContext("main", Rml::Vector2i(sdlWindow.getSize().first, sdlWindow.getSize().second)); // ptr managed by rmlUi (I think)
+	rmlContext = Rml::CreateContext("main", Rml::Vector2i(sdlWindow->getSize().first, sdlWindow->getSize().second)); // ptr managed by rmlUi (I think)
 
 	// create rmlUI document
 	rmlDocument = rmlContext->LoadDocument(DirectoryManager::getResourceDirectory().generic_string() + "/gui/mainWindow/mainWindow.rml");
 
-	// Rml::Debugger::Initialise(rmlContext);
-	// Rml::Debugger::SetVisible(true);
+	// SdlWindow* sdlWindow2 = App::get().registerWindow("Debugger").get();
+	// WindowId windowId2 = MainRenderer::get().registerWindow(sdlWindow2);
+	// Rml::Context* rmlContext2 = Rml::CreateContext("Debugger", Rml::Vector2i(sdlWindow2->getSize().first, sdlWindow2->getSize().second));
+	// if (rmlContext2) {
+	// 	Rml::ElementDocument* rmlDocument2 = rmlContext2->CreateDocument();
+	// 	rmlDocument2->AppendChild(rmlDocument2->CreateElement("div"));
+	// 	Rml::Debugger::Initialise(rmlContext2);
+	// 	Rml::Debugger::SetContext(rmlContext);
+	// 	Rml::Debugger::SetVisible(true);
+	// 	sdlWindow2->setRenderFunction([windowId2, rmlContext2](){
+	// 		RmlRenderInterface* rmlRenderInterface = dynamic_cast<RmlRenderInterface*>(Rml::GetRenderInterface());
+	// 		if (rmlRenderInterface) {
+	// 			rmlContext2->Update();
+	// 			rmlRenderInterface->setWindowToRenderOn(windowId2);
+	// 			MainRenderer::get().prepareForRmlRender(windowId2);
+	// 			rmlContext2->Render();
+	// 			MainRenderer::get().endRmlRender(windowId2);
+	// 		}
+	// 	});
+	// 	sdlWindow2->setRecieveEventFunction(
+	// 		[windowId2, rmlContext2, sdlWindow2](SDL_Event& event){
+	// 			if (sdlWindow2->isThisMyEvent(event)) {
+	// 				RmlSDL::InputEventHandler(rmlContext2, sdlWindow2->getHandle(), event, sdlWindow2->getWindowScalingSize());
+
+	// 				// let renderer know we if resized the window
+	// 				if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) {
+	// 					MainRenderer::get().resizeWindow(windowId2, { event.window.data1, event.window.data2 });
+	// 					rmlContext2->Update();
+	// 				}
+	// 				return true;
+	// 			}
+	// 			return false;
+	// 		}
+	// 	);
+	// }
 
 	// get widget for circuit view
 	Rml::Element* circuitViewWidgetElement = rmlDocument->GetElementById("circuit-view-rendering-area");
@@ -87,7 +123,7 @@ MainWindow::MainWindow(Environment* environment) :
 	);
 	keybindHandler.addListener(
 		"Keybinds/Window/Toggle Fullscreen",
-		[this]() { sdlWindow.toggleBorderlessFullscreen(); }
+		[this]() { sdlWindow->toggleBorderlessFullscreen(); }
 	);
 
 	// show rmlUi document
@@ -107,6 +143,7 @@ MainWindow::MainWindow(Environment* environment) :
 }
 
 MainWindow::~MainWindow() {
+	App::get().deregisterWindow(sdlWindow);
 	Rml::RemoveContext(rmlContext->GetName());
 	MainRenderer::get().deregisterWindow(windowId);
 	rmlContext = nullptr;
@@ -114,7 +151,7 @@ MainWindow::~MainWindow() {
 
 bool MainWindow::recieveEvent(SDL_Event& event) {
 	// check if we want this event
-	if (sdlWindow.isThisMyEvent(event)) {
+	if (sdlWindow->isThisMyEvent(event)) {
 		if (event.type == SDL_EVENT_DROP_FILE) {
 			std::string file = event.drop.data;
 			std::cout << file << "\n";
@@ -139,7 +176,7 @@ bool MainWindow::recieveEvent(SDL_Event& event) {
 		}
 
 		// send event to RML
-		RmlSDL::InputEventHandler(rmlContext, sdlWindow.getHandle(), event, getSdlWindowScalingSize());
+		RmlSDL::InputEventHandler(rmlContext, sdlWindow->getHandle(), event, getSdlWindowScalingSize());
 
 		// let renderer know we if resized the window
 		if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) {
@@ -164,6 +201,10 @@ void MainWindow::updateRml() {
 		MainRenderer::get().prepareForRmlRender(windowId);
 		rmlContext->Render();
 		MainRenderer::get().endRmlRender(windowId);
+	}
+	// update circuit view widget UI components like TPS display
+	for (auto& circuitViewWidget : circuitViewWidgets) {
+		circuitViewWidget->render();
 	}
 }
 
@@ -221,7 +262,7 @@ void MainWindow::savePopUp(const std::string& circuitUUID) {
 			{ "Circuit Files",  ".cir" }
 		};
 		std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(&environment->getCircuitFileManager(), circuitUUID);
-		SDL_ShowSaveFileDialog(SaveCallback, data, sdlWindow.getHandle(), filters, 1, nullptr);
+		SDL_ShowSaveFileDialog(SaveCallback, data, sdlWindow->getHandle(), filters, 1, nullptr);
 	}
 }
 
@@ -230,7 +271,7 @@ void MainWindow::saveAsPopUp(const std::string& circuitUUID) {
 		{ "Circuit Files",  ".cir" }
 	};
 	std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(&environment->getCircuitFileManager(), circuitUUID);
-	SDL_ShowSaveFileDialog(SaveCallback, data, sdlWindow.getHandle(), filters, 1, nullptr);
+	SDL_ShowSaveFileDialog(SaveCallback, data, sdlWindow->getHandle(), filters, 1, nullptr);
 }
 
 void setGlobalCssPropertyRec(Rml::Element* element, const std::string& property, const std::string& value) {

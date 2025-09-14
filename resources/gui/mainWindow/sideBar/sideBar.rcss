@@ -7,13 +7,13 @@ tabset {
 	height: 100%;
 }
 
-tabset panels {
+tabset > panels {
 	flex-grow: 1;
-	position: relative;	
+	position: relative;
 	width: 100%;
 }
 
-tabset panels panel {
+tabset > panels > panel {
 	position: absolute;
 	top: 0;
 	bottom: 0;
@@ -21,8 +21,19 @@ tabset panels panel {
 	overflow-y: scroll;
 }
 
-tabset tabs tab {
-	margin: 0 0.35em 0 0;
+tabset > panels > panel > div {
+	min-height: 1dp;
+	margin-top: 0.5em;
+	margin-left: 0.25em;
+	margin-right: 0.25em;
+}
+
+tabset > panels > panel > div:first-child {
+	margin-top: 0;
+}
+
+tabset > tabs > tab {
+	margin: 0 0.175em;
 	padding: 0.25em 0.35em;
 	border-radius: 0.4em 0.4em 0 0;
 	background-color: #0b0b0b; /* base (bg-0) */
@@ -32,34 +43,36 @@ tabset tabs tab {
 	border-bottom: 0dp;
 }
 
-tabset tabs tab:hover {
+tabset > tabs > tab:hover {
 	background-color: #1d1d1d;
 	color: #f5f5f5;
 }
 
-tabset tabs tab:selected,
-tabset tabs tab:checked,
-tabset tabs tab.active {
+tabset > tabs > tab:selected,
+tabset > tabs > tab:checked,
+tabset > tabs > tab.active {
 	background-color: #2e2e2e;
 	color: #f5f5f5;
 	border-color: #d1963a;
 }
 
-tabset tabs tab.accent {
+tabset > tabs > tab.accent {
 	background-color: #d1963a;
 	color: #1d1d1d;
 	border-color: #e2a74a;
 }
 
-tabset tabs tab.accent:hover {
+tabset > tabs > tab.accent:hover {
 	background-color: #e2a74a;
 }
 
-tabset tabs tab.accent:active {
+tabset > tabs > tab.accent:active {
 	background-color: #9b6d24;
 }
 
-tabset tabs  {
+tabset > tabs {
 	width: 100%;
-	display: block;
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
 }
