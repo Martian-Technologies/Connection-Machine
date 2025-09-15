@@ -81,32 +81,34 @@ void LogicSimulator::simulationLoop() {
 			if (pauseRequest.load(std::memory_order_acquire)) break;
 		}
 
-		if (!didSprint && evalConfig.isRunning()) {
-			auto currentTime = clock::now();
+		if (!didSprint) {
+			if (evalConfig.isRunning()) {
+				auto currentTime = clock::now();
 
-			tickOnce();
+				tickOnce();
 
-			updateEmaTickrate(currentTime, lastTickTime, isFirstTick);
+				updateEmaTickrate(currentTime, lastTickTime, isFirstTick);
 
-			if (evalConfig.isTickrateLimiterEnabled()) {
-				double targetTickrate = evalConfig.getTargetTickrate();
-				if (targetTickrate > 0) {
-					auto period = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>(1.0 / targetTickrate));
-					nextTick += period;
-					std::unique_lock lk(cvMutex);
-					cv.wait_until(lk, nextTick, [&] { return pauseRequest || !running || !evalConfig.isRunning(); });
+				if (evalConfig.isTickrateLimiterEnabled()) {
+					double targetTickrate = evalConfig.getTargetTickrate();
+					if (targetTickrate > 0) {
+						auto period = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>(1.0 / targetTickrate));
+						nextTick += period;
+						std::unique_lock lk(cvMutex);
+						cv.wait_until(lk, nextTick, [&] { return pauseRequest || !running || !evalConfig.isRunning(); });
+					}
 				}
+			} else {
+				averageTickrate.store(0.0, std::memory_order_release);
+				std::unique_lock lk(cvMutex);
+				cv.wait(lk, [&] {
+					std::lock_guard<std::mutex> stateLock(stateChangeQueueMutex);
+					return pauseRequest || !running || evalConfig.isRunning() || evalConfig.getSprintCount() > 0 || !pendingStateChanges.empty();
+				});
+				nextTick = clock::now();
+				lastTickTime = clock::now();
+				isFirstTick = true;
 			}
-		} else if (!didSprint) {
-			averageTickrate.store(0.0, std::memory_order_release);
-			std::unique_lock lk(cvMutex);
-			cv.wait(lk, [&] {
-				std::lock_guard<std::mutex> stateLock(stateChangeQueueMutex);
-				return pauseRequest || !running || evalConfig.isRunning() || evalConfig.getSprintCount() > 0 || !pendingStateChanges.empty();
-			});
-			nextTick = clock::now();
-			lastTickTime = clock::now();
-			isFirstTick = true;
 		}
 	}
 }

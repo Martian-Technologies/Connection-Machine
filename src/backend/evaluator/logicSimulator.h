@@ -4,7 +4,6 @@
 #include "simulatorGates.h"
 #include "gateType.h"
 #include "idProvider.h"
-#include "evalConnection.h"
 #include "evalConfig.h"
 #include "threadPool.h"
 

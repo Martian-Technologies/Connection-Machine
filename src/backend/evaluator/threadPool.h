@@ -33,6 +33,7 @@ public:
 		{
 			std::lock_guard lk(mtx);
 			jobsRef = &new_jobs;
+			threadsWaiting.store(0, std::memory_order_relaxed);
 			next.store(0, std::memory_order_relaxed);
 			completed.store(0, std::memory_order_relaxed);
 			end.store(static_cast<uint32_t>(new_jobs.size()), std::memory_order_release);
@@ -41,27 +42,17 @@ public:
 		cv.notify_all();
 	}
 
-	void waitForEmpty() {
-		bool sprintingNow = sprinting.load(std::memory_order_acquire);
-		while (true) {
-			if (tryRunOne()) continue;
-			uint32_t n = next.load(std::memory_order_acquire);
-			uint32_t e = end.load(std::memory_order_acquire);
-			if (n >= e) break;
-			if (!sprintingNow) { std::this_thread::yield(); }
-		}
-	}
-
 	void waitForCompletion() {
 		bool sprintingNow = sprinting.load(std::memory_order_acquire);
 #ifdef TRACY_PROFILER
 		ZoneScoped;
 #endif
+		uint32_t e = end.load(std::memory_order_acquire);
+		runTillDone(); // if your waiting might as well help do the compute
 		while (true) {
+			uint32_t w = threadsWaiting.load(std::memory_order_acquire);
 			uint32_t c = completed.load(std::memory_order_acquire);
-			uint32_t e = end.load(std::memory_order_acquire);
-			if (c >= e) break;
-			if (tryRunOne()) continue;
+			if (w >= workers.size() && c >= e) break;
 			if (!sprintingNow) { std::this_thread::yield(); }
 		}
 	}
@@ -112,13 +103,16 @@ private:
 	void workerLoop(Worker* self) {
 		uint64_t local_round = round.load(std::memory_order_acquire);
 		while (true) {
-			if (tryRunOne()) continue;
-
+			runTillDone();
+			threadsWaiting.fetch_add(1, std::memory_order_acq_rel);
 			if (sprinting.load(std::memory_order_acquire)) {
 				while (true) {
-					if (self->retire.load(std::memory_order_relaxed)
-						|| stop.load(std::memory_order_relaxed)
-						|| round.load(std::memory_order_acquire) != local_round) {
+					if (self->retire.load(std::memory_order_relaxed) || stop.load(std::memory_order_relaxed)) {
+						return;
+					}
+					uint64_t cur_round = round.load(std::memory_order_acquire);
+					if (cur_round != local_round) {
+						local_round = cur_round;
 						break;
 					}
 				}
@@ -129,29 +123,35 @@ private:
 					   || stop.load(std::memory_order_relaxed)
 					   || round.load(std::memory_order_acquire) != local_round;
 				});
+				if (self->retire.load(std::memory_order_relaxed) || stop.load(std::memory_order_relaxed)) {
+					return;
+				}
+				local_round = round.load(std::memory_order_acquire);
 			}
-			if (self->retire.load(std::memory_order_relaxed) ||
-				stop.load(std::memory_order_relaxed)) {
-				return;
-			}
-			local_round = round.load(std::memory_order_acquire);
 		}
 	}
 
-	inline bool tryRunOne() {
-		uint32_t i = next.fetch_add(1, std::memory_order_acq_rel);
+	inline void runTillDone() {
 		uint32_t e = end.load(std::memory_order_acquire);
-		if (i < e) {
+		uint32_t i = next.fetch_add(1, std::memory_order_acq_rel);
+		uint32_t comp = 69;
+		while (true) {
+			if (i >= e) {
+				uint32_t c = completed.load(std::memory_order_acquire);
+				if (i > e + 1 && e != c) {
+					logInfo("oh no");
+				}
+				return;
+			}
 #ifdef TRACY_PROFILER
 			ZoneScoped;
 #endif
 			// Safe because resetAndLoad keeps jobsRef stable for the duration of the round.
 			const Job j = (*jobsRef)[i];
 			j.fn(j.arg);
-			completed.fetch_add(1, std::memory_order_acq_rel);
-			return true;
+			i = next.fetch_add(1, std::memory_order_acq_rel);
+			comp = completed.fetch_add(1, std::memory_order_acq_rel);
 		}
-		return false;
 	}
 
 	std::vector<std::unique_ptr<Worker>> workers;
@@ -162,6 +162,7 @@ private:
 	std::atomic<bool> stop{false}; // global shutdown (idle-only)
 	std::atomic<bool> sprinting{false}; // will make waiting for completion not yield
 	std::atomic<uint64_t> round{0}; // generation/epoch for cv wakeups
+	std::atomic<uint32_t> threadsWaiting{0}; // generation/epoch for cv wakeups
 
 	std::mutex mtx;
 	std::condition_variable cv;
