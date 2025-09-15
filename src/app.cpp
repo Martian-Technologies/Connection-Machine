@@ -36,7 +36,8 @@ void App::deregisterWindow(const SdlWindow* sdlWindow) {
 }
 
 void App::newMainWindow() {
-	appSingleton->windows.push_back(std::make_unique<MainWindow>(&appSingleton->environment));
+	windows.push_back(std::make_unique<MainWindow>(&environment));
+	newlyCreatedWindowsNext.push_back(windows.back().get());
 }
 
 void App::closeMainWindow(const MainWindow* mainWindow) {
@@ -48,7 +49,6 @@ const char* const addLoopTracyName = "appLoop";
 #endif
 
 void App::runLoop() {
-	bool firstPass = true;
 	running = true;
 	while (running) {
 		// Wait for the next event (so we don't broork the cpu)
@@ -123,14 +123,13 @@ void App::runLoop() {
 		for (auto& sdlWindow : sdlWindows) {
 			sdlWindow->render();
 		}
-		if (firstPass) {
-			firstPass = false;
-			for (auto& window : windows) {
-				for (auto circuitViewWidget : window->getCircuitViewWidgets()) {
-					circuitViewWidget->handleResize();
-				}
+		for (auto* window : newlyCreatedWindows) {
+			for (auto circuitViewWidget : window->getCircuitViewWidgets()) {
+				circuitViewWidget->handleResize();
 			}
 		}
+		newlyCreatedWindows = std::move(newlyCreatedWindowsNext);
+		newlyCreatedWindowsNext.clear();
 #ifdef TRACY_PROFILER
 		FrameMarkEnd(addLoopTracyName);
 #endif
