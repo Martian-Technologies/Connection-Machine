@@ -24,7 +24,7 @@ MainWindow::MainWindow(Environment* environment) :
 	windowId = MainRenderer::get().registerWindow(sdlWindow.get());
 
 	// create rmlUI context
-	rmlContext = Rml::CreateContext("main", Rml::Vector2i(sdlWindow->getSize().first, sdlWindow->getSize().second)); // ptr managed by rmlUi (I think)
+	rmlContext = Rml::CreateContext("main" + std::to_string(windowId), Rml::Vector2i(sdlWindow->getSize().first, sdlWindow->getSize().second)); // ptr managed by rmlUi (I think)
 
 	// create rmlUI document
 	rmlDocument = rmlContext->LoadDocument(DirectoryManager::getResourceDirectory().generic_string() + "/gui/mainWindow/mainWindow.rml");
