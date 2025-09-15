@@ -136,13 +136,7 @@ private:
 		uint32_t i = next.fetch_add(1, std::memory_order_acq_rel);
 		uint32_t comp = 69;
 		while (true) {
-			if (i >= e) {
-				uint32_t c = completed.load(std::memory_order_acquire);
-				if (i > e + 1 && e != c) {
-					logInfo("oh no");
-				}
-				return;
-			}
+			if (i >= e) return;
 #ifdef TRACY_PROFILER
 			ZoneScoped;
 #endif
