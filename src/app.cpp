@@ -26,8 +26,12 @@ std::shared_ptr<SdlWindow> App::registerWindow(const std::string& windowName) {
 	return sdlWindows.emplace_back(std::make_shared<SdlWindow>(std::move(windowName)));
 }
 
-void App::deregisterWindow(std::shared_ptr<SdlWindow> sdlWindow) {
+void App::deregisterWindow(std::shared_ptr<SdlWindow>& sdlWindow) {
 	auto iter = std::find(sdlWindows.begin(), sdlWindows.end(), sdlWindow);
+	if (iter != sdlWindows.end()) sdlWindows.erase(iter);
+}
+void App::deregisterWindow(const SdlWindow* sdlWindow) {
+	auto iter = std::find_if(sdlWindows.begin(), sdlWindows.end(), [sdlWindow](const std::shared_ptr<SdlWindow>& a){ return a.get() == sdlWindow; });
 	if (iter != sdlWindows.end()) sdlWindows.erase(iter);
 }
 
@@ -57,8 +61,9 @@ void App::runLoop() {
 			case SDL_EVENT_WINDOW_CLOSE_REQUESTED: {
 				// Single window was closed, check which window was closed and remove it
 				for (auto itr = sdlWindows.begin(); itr != sdlWindows.end(); ++itr) {
-					if ((*itr)->recieveEvent(event)) {
-						sdlWindows.erase(itr);
+					std::shared_ptr<SdlWindow> sdlWindow = *itr;
+					if (sdlWindow->recieveEvent(event)) {
+						deregisterWindow(sdlWindow);
 						break;
 					}
 				}

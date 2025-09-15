@@ -2,7 +2,9 @@
 #define frameManager_h
 
 #include "util/lifetimeExtender.h"
-#include "gpu/vulkanDevice.h"
+#include <vk_mem_alloc.h>
+
+class VulkanDevice;
 
 constexpr unsigned int FRAMES_IN_FLIGHT = 2;
 
@@ -25,13 +27,13 @@ class FrameManager {
 public:
 	void init(VulkanDevice* device);
 	void cleanup();
-	
+
 	void incrementFrame();
 	float waitForCurrentFrameCompletion();
 	void startCurrentFrame();
 
 	inline Frame& getCurrentFrame() { return frames[frameIndex]; }
-	
+
 private:
 	std::array<Frame, FRAMES_IN_FLIGHT> frames;
 	uint32_t frameNumber = 0;

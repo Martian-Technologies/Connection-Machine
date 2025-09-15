@@ -3,8 +3,9 @@
 
 #include "gpu/abstractions/vulkanDescriptor.h"
 #include "gpu/abstractions/vulkanImage.h"
-#include "gpu/vulkanDevice.h"
 #include "tileSet.h"
+
+class VulkanDevice;
 
 struct BlockTexture {
 	~BlockTexture();

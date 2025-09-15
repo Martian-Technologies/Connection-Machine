@@ -1,6 +1,7 @@
 #include "blockTextureManager.h"
 
 #include "computerAPI/directoryManager.h"
+#include "gpu/vulkanDevice.h"
 
 #include <stb_image.h>
 

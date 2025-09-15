@@ -53,48 +53,78 @@ void MainRenderer::endRmlRender(WindowId windowId) {
 }
 
 Rml::CompiledGeometryHandle MainRenderer::compileGeometry(WindowId windowId, Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) {
-	auto iter = windowRenderers.find(windowId);
-	if (iter == windowRenderers.end()) {
-		logError("Failed to call CompileGeometry on non existent window {}", "MainRenderer", windowId);
+	// auto iter = windowRenderers.find(windowId);
+	// if (iter == windowRenderers.end()) {
+	// 	logError("Failed to call CompileGeometry on non existent window {}", "MainRenderer", windowId);
+	// 	return (Rml::CompiledGeometryHandle)0;
+	// }
+	// return iter->second.getRmlRenderer().compileGeometry(vertices, indices);
+	VulkanDevice* device = vulkanInstance.getDevice();
+	if (!device) {
+		logError("Failed to call CompileGeometry. No Vulkan device found", "MainRenderer");
 		return (Rml::CompiledGeometryHandle)0;
 	}
-	return iter->second.getRmlRenderer().compileGeometry(vertices, indices);
+	return device->getRmlResourceManager().compileGeometry(vertices, indices);
 }
 
 void MainRenderer::releaseGeometry(WindowId windowId, Rml::CompiledGeometryHandle geometry) {
-	auto iter = windowRenderers.find(windowId);
-	if (iter == windowRenderers.end()) {
-		logError("Failed to call ReleaseGeometry on non existent window {}", "MainRenderer", windowId);
+	// auto iter = windowRenderers.find(windowId);
+	// if (iter == windowRenderers.end()) {
+	// 	logError("Failed to call ReleaseGeometry on non existent window {}", "MainRenderer", windowId);
+	// 	return;
+	// }
+	// iter->second.getRmlRenderer().releaseGeometry(geometry);
+	VulkanDevice* device = vulkanInstance.getDevice();
+	if (!device) {
+		logError("Failed to call CompileGeometry. No Vulkan device found", "MainRenderer");
 		return;
 	}
-	iter->second.getRmlRenderer().releaseGeometry(geometry);
+	return device->getRmlResourceManager().releaseGeometry(geometry);
 }
 
 Rml::TextureHandle MainRenderer::loadTexture(WindowId windowId, Rml::Vector2i& texture_dimensions, const Rml::String& source) {
-	auto iter = windowRenderers.find(windowId);
-	if (iter == windowRenderers.end()) {
-		logError("Failed to call loadTexture on non existent window {}", "MainRenderer", windowId);
+	// auto iter = windowRenderers.find(windowId);
+	// if (iter == windowRenderers.end()) {
+	// 	logError("Failed to call loadTexture on non existent window {}", "MainRenderer", windowId);
+	// 	return (Rml::TextureHandle)0;
+	// }
+	// return iter->second.getRmlRenderer().loadTexture(texture_dimensions, source);
+	VulkanDevice* device = vulkanInstance.getDevice();
+	if (!device) {
+		logError("Failed to call CompileGeometry. No Vulkan device found", "MainRenderer");
 		return (Rml::TextureHandle)0;
 	}
-	return iter->second.getRmlRenderer().loadTexture(texture_dimensions, source);
+	return device->getRmlResourceManager().loadTexture(texture_dimensions, source);
 }
 
 Rml::TextureHandle MainRenderer::generateTexture(WindowId windowId, Rml::Span<const Rml::byte> source, Rml::Vector2i source_dimensions) {
-	auto iter = windowRenderers.find(windowId);
-	if (iter == windowRenderers.end()) {
-		logError("Failed to call generateTexture on non existent window {}", "MainRenderer", windowId);
+	// auto iter = windowRenderers.find(windowId);
+	// if (iter == windowRenderers.end()) {
+	// 	logError("Failed to call generateTexture on non existent window {}", "MainRenderer", windowId);
+	// 	return (Rml::TextureHandle)0;
+	// }
+	// return iter->second.getRmlRenderer().generateTexture(source, source_dimensions);
+	VulkanDevice* device = vulkanInstance.getDevice();
+	if (!device) {
+		logError("Failed to call CompileGeometry. No Vulkan device found", "MainRenderer");
 		return (Rml::TextureHandle)0;
 	}
-	return iter->second.getRmlRenderer().generateTexture(source, source_dimensions);
+	return device->getRmlResourceManager().generateTexture(source, source_dimensions);
 }
 
 void MainRenderer::releaseTexture(WindowId windowId, Rml::TextureHandle texture_handle) {
-	auto iter = windowRenderers.find(windowId);
-	if (iter == windowRenderers.end()) {
-		logError("Failed to call releaseTexture on non existent window {}", "MainRenderer", windowId);
+	// auto iter = windowRenderers.find(windowId);
+	// if (iter == windowRenderers.end()) {
+	// 	logError("Failed to call releaseTexture on non existent window {}", "MainRenderer", windowId);
+	// 	return;
+	// }
+	// iter->second.getRmlRenderer().releaseTexture(texture_handle);
+	VulkanDevice* device = vulkanInstance.getDevice();
+	if (!device) {
+		logError("Failed to call CompileGeometry. No Vulkan device found", "MainRenderer");
 		return;
 	}
-	iter->second.getRmlRenderer().releaseTexture(texture_handle);
+	return device->getRmlResourceManager().releaseTexture(texture_handle);
 }
 
 void MainRenderer::renderGeometry(WindowId windowId, Rml::CompiledGeometryHandle handle, Rml::Vector2f translation, Rml::TextureHandle texture) {

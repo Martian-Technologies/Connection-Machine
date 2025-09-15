@@ -1,5 +1,7 @@
 #include "vulkanDescriptor.h"
 
+#include "gpu/vulkanDevice.h"
+
 void DescriptorLayoutBuilder::addBinding(uint32_t bindingIndex, VkDescriptorType type) {
 	VkDescriptorSetLayoutBinding binding{};
 	binding.binding = bindingIndex;
@@ -81,7 +83,7 @@ void DescriptorWriter::updateSet(VkDevice device, VkDescriptorSet set) {
 // ============================= DESCRIPTOR ALLOCATOR ===============================================
 void DescriptorAllocator::init(VulkanDevice* device, uint32_t maxSets, const std::vector<PoolSizeRatio>& poolRatios) {
 	this->device = device;
-	
+
 	// Get actual pool sizes
 	std::vector<VkDescriptorPoolSize> poolSizes;
 	for (const PoolSizeRatio& ratio : poolRatios) {
@@ -122,7 +124,7 @@ VkDescriptorSet DescriptorAllocator::allocate(VkDescriptorSetLayout layout) {
 
 void GrowableDescriptorAllocator::init(VulkanDevice* device, uint32_t initialSets, const std::vector<PoolSizeRatio>& poolRatios) {
 	this->device = device;
-	
+
 	// add ratios
 	ratios.insert(ratios.begin(), poolRatios.begin(), poolRatios.end());
 	setsPerPool = initialSets;

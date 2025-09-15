@@ -51,6 +51,13 @@ MainWindow::MainWindow(Environment* environment) :
 	// 	sdlWindow2->setRecieveEventFunction(
 	// 		[windowId2, rmlContext2, sdlWindow2](SDL_Event& event){
 	// 			if (sdlWindow2->isThisMyEvent(event)) {
+	// 				if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+	// 					Rml::RemoveContext(rmlContext2->GetName());
+	// 					MainRenderer::get().deregisterWindow(windowId2);
+	// 					App::get().deregisterWindow(sdlWindow2);
+	// 					return true;
+	// 				}
+
 	// 				RmlSDL::InputEventHandler(rmlContext2, sdlWindow2->getHandle(), event, sdlWindow2->getWindowScalingSize());
 
 	// 				// let renderer know we if resized the window

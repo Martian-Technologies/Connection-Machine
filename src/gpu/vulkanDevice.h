@@ -5,6 +5,9 @@
 #include <VkBootstrap.h>
 #include <vk_mem_alloc.h>
 
+#include "gpu/renderer/rml/rmlResourceManager.h"
+#include "gpu/renderer/viewport/blockTextureManager.h"
+
 class BlockTextureManager;
 
 struct QueueInfo {
@@ -29,7 +32,8 @@ public:
 	inline vkb::Device& getDevice() { return device; }
 	inline VmaAllocator getAllocator() { return vmaAllocator; }
 
-	inline BlockTextureManager* getBlockTextureManager() { return blockTextureManager.get(); }
+	inline BlockTextureManager& getBlockTextureManager() { return blockTextureManager; }
+	inline RmlResourceManager& getRmlResourceManager() { return rmlResourceManager; }
 
 private:
 	void createAllocator();
@@ -53,7 +57,8 @@ private:
 	std::mutex immediateSubmitMux;
 
 	// Texture
-	std::unique_ptr<BlockTextureManager> blockTextureManager;
+	RmlResourceManager rmlResourceManager;
+	BlockTextureManager blockTextureManager;
 };
 
 #endif

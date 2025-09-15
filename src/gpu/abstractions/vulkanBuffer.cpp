@@ -1,5 +1,7 @@
 #include "vulkanBuffer.h"
 
+#include "gpu/vulkanDevice.h"
+
 AllocatedBuffer createBuffer(VulkanDevice* device, size_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateFlags flags) {
 	// allocate buffer
 	VkBufferCreateInfo bufferInfo = {};
@@ -12,7 +14,7 @@ AllocatedBuffer createBuffer(VulkanDevice* device, size_t allocSize, VkBufferUsa
 	VmaAllocationCreateInfo vmaAllocInfo = {};
 	vmaAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 	vmaAllocInfo.flags = flags;
-	
+
 	AllocatedBuffer newBuffer;
 	newBuffer.device = device;
 

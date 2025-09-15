@@ -1,13 +1,15 @@
 #ifndef vulkanDescriptor_h
 #define vulkanDescriptor_h
 
-#include "gpu/vulkanDevice.h"
+#include <volk.h>
+
+class VulkanDevice;
 
 class DescriptorLayoutBuilder {
 public:
 	void addBinding(uint32_t bindingIndex, VkDescriptorType type);
 	VkDescriptorSetLayout build(VkDevice device, VkShaderStageFlags shaderStages, VkDescriptorSetLayoutCreateFlags flags = 0);
-	
+
 private:
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 };
@@ -15,10 +17,10 @@ private:
 class DescriptorWriter {
 public:
 	void writeImage(int bindingIndex, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type);
-    void writeBuffer(int bindingIndex, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type); 
+    void writeBuffer(int bindingIndex, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type);
 
     void updateSet(VkDevice device, VkDescriptorSet set);
-	
+
 private:
 	std::deque<VkDescriptorImageInfo> imageInfos;
     std::deque<VkDescriptorBufferInfo> bufferInfos;

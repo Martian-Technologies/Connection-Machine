@@ -50,6 +50,13 @@ VulkanInstance::~VulkanInstance() {
 	vkb::destroy_instance(instance);
 }
 
+VulkanDevice* VulkanInstance::getDevice() {
+	if (!device.has_value()) {
+		return nullptr;
+	}
+	return &device.value();
+}
+
 VulkanDevice* VulkanInstance::createOrGetDevice(VkSurfaceKHR surfaceForPresenting) {
 	// create device if one doesn't exist
 	if (!device.has_value()) {

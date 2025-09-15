@@ -1,7 +1,9 @@
 #ifndef vulkanImage_h
 #define vulkanImage_h
 
-#include "gpu/vulkanDevice.h"
+#include <vk_mem_alloc.h>
+
+class VulkanDevice;
 
 struct AllocatedImage {
     VkImage image;

@@ -22,7 +22,7 @@ void ElementRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	blockPreviewPipelineInfo.fragShader = blockPreviewFragShader;
 	blockPreviewPipelineInfo.renderPass = renderPass;
 	blockPreviewPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, sizeof(BlockPreviewPushConstant) });
-	blockPreviewPipelineInfo.descriptorSets.push_back(device->getBlockTextureManager()->getDescriptorLayout());
+	blockPreviewPipelineInfo.descriptorSets.push_back(device->getBlockTextureManager().getDescriptorLayout());
 	blockPreviewPipeline.init(device, blockPreviewPipelineInfo);
 
 	destroyShaderModule(device->getDevice(), blockPreviewVertShader);
@@ -99,20 +99,20 @@ void ElementRenderer::cleanup() {
 void ElementRenderer::renderBlockPreviews(Frame& frame, const glm::mat4& viewMatrix, const std::vector<BlockPreviewRenderData>& blockPreviews) {
 	if (!blockPreviews.empty()) {
 		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPreviewPipeline.getHandle());
-		std::shared_ptr<BlockTexture> blockTexture = device->getBlockTextureManager()->getTexture();
+		std::shared_ptr<BlockTexture> blockTexture = device->getBlockTextureManager().getTexture();
 		frame.lifetime.push(blockTexture);
 		vkCmdBindDescriptorSets(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPreviewPipeline.getLayout(), 0, 1, &blockTexture->descriptor, 0, nullptr);
 
 		BlockPreviewPushConstant blockPreviewConstant;
 		blockPreviewConstant.mvp = viewMatrix;
-		Vec2 uvCellSize = device->getBlockTextureManager()->getTileset().getCellUVSize();
+		Vec2 uvCellSize = device->getBlockTextureManager().getTileset().getCellUVSize();
 		blockPreviewConstant.uvCellSizeX = uvCellSize.x;
 		blockPreviewConstant.uvCellSizeY = uvCellSize.y;
 		for (const BlockPreviewRenderData& preview : blockPreviews) {
 			blockPreviewConstant.position = preview.position;
 			blockPreviewConstant.size = preview.size;
 			blockPreviewConstant.orientation = preview.orientation.rotation + 4 * preview.orientation.flipped;
-			blockPreviewConstant.uvOffsetX = device->getBlockTextureManager()->getTileset().getTopLeftUV(preview.textureIndex, 0).x;
+			blockPreviewConstant.uvOffsetX = device->getBlockTextureManager().getTileset().getTopLeftUV(preview.textureIndex, 0).x;
 
 			blockPreviewPipeline.cmdPushConstants(frame.mainCommandBuffer, &blockPreviewConstant);
 			vkCmdDraw(frame.mainCommandBuffer, 6, 1, 0, 0);

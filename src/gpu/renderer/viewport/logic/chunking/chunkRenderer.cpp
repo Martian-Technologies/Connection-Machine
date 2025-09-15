@@ -39,7 +39,7 @@ void ChunkRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	blockPipelineInfo.vertexAttributeDescriptions = BlockInstance::getAttributeDescriptions();
 	blockPipelineInfo.pushConstants.push_back({VK_SHADER_STAGE_VERTEX_BIT, sizeof(ChunkPushConstants)});
 	blockPipelineInfo.descriptorSets.push_back(stateBufferDescriptorSetLayout);
-	blockPipelineInfo.descriptorSets.push_back(device->getBlockTextureManager()->getDescriptorLayout());
+	blockPipelineInfo.descriptorSets.push_back(device->getBlockTextureManager().getDescriptorLayout());
 	blockPipeline.init(device, blockPipelineInfo);
 
 	PipelineInformation wirePipelineInfo{};
@@ -82,7 +82,7 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, Evaluator*
 	// shared push constants
 	ChunkPushConstants pushConstants{};
 	pushConstants.mvp = viewMatrix;
-	Vec2 uvCellSize = device->getBlockTextureManager()->getTileset().getCellUVSize();
+	Vec2 uvCellSize = device->getBlockTextureManager().getTileset().getCellUVSize();
 	pushConstants.uvCellSizeX = uvCellSize.x;
 	pushConstants.uvCellSizeY = uvCellSize.y;
 
@@ -112,7 +112,7 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, Evaluator*
 		blockPipeline.cmdPushConstants(frame.mainCommandBuffer, &pushConstants);
 
 		// bind texture descriptor
-		std::shared_ptr<BlockTexture> blockTexture = device->getBlockTextureManager()->getTexture();
+		std::shared_ptr<BlockTexture> blockTexture = device->getBlockTextureManager().getTexture();
 		frame.lifetime.push(blockTexture);
 		vkCmdBindDescriptorSets(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPipeline.getLayout(), 1, 1, &blockTexture->descriptor, 0, nullptr);
 

@@ -17,7 +17,8 @@ public:
 	App();
 
 	std::shared_ptr<SdlWindow> registerWindow(const std::string& windowName);
-	void deregisterWindow(std::shared_ptr<SdlWindow> sdlWindow);
+	void deregisterWindow(std::shared_ptr<SdlWindow>& sdlWindow);
+	void deregisterWindow(const SdlWindow* sdlWindow);
 
 	void runLoop();
 

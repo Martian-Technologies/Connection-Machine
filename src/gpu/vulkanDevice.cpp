@@ -36,14 +36,17 @@ VulkanDevice::VulkanDevice(VkSurfaceKHR surfaceForPresenting) {
 	initializeImmediateSubmission();
 
 	// Set up texture manager
-	blockTextureManager = std::make_unique<BlockTextureManager>();
-	blockTextureManager->init(this);
+	blockTextureManager.init(this);
+
+	// Set up rml resource manager
+	rmlResourceManager.init(this);
 }
 
 VulkanDevice::~VulkanDevice() {
 	waitIdle();
 
-	blockTextureManager->cleanup();
+	rmlResourceManager.cleanup();
+	blockTextureManager.cleanup();
 	vmaDestroyAllocator(vmaAllocator);
 
 	vkDestroyFence(device, immediateFence, nullptr);

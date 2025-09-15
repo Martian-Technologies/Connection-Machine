@@ -1,12 +1,14 @@
 #include "frameManager.h"
 
+#include "gpu/vulkanDevice.h"
+
 #ifdef TRACY_PROFILER
 #include <tracy/Tracy.hpp>
 #endif
 
 void Frame::init(VulkanDevice* device) {
 	this->device = device;
-	
+
 	// command pool
 	VkCommandPoolCreateInfo commandPoolInfo = {};
 	commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -80,7 +82,7 @@ float FrameManager::waitForCurrentFrameCompletion() {
 void FrameManager::startCurrentFrame() {
 	// reset render fence (we are actually rendering this frame)
 	vkResetFences(frames[frameIndex].device->getDevice(), 1, &frames[frameIndex].renderFence);
-	
+
 	// update start time
 	frames[frameIndex].lastStartTime = std::chrono::system_clock::now();
 }

@@ -1,7 +1,9 @@
 #ifndef vulkanBuffer_h
 #define vulkanBuffer_h
 
-#include "gpu/vulkanDevice.h"
+#include <vk_mem_alloc.h>
+
+class VulkanDevice;
 
 struct AllocatedBuffer {
 	VkBuffer buffer;
