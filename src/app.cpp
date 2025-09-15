@@ -11,7 +11,7 @@ std::optional<App> appSingleton;
 App& App::get() {
 	if (!appSingleton) {
 		appSingleton.emplace();
-		appSingleton->windows.push_back(std::make_unique<MainWindow>(&appSingleton->environment));
+		appSingleton->newMainWindow();
 	}
 	return *appSingleton;
 }
@@ -33,6 +33,14 @@ void App::deregisterWindow(std::shared_ptr<SdlWindow>& sdlWindow) {
 void App::deregisterWindow(const SdlWindow* sdlWindow) {
 	auto iter = std::find_if(sdlWindows.begin(), sdlWindows.end(), [sdlWindow](const std::shared_ptr<SdlWindow>& a){ return a.get() == sdlWindow; });
 	if (iter != sdlWindows.end()) sdlWindows.erase(iter);
+}
+
+void App::newMainWindow() {
+	appSingleton->windows.push_back(std::make_unique<MainWindow>(&appSingleton->environment));
+}
+
+void App::closeMainWindow(const MainWindow* mainWindow) {
+	windowsToDestroy.push_back(mainWindow);
 }
 
 #ifdef TRACY_PROFILER
@@ -82,13 +90,35 @@ void App::runLoop() {
 			}
 			default: {
 				// Send event to all windows
-				for (auto& sdlWindow : sdlWindows) {
-					sdlWindow->recieveEvent(event);
+				std::vector<SdlWindow*> windowsToSendEvents;
+				for (unsigned int i = 0; i < sdlWindows.size(); ++i) {
+					windowsToSendEvents.push_back(sdlWindows[i].get());
+				}
+				for (unsigned int i = 0; i < windowsToSendEvents.size(); ++i) {
+					if (std::any_of(
+						sdlWindows.begin(),
+						sdlWindows.end(),
+						[windowPtr = windowsToSendEvents[i]](const std::shared_ptr<SdlWindow>& a){ return a.get() == windowPtr; }
+					)) {
+						windowsToSendEvents[i]->recieveEvent(event);
+					}
 				}
 			}
 			}
 		}
-
+		for (unsigned int i = 0; i < windowsToDestroy.size(); ++i) {
+			auto iter = std::find_if(
+				windows.begin(),
+				windows.end(),
+				[mainWindow = windowsToDestroy[i]](const std::unique_ptr<MainWindow>& a){ return a.get() == mainWindow; }
+			);
+			if (iter == windows.end()) {
+				logError("Could not find MainWindow when trying to close it.", "App");
+				return;
+			}
+			windows.erase(iter);
+		}
+		windowsToDestroy.clear();
 		// tell all windows to update rml
 		for (auto& sdlWindow : sdlWindows) {
 			sdlWindow->render();

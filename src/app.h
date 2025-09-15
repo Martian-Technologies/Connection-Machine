@@ -20,6 +20,9 @@ public:
 	void deregisterWindow(std::shared_ptr<SdlWindow>& sdlWindow);
 	void deregisterWindow(const SdlWindow* sdlWindow);
 
+	void newMainWindow();
+	void closeMainWindow(const MainWindow* mainWindow);
+
 	void runLoop();
 
 private:
@@ -33,6 +36,7 @@ private:
 
 	std::vector<std::shared_ptr<SdlWindow>> sdlWindows;
 	std::vector<std::unique_ptr<MainWindow>> windows; // we could make this just a vector later, I don't want to deal with moving + threads
+	std::vector<const MainWindow*> windowsToDestroy;
 	bool running = false;
 };
 

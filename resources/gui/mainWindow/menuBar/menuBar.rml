@@ -20,6 +20,14 @@
 					<button class="menu-item" id="file-save">Save</button>
 				</div>
 			</div>
+
+			<div class="menu" id="menu-window">
+				<div class="menu-title">Window</div>
+				<div class="dropdown">
+					<button class="menu-item" id="new-window">New</button>
+					<button class="menu-item" id="close-window">Close</button>
+				</div>
+			</div>
 		</div>
 	</body>
 

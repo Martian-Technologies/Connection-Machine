@@ -159,6 +159,11 @@ MainWindow::~MainWindow() {
 bool MainWindow::recieveEvent(SDL_Event& event) {
 	// check if we want this event
 	if (sdlWindow->isThisMyEvent(event)) {
+		if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+			App::get().closeMainWindow(this);
+			return true;
+		}
+
 		if (event.type == SDL_EVENT_DROP_FILE) {
 			std::string file = event.drop.data;
 			std::cout << file << "\n";
