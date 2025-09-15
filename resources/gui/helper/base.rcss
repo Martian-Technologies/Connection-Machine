@@ -158,12 +158,12 @@ input[type="checkbox"] {
 
 input[type="checkbox"]:hover {
 	background-color: #555555;
-	border-color: #f0f0f0; 
+	border-color: #f0f0f0;
 }
 
 input[type="checkbox"]:checked {
 	background-color: #8fbc8f;
-	border-color: #a9d1a9; 
+	border-color: #a9d1a9;
 }
 
 tab {

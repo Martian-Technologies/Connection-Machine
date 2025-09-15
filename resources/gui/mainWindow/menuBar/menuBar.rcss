@@ -2,27 +2,34 @@
 
 .menu-bar {
 	display: flex;
-	background-color: #3b3b3b;
+	background-color: #2e2e2e;
+	align-items: center;
 	color: white;
+	height: 24dp;
 }
 
 .menu {
-	border-radius: 4dp;
-	margin: 0.25rem;
+	min-width: 60dp;
+	height: 100%;
+	/* border-radius: 6dp; */
+	/* margin: 4dp 4dp; */
 	text-align: center;
-	background-color: #1d1d1d;
+	/* background-color: #1d1d1d; */
 	position: relative;
-	cursor: pointer;
+	/* cursor: pointer; */
+	/* border: 1dp transparent; */
 }
 
 .menu:hover {
-	background: #555555;
+	background-color: #1d1d1d;
+	/* border: 1dp #e2a74a; */
 }
 
 .menu-title {
-	padding: 4dp 4dp;
+	padding: 4dp 8dp;
 	text-align: center;
 	line-height: 1.5em;
+	font-size: 12dp;
 }
 
 .dropdown {
@@ -30,9 +37,11 @@
 	position: absolute;
 	top: 100%;
 	left: 0;
-	width: 65dp; /* TODO: make this dynimicly sized */
+	width: 90dp; /* TODO: make this dynimicly sized */
 	overflow: visible;
 	background: #2e2e2e;
+	border: 1dp #3b3b3b;
+	border-radius: 6dp;
 	z-index: 100;
 	flex-direction: column;
 }
@@ -42,13 +51,16 @@
 }
 
 .menu-item {
-	margin: 0.5dp 3dp;
-	padding: 0.2rem 0.2rem;
+	margin: 3dp 4dp;
+	padding: 4dp 6dp;
 	border-radius: 4dp;
+	background-color: #2e2e2e;
+	font-size: 12dp;
 }
-
-.menu-item {
+.menu-item:hover {
+	border: 1dp #e2a74a;
 	background-color: #2e2e2e;
 }
-
-
+.menu-item:active {
+	background-color: #1d1d1d;
+}

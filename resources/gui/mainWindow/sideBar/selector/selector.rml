@@ -5,18 +5,16 @@
 	</head>
 
 	<body>
-		<div id="selection-tree">
-			<div id="item-selection-tree"></div>
-			<div id="mode-selection-tree"></div>
-			<div id="parameter-menu-hide" class="invisible">
-				<div id="parameter-menu">
-					<span id="parameter-menu-lable">Procedural Circuit Parameters</span>
-					<span id="parameter-menu-active"> AND GATE </span>
-					<div id="parameter-menu-parameters"></div>
-					<div>
-						<button id="reset-parameters">Reset</button>
-						<button id="create-block">Create</button>
-					</div>
+		<div id="item-selection-tree" class="surface-alt pad-sm"></div>
+		<div id="mode-selection-tree" class="surface-alt pad-sm"></div>
+		<div id="parameter-menu-hide" class="surface-alt pad-sm invisible">
+			<div id="parameter-menu">
+				<span id="parameter-menu-lable">Procedural Circuit Parameters</span>
+				<span id="parameter-menu-active"> AND GATE </span>
+				<div id="parameter-menu-parameters"></div>
+				<div>
+					<button id="reset-parameters">Reset</button>
+					<button id="create-block">Create</button>
 				</div>
 			</div>
 		</div>

@@ -5,6 +5,6 @@
 	</head>
 
 	<body>
-		<div id="eval-tree"></div>
+		<div id="eval-tree" class="surface-alt pad-sm"></div>
 	</body>
 </template>

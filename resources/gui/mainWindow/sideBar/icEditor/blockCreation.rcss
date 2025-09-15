@@ -2,8 +2,8 @@
 	display: flex;
 	flex-direction: column;
 	gap: 4dp;
-	margin: 2dp 2dp 4dp 2dp;
-	padding: 2dp;
+	/* margin: 2dp 2dp 4dp 2dp;
+	padding: 2dp; */
 }
 
 scrollbarvertical {

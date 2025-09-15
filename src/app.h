@@ -10,7 +10,14 @@
 
 class App {
 public:
+	static App& get();
+	static void kill();
+
+	// do not call
 	App();
+
+	std::shared_ptr<SdlWindow> registerWindow(const std::string& windowName);
+	void deregisterWindow(std::shared_ptr<SdlWindow> sdlWindow);
 
 	void runLoop();
 
@@ -23,6 +30,7 @@ private:
 	SdlInstance sdl;
 	RmlInstance rml;
 
+	std::vector<std::shared_ptr<SdlWindow>> sdlWindows;
 	std::vector<std::unique_ptr<MainWindow>> windows; // we could make this just a vector later, I don't want to deal with moving + threads
 	bool running = false;
 };

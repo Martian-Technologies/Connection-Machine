@@ -20,10 +20,12 @@
 #status-bar {
 	display: inline-block;
 	text-align: center;
-	background-color: #ffffff90;
-	font-size: 16dp;
-	border-radius: 0.3em;
-	padding: 0.2em;
+	background-color: #ffffffa8;
+	color: #151515;
+	font-size: 14dp;
+	border-radius: 6dp;
+	padding: 2dp 8dp;
+	border: 1dp #d0d0d0;
 }
 
 #status-bar:empty {

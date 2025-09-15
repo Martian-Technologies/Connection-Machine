@@ -1,11 +1,11 @@
 /* Parameters Menu */
 #parameter-menu {
-	background-color: #2e2e2e;
-	border-radius: 0.3em;
-	margin: 0 0.1em;
+	/* background-color: #2e2e2e; */
+	/* border-radius: 0.3em;
+	margin: 0 0.1em; */
 	display: flex;
 	flex-direction: column;
-	min-height: 2rem;
+	/* min-height: 2rem; */
 }
 
 #parameter-menu * {
@@ -80,13 +80,13 @@
 	background-color: #232323;
 }
 
-#reset-parameters, #create-block {
-	padding: 0.15em 0.2em;
+/* #reset-parameters, #create-block { */
+	/* padding: 0.15em 0.2em; */
 	/* border-radius: 0.3em; */
 	/* background-color: #525252; */
-	display: inline-block;
-	margin: 0.2em 0.2em;
-}
+	/* display: inline-block; */
+	/* margin: 0.2em 0.2em; */
+/* } */
 
 .invisible {
 	display: none;
