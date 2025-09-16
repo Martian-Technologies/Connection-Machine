@@ -311,9 +311,15 @@ private:
 
 	struct JunctionFloodFillResult {
 		std::vector<EvalConnectionPoint> outputsGoingIntoJunctions;
+		// connections that are going directly into the junctions
+		// A -> JUNCTION
 		std::vector<EvalConnection> inputsPullingFromJunctions;
+		// connections that are pulling from the junctions
+		// JUNCTION -> C
 		std::vector<middle_id_t> junctionIds;
 		std::vector<EvalConnection> connectionsToReroute;
+		// connections that are connected to the junctions through the outputs of other gates
+		// A -> JUNCTION, A -> B, A -> B is a connection to reroute because B should actually pull from the junction
 	};
 
 	void mergeJunctions(SimPauseGuard& pauseGuard) {
