@@ -338,7 +338,7 @@ private:
 			}
 			JunctionFloodFillResult floodFillResult = junctionFloodFill(id);
 
-			if (floodFillResult.junctionIds.size() < 2 && floodFillResult.connectionsToReroute.empty()) {
+			if (floodFillResult.outputsGoingIntoJunctions.size() == 0) {
 				continue;
 			}
 
