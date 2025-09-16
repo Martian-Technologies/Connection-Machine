@@ -190,7 +190,7 @@ private:
 	std::vector<simulator_id_t>& dirtySimulatorIds;
 
 	ThreadPool threadPool;
-	std::vector<ThreadPool::Job> jobs;
+	std::vector<std::vector<ThreadPool::Job>> jobs;
 	std::vector<std::unique_ptr<JobInstruction>> jobInstructionStorage;
 
 	void regenerateJobs();

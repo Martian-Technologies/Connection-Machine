@@ -683,7 +683,6 @@ void LogicSimulator::removeOutputDependency(simulator_id_t outputId, simulator_i
 
 void LogicSimulator::regenerateJobs() {
 	threadPool.waitForCompletion();
-	jobs.clear();
 	jobInstructionStorage.clear();
 	bool isRealistic = evalConfig.isRealistic();
 
@@ -691,30 +690,41 @@ void LogicSimulator::regenerateJobs() {
 		jobInstructionStorage.emplace_back(std::make_unique<JobInstruction>(JobInstruction{ this, start, end }));
 		return jobInstructionStorage.back().get();
 	};
+	std::vector<ThreadPool::Job> allJobs;
 
-	constexpr size_t batch = 512;
+	constexpr size_t batch = 256;
 
 	for (size_t i = 0; i < andGates.size(); i += batch) {
 		JobInstruction* ji = makeJI(i, std::min(i + batch, andGates.size()));
-		jobs.push_back(ThreadPool::Job{ isRealistic ? &LogicSimulator::execANDRealistic : &LogicSimulator::execAND, ji });
+		allJobs.push_back(ThreadPool::Job{ isRealistic ? &LogicSimulator::execANDRealistic : &LogicSimulator::execAND, ji });
 	}
 	for (size_t i = 0; i < xorGates.size(); i += batch) {
 		JobInstruction* ji = makeJI(i, std::min(i + batch, xorGates.size()));
-		jobs.push_back(ThreadPool::Job{ isRealistic ? &LogicSimulator::execXORRealistic : &LogicSimulator::execXOR, ji });
+		allJobs.push_back(ThreadPool::Job{ isRealistic ? &LogicSimulator::execXORRealistic : &LogicSimulator::execXOR, ji });
 	}
 	for (size_t i = 0; i < tristateBuffers.size(); i += batch) {
 		JobInstruction* ji = makeJI(i, std::min(i + batch, tristateBuffers.size()));
-		jobs.push_back(ThreadPool::Job{ isRealistic ? &LogicSimulator::execTristateRealistic : &LogicSimulator::execTristate, ji });
+		allJobs.push_back(ThreadPool::Job{ isRealistic ? &LogicSimulator::execTristateRealistic : &LogicSimulator::execTristate, ji });
 	}
 	for (size_t i = 0; i < constantResetGates.size(); i += batch) {
 		JobInstruction* ji = makeJI(i, std::min(i + batch, constantResetGates.size()));
-		jobs.push_back(ThreadPool::Job{ &LogicSimulator::execConstantReset, ji });
+		allJobs.push_back(ThreadPool::Job{ &LogicSimulator::execConstantReset, ji });
 	}
 	for (size_t i = 0; i < copySelfOutputGates.size(); i += batch) {
 		JobInstruction* ji = makeJI(i, std::min(i + batch, copySelfOutputGates.size()));
-		jobs.push_back(ThreadPool::Job{ &LogicSimulator::execCopySelfOutput, ji });
+		allJobs.push_back(ThreadPool::Job{ &LogicSimulator::execCopySelfOutput, ji });
 	}
-	updateThreadCount(min(jobs.size(), evalConfig.getMaxThreadCount()));
+	unsigned int threadCount = min(allJobs.size(), evalConfig.getMaxThreadCount());
+	if (threadCount == 0 && allJobs.size() != 0) { threadCount = 1; }
+	jobs.clear();
+	jobs.resize(threadCount);
+	unsigned int threadIndex = 0;
+	while (!allJobs.empty()) {
+		jobs[threadIndex].emplace_back(allJobs.back());
+		allJobs.pop_back();
+		if (++threadIndex >= threadCount) threadIndex = 0;
+	}
+	updateThreadCount(threadCount);
 	// logInfo("{} jobs created for the current round", "LogicSimulator::regenerateJobs", jobs.size());
 }
 
