@@ -96,8 +96,19 @@ jobs:
       run: ls ${{ github.workspace }}/build
 
     - name: Test
+      id: run_tests
       working-directory: ${{ github.workspace }}/build
       # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ${{ matrix.runExecutable }}
       # run: Gatality_tests
+
+    - name: Notify Discord on test failure
+      if: failure() && steps.run_tests.outcome == 'failure'
+      uses: sarisia/actions-status-discord@v1
+      with:
+        webhook: ${{ secrets.DISCORD_WEBHOOK }}
+        status: failure
+        title: Tests failed on ${{ matrix.os }}
+        description: Build type ${{ matrix.build_type }}
+        color: 0xff0000
