@@ -16,7 +16,7 @@ public:
 
 	~ThreadPool() {
 		// Ensure all jobs have fully finished (not just claimed)
-		waitForCompletion();
+		waitForCompletion(false);
 		stop.store(true, std::memory_order_relaxed);
 		for (auto& w : workers) w->retire.store(true, std::memory_order_relaxed);
 		cv.notify_all(); // wake any sleepers
@@ -45,12 +45,12 @@ public:
 		cv.notify_all();
 	}
 
-	void waitForCompletion() {
+	void waitForCompletion(bool helpCompute = true) {
 		bool sprintingNow = sprinting.load(std::memory_order_acquire);
 #ifdef TRACY_PROFILER
 		ZoneScoped;
 #endif
-		if (jobsRef != nullptr && (*jobsRef).size() != 0)
+		if (helpCompute && jobsRef != nullptr && (*jobsRef).size() != 0)
 			runTillDone((*jobsRef).size()-1); // if your waiting might as well help do the compute
 		uint32_t w = threadsWaiting.fetch_add(1, std::memory_order_acq_rel);
 		while (true) {
