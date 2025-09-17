@@ -16,7 +16,7 @@ public:
 
 	~ThreadPool() {
 		// Ensure all jobs have fully finished (not just claimed)
-		waitForCompletion(false);
+		waitForCompletion();
 		stop.store(true, std::memory_order_relaxed);
 		for (auto& w : workers) w->retire.store(true, std::memory_order_relaxed);
 		cv.notify_all(); // wake any sleepers
@@ -45,7 +45,7 @@ public:
 		cv.notify_all();
 	}
 
-	void waitForCompletion(bool helpCompute = true) {
+	void waitForCompletion(bool helpCompute = false) {
 		bool sprintingNow = sprinting.load(std::memory_order_acquire);
 #ifdef TRACY_PROFILER
 		ZoneScoped;

@@ -138,7 +138,7 @@ inline void LogicSimulator::tickOnce() {
 	std::unique_lock lkNext(statesBMutex);
 
 	threadPool.resetAndLoad(jobs);
-	threadPool.waitForCompletion();
+	threadPool.waitForCompletion(true);
 
 	for (auto& gate : junctions) gate.tick(statesB);
 	std::unique_lock lkCurEx(statesAMutex);
