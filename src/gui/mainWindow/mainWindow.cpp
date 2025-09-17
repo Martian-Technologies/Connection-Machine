@@ -216,7 +216,7 @@ void MainWindow::updateRml() {
 	}
 	// update circuit view widget UI components like TPS display
 	for (auto& circuitViewWidget : circuitViewWidgets) {
-		circuitViewWidget->render();
+		circuitViewWidget->updateTps();
 	}
 }
 

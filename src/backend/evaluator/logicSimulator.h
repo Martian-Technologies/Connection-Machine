@@ -185,7 +185,7 @@ private:
 	void removeOutputDependency(simulator_id_t outputId, simulator_id_t dependentGateId);
 
 	std::atomic<double> averageTickrate { 0.0 };
-	double tickrateHalflife { 0.25 };
+	double tickrateHalflife { 0.3 };
 
 	std::vector<simulator_id_t>& dirtySimulatorIds;
 

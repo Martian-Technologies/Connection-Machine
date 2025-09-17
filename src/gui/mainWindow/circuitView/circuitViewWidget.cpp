@@ -216,11 +216,14 @@ CircuitViewWidget::CircuitViewWidget(
 }
 
 
-void CircuitViewWidget::render() {
+void CircuitViewWidget::updateTps() {
 	Evaluator* evaluator = circuitView->getEvaluator();
 	std::string tpsText = "Real tps: N/A";
 	if (evaluator) {
-		tpsText = "Real tps: " + fmt::format("{:.2f}", evaluator->getRealTickrate());
+		double tps = evaluator->getRealTickrate();
+		if (tps < 5.235) tpsText = "Real tps: " + fmt::format("{:.2f}", tps);
+		else if (tps < 100) tpsText = "Real tps: " + fmt::format("{:.1f}", tps);
+		else tpsText = "Real tps: " + fmt::format("{:.0f}", tps);
 	}
 	Rml::Element* realTpsDisplay = document->GetElementById("real-tps-display");
 	if (realTpsDisplay) {

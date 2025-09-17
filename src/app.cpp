@@ -52,73 +52,75 @@ void App::runLoop() {
 	running = true;
 	while (running) {
 		// Wait for the next event (so we don't broork the cpu)
-		SDL_WaitEvent(nullptr);
-
+		bool gotEvent = SDL_WaitEventTimeout(nullptr, 50);
 #ifdef TRACY_PROFILER
 		FrameMarkStart(addLoopTracyName);
 #endif
-		// process events (TODO - should probably just have a map of window ids to windows)
-		SDL_Event event;
-		while (SDL_PollEvent(&event)) {
-			switch (event.type) {
-			case SDL_EVENT_QUIT: {
-				// Main application quit (eg. ctrl-c in terminal)
-				running = false;
-				break;
-			}
-			case SDL_EVENT_WINDOW_CLOSE_REQUESTED: {
-				// Single window was closed, check which window was closed and remove it
-				for (auto itr = sdlWindows.begin(); itr != sdlWindows.end(); ++itr) {
-					std::shared_ptr<SdlWindow> sdlWindow = *itr;
-					if (sdlWindow->recieveEvent(event)) {
-						deregisterWindow(sdlWindow);
-						break;
+		if (gotEvent) {
+			// process events (TODO - should probably just have a map of window ids to windows)
+			SDL_Event event;
+			while (SDL_PollEvent(&event)) {
+				switch (event.type) {
+				case SDL_EVENT_QUIT: {
+					// Main application quit (eg. ctrl-c in terminal)
+					running = false;
+					break;
+				}
+				case SDL_EVENT_WINDOW_CLOSE_REQUESTED: {
+					// Single window was closed, check which window was closed and remove it
+					for (auto itr = sdlWindows.begin(); itr != sdlWindows.end(); ++itr) {
+						std::shared_ptr<SdlWindow> sdlWindow = *itr;
+						if (sdlWindow->recieveEvent(event)) {
+							deregisterWindow(sdlWindow);
+							break;
+						}
+					}
+					break;
+				}
+				case SDL_EVENT_WINDOW_FOCUS_GAINED: {
+					// Window focus switched, check which window gained focus
+					for (auto& sdlWindow : sdlWindows) {
+						if (sdlWindow->recieveEvent(event)) {
+							// tell system interface about focus change
+							rmlSystemInterface.SetWindow(sdlWindow->getHandle());
+							break;
+						}
+					}
+					break;
+				}
+				default: {
+					// Send event to all windows
+					std::vector<SdlWindow*> windowsToSendEvents;
+					for (unsigned int i = 0; i < sdlWindows.size(); ++i) {
+						windowsToSendEvents.push_back(sdlWindows[i].get());
+					}
+					for (unsigned int i = 0; i < windowsToSendEvents.size(); ++i) {
+						if (std::any_of(
+							sdlWindows.begin(),
+							sdlWindows.end(),
+							[windowPtr = windowsToSendEvents[i]](const std::shared_ptr<SdlWindow>& a){ return a.get() == windowPtr; }
+						)) {
+							windowsToSendEvents[i]->recieveEvent(event);
+						}
 					}
 				}
-				break;
-			}
-			case SDL_EVENT_WINDOW_FOCUS_GAINED: {
-				// Window focus switched, check which window gained focus
-				for (auto& sdlWindow : sdlWindows) {
-					if (sdlWindow->recieveEvent(event)) {
-						// tell system interface about focus change
-						rmlSystemInterface.SetWindow(sdlWindow->getHandle());
-						break;
-					}
-				}
-				break;
-			}
-			default: {
-				// Send event to all windows
-				std::vector<SdlWindow*> windowsToSendEvents;
-				for (unsigned int i = 0; i < sdlWindows.size(); ++i) {
-					windowsToSendEvents.push_back(sdlWindows[i].get());
-				}
-				for (unsigned int i = 0; i < windowsToSendEvents.size(); ++i) {
-					if (std::any_of(
-						sdlWindows.begin(),
-						sdlWindows.end(),
-						[windowPtr = windowsToSendEvents[i]](const std::shared_ptr<SdlWindow>& a){ return a.get() == windowPtr; }
-					)) {
-						windowsToSendEvents[i]->recieveEvent(event);
-					}
 				}
 			}
+			for (unsigned int i = 0; i < windowsToDestroy.size(); ++i) {
+				auto iter = std::find_if(
+					windows.begin(),
+					windows.end(),
+					[mainWindow = windowsToDestroy[i]](const std::unique_ptr<MainWindow>& a){ return a.get() == mainWindow; }
+				);
+				if (iter == windows.end()) {
+					logError("Could not find MainWindow when trying to close it.", "App");
+					return;
+				}
+				windows.erase(iter);
 			}
+			windowsToDestroy.clear();
+
 		}
-		for (unsigned int i = 0; i < windowsToDestroy.size(); ++i) {
-			auto iter = std::find_if(
-				windows.begin(),
-				windows.end(),
-				[mainWindow = windowsToDestroy[i]](const std::unique_ptr<MainWindow>& a){ return a.get() == mainWindow; }
-			);
-			if (iter == windows.end()) {
-				logError("Could not find MainWindow when trying to close it.", "App");
-				return;
-			}
-			windows.erase(iter);
-		}
-		windowsToDestroy.clear();
 		// tell all windows to update rml
 		for (auto& sdlWindow : sdlWindows) {
 			sdlWindow->render();

@@ -58,7 +58,6 @@ void LogicSimulator::simulationLoop() {
 
 	while (running) {
 		if (pauseRequest.load(std::memory_order_acquire)) {
-			averageTickrate.store(0.0, std::memory_order_release);
 			std::unique_lock<std::mutex> lk(cvMutex);
 			isPaused.store(true, std::memory_order_release);
 			cv.notify_all();
@@ -125,8 +124,13 @@ inline void LogicSimulator::updateEmaTickrate(
 			double alpha = 1.0 - std::exp(-dtSeconds * std::log(2.0) / tickrateHalflife);
 
 			double currentEMA = averageTickrate.load(std::memory_order_acquire);
-			double newEMA = alpha * currentTickrate + (1.0 - alpha) * currentEMA;
-			averageTickrate.store(newEMA, std::memory_order_release);
+
+			if (currentTickrate/currentEMA > 3 || 0.33 > currentTickrate/currentEMA) {
+				averageTickrate.store(currentTickrate, std::memory_order_release);
+			} else {
+				double newEMA = alpha * currentTickrate + (1.0 - alpha) * currentEMA;
+				averageTickrate.store(newEMA, std::memory_order_release);
+			}
 		}
 	} else {
 		isFirstTick = false;
