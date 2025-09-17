@@ -17,15 +17,15 @@ void BlockContainer::clear(Difference* difference) {
 	blockTypeCounts.clear();
 }
 
-bool BlockContainer::checkCollision(Position positionSmall, Position positionLarge) const {
-	for (auto iter = positionSmall.iterTo(positionLarge); iter; iter++) {
+bool BlockContainer::checkCollision(Position positionA, Position positionB) const {
+	for (auto iter = positionA.iterTo(positionB); iter; iter++) {
 		if (checkCollision(*iter)) return true;
 	}
 	return false;
 }
 
-bool BlockContainer::checkCollision(Position positionSmall, Position positionLarge, block_id_t idToIgnore) const {
-	for (auto iter = positionSmall.iterTo(positionLarge); iter; iter++) {
+bool BlockContainer::checkCollision(Position positionA, Position positionB, block_id_t idToIgnore) const {
+	for (auto iter = positionA.iterTo(positionB); iter; iter++) {
 		const Cell* cell = getCell(*iter);
 		if (cell && cell->getBlockId() != idToIgnore) return true;
 	}
@@ -102,14 +102,14 @@ bool BlockContainer::tryRemoveBlock(Position position, Difference* difference) {
 	return true;
 }
 
-bool BlockContainer::tryMoveBlock(Position positionOfBlock, Position position, Orientation transformAmount, Difference* difference) {
+bool BlockContainer::tryMoveBlock(Position positionOfBlock, Position position, Orientation transformAmount, Difference* difference, MoveType moveType) {
 	Block* block = getBlock_(positionOfBlock);
 	if (!block) return false;
 	Orientation newOrientation = transformAmount * block->getOrientation();
 	Position newPosition = position + (block->getPosition() - positionOfBlock);
 	if (checkCollision(newPosition, newOrientation, block->type(), block->id())) return false;
 	// do move
-	difference->addMovedBlock(block->getPosition(), block->getOrientation(), newPosition, newOrientation);
+	difference->addMovedBlock(block->getPosition(), block->getOrientation(), newPosition, newOrientation, moveType);
 	removeBlockCells(block);
 	block->setPosition(newPosition);
 	block->setOrientation(newOrientation);

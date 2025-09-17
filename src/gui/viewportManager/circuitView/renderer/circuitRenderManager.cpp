@@ -118,7 +118,7 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 		}
 		case Difference::ModificationType::MOVE_BLOCK:
 		{
-			const auto& [curPosition, curOrientation, newPosition, newOrientation] = std::get<Difference::move_modification_t>(modificationData);
+			const auto& [curPosition, curOrientation, newPosition, newOrientation, moveType] = std::get<Difference::move_modification_t>(modificationData);
 
 			if (curPosition == newPosition && curOrientation == newOrientation) continue;
 
@@ -147,15 +147,18 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 			iter->second.connectionsToOtherBlock.clear();
 
 			for (auto& [posPair, otherBlockPos] : oldConnectionsToOtherBlock) {
-				MainRenderer::get().removeWire(viewportId, posPair);
-
+				if ((moveType == MoveType::SINGLE || moveType == MoveType::MULTI_BEGIN) && otherBlockPos.x != 10000000) {
+						MainRenderer::get().removeWire(viewportId, posPair);
+				}
 				if (otherBlockPos == curPosition) {
 					Position outputPos = newPosition + transformAmount.transformVectorWithArea(posPair.first - curPosition, blockSize);
 					Position inputPos = newPosition + transformAmount.transformVectorWithArea(posPair.second - curPosition, blockSize);
-					MainRenderer::get().addWire(viewportId, { outputPos, inputPos }, {
+					if ((moveType == MoveType::SINGLE || moveType == MoveType::MULTI_FINAL) && otherBlockPos.x != 10000000) {
+						MainRenderer::get().addWire(viewportId, { outputPos, inputPos }, {
 							getOutputOffset(iter->second.type, newOrientation),
 							getInputOffset(iter->second.type, newOrientation)
 						});
+					}
 					iter->second.connectionsToOtherBlock.emplace(std::make_pair(outputPos, inputPos), newPosition);
 				} else {
 					auto otherIter = renderedBlocks.find(otherBlockPos);
@@ -167,18 +170,22 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 					bool isInput = posPair.second.withinArea(curPosition, curPosition + blockSize.getLargestVectorInArea());
 					if (isInput) {
 						Position inputPos = newPosition + transformAmount.transformVectorWithArea(posPair.second - curPosition, blockSize);
-						MainRenderer::get().addWire(viewportId, { posPair.first, inputPos }, {
-							getOutputOffset(otherIter->second.type, otherIter->second.orientation),
-							getInputOffset(iter->second.type, newOrientation)
-						});
+						if ((moveType == MoveType::SINGLE || moveType == MoveType::MULTI_FINAL) && otherBlockPos.x != 10000000) {
+							MainRenderer::get().addWire(viewportId, { posPair.first, inputPos }, {
+								getOutputOffset(otherIter->second.type, otherIter->second.orientation),
+								getInputOffset(iter->second.type, newOrientation)
+							});
+						}
 						iter->second.connectionsToOtherBlock.emplace(std::make_pair(posPair.first, inputPos), otherBlockPos);
 						otherIter->second.connectionsToOtherBlock.emplace(std::make_pair(posPair.first, inputPos), newPosition);
 					} else {
 						Position outputPos = newPosition + transformAmount.transformVectorWithArea(posPair.first - curPosition, blockSize);
-						MainRenderer::get().addWire(viewportId,{ outputPos, posPair.second }, {
-							getOutputOffset(iter->second.type, newOrientation),
-							getInputOffset(otherIter->second.type, otherIter->second.orientation)
-						});
+						if ((moveType == MoveType::SINGLE || moveType == MoveType::MULTI_FINAL) && otherBlockPos.x != 10000000) {
+							MainRenderer::get().addWire(viewportId,{ outputPos, posPair.second }, {
+								getOutputOffset(iter->second.type, newOrientation),
+								getInputOffset(otherIter->second.type, otherIter->second.orientation)
+							});
+						}
 						iter->second.connectionsToOtherBlock.emplace(std::make_pair(outputPos, posPair.second), otherBlockPos);
 						otherIter->second.connectionsToOtherBlock.emplace(std::make_pair(outputPos, posPair.second), newPosition);
 					}

@@ -87,6 +87,9 @@ public:
 	void redo();
 
 private:
+	void pushOntoStack(Position blockPosition, Difference * difference, MoveType moveType = MoveType::MULTI_BEGIN);
+	void popOffStack(Position position, Orientation transformAmount, bool resetRotation, Difference * difference, MoveType moveType = MoveType::MULTI_FINAL);
+
 	void setBlockType(BlockType blockType);
 	void blockSizeChange(const DataUpdateEventManager::EventData* eventData);
 	void addConnectionPort(const DataUpdateEventManager::EventData* eventData);
@@ -108,6 +111,8 @@ private:
 		for (const CircuitDiffListenerData& circuitDiffListenerData : listenerFunctions) circuitDiffListenerData.circuitDiffListenerFunction(difference, circuitId);
 	}
 
+	const Position stackBottom = Position(10000000, -10000000);
+	Position stackTop = stackBottom;
 	std::string circuitName;
 	std::string circuitUUID;
 	circuit_id_t circuitId;

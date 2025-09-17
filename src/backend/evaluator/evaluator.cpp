@@ -101,7 +101,7 @@ void Evaluator::makeEditInPlace(SimPauseGuard& pauseGuard, eval_circuit_id_t eva
 			break;
 		}
 		case Difference::ModificationType::MOVE_BLOCK: {
-			const auto& [curPosition, curOrientation, newPosition, newOrientation] = std::get<Difference::move_modification_t>(modificationData);
+			const auto& [curPosition, curOrientation, newPosition, newOrientation, finalMove] = std::get<Difference::move_modification_t>(modificationData);
 			edit_moveBlock(pauseGuard, evalCircuitId, diffCache, curPosition, curOrientation, newPosition, newOrientation);
 			break;
 		}

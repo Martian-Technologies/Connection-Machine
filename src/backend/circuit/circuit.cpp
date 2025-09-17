@@ -70,7 +70,7 @@ bool Circuit::tryMoveBlocks(const SharedSelection& selection, Vector movement, O
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
-	if (movement == Vector(0)) return true;
+	if (movement == Vector(0) && transformAmount == Orientation()) return true;
 	Position selectionOrigin = getSelectionOrigin(selection);
 	Position newSelectionOrigin = selectionOrigin + movement;
 	std::unordered_set<Position> positions;
@@ -79,40 +79,47 @@ bool Circuit::tryMoveBlocks(const SharedSelection& selection, Vector movement, O
 	for (auto iter = positions.begin(); iter != positions.end(); ++iter) {
 		const Block* block = blockContainer.getBlock(*iter);
 		if (block) {
-			if (blocks.contains(block)) continue;
-			if (
-				// !positions.contains(newSelectionOrigin + rotateVector(*iter - selectionOrigin, transformAmount)) &&
-				blockContainer.checkCollision(
-					newSelectionOrigin + transformAmount * (block->getPosition() - selectionOrigin) - transformAmount.transformVectorWithArea(Vector(0), block->size()),
-					transformAmount * block->getOrientation(),
-					block->type(),
-					block->id()
-				)
-			) return false;
+			if (blocks.contains(block) || blocks.contains(block)) continue;
+			Position pos1 = newSelectionOrigin + transformAmount * (block->getPosition() - selectionOrigin);
+			Position pos2 = newSelectionOrigin + transformAmount * (block->getLargestPosition() - selectionOrigin);
+			for (auto iter = pos1.iterTo(pos2); iter; iter++) {
+				const Block* otherBlock = blockContainer.getBlock(*iter);
+				if (otherBlock == nullptr || otherBlock == block) continue;
+				if (!positions.contains(*iter)) {
+					return false;
+				}
+			}
 			blocks.insert(block);
 		}
 	}
 
-	DifferenceSharedPtr difference = std::make_shared<Difference>();
-	while (blocks.size() > 0) {
-		for (auto iter = blocks.begin(); iter != blocks.end(); ++iter) {
-			const Block* block = *iter;
-			if (blockContainer.tryMoveBlock(
-				block->getPosition(),
-				newSelectionOrigin + transformAmount * (block->getPosition() - selectionOrigin) - transformAmount.transformVectorWithArea(Vector(0), block->size()),
-				transformAmount,
-				difference.get())
-			) {
-				iter = blocks.erase(iter);
-				if (iter == blocks.end()) break;
-			}
+	DifferenceSharedPtr difference1 = std::make_shared<Difference>();
+	std::vector<Position> stackToMoveBack;
+	for (auto iter = blocks.begin(); iter != blocks.end(); ++iter) {
+		const Block* block = *iter;
+		Position posToMoveTo = (
+			newSelectionOrigin +
+			transformAmount * (block->getPosition() - selectionOrigin) -
+			transformAmount.transformVectorWithArea(Vector(0), block->size())
+		);
+		if (!blockContainer.tryMoveBlock(
+			block->getPosition(),
+			posToMoveTo,
+			transformAmount,
+			difference1.get())
+		) {
+			stackToMoveBack.push_back(posToMoveTo);
+			pushOntoStack(block->getPosition(), difference1.get());
+			continue;
 		}
 	}
-
-	// // finding tmp pos to move everything to
-	// if (checkMoveCollision(selection, movement)) return false;
-	// moveBlocks(selection, movement, difference.get());
-	sendDifference(std::move(difference));
+	sendDifference(std::move(difference1));
+	if (stackToMoveBack.empty()) return true;
+	DifferenceSharedPtr difference2 = std::make_shared<Difference>();
+	for (unsigned int i = stackToMoveBack.size(); i > 0; i--) {
+		popOffStack(stackToMoveBack[i-1], transformAmount, false, difference2.get());
+	}
+	sendDifference(difference2);
 	return true;
 }
 
@@ -454,6 +461,7 @@ void Circuit::undo() {
 	MinimalDifference::connection_modification_t connectionModification;
 	MinimalDifference::move_modification_t moveModification;
 	const std::vector<MinimalDifference::Modification>& modifications = difference->getModifications();
+	bool doAnother = false;
 	for (unsigned int i = modifications.size(); i > 0; --i) {
 		const MinimalDifference::Modification& modification = modifications[i - 1];
 		switch (modification.first) {
@@ -474,12 +482,21 @@ void Circuit::undo() {
 			break;
 		case MinimalDifference::MOVE_BLOCK:
 			moveModification = std::get<MinimalDifference::move_modification_t>(modification.second);
-			blockContainer.tryMoveBlock(std::get<2>(moveModification), std::get<0>(moveModification), std::get<1>(moveModification).relativeTo(std::get<3>(moveModification)), newDifference.get());
+			MoveType moveType = std::get<4>(moveModification);
+			if (moveType == MoveType::MULTI_BEGIN) moveType = MoveType::MULTI_FINAL;
+			else if (moveType == MoveType::MULTI_FINAL) moveType = MoveType::MULTI_BEGIN;
+			blockContainer.tryMoveBlock(std::get<2>(moveModification), std::get<0>(moveModification), std::get<1>(moveModification).relativeTo(std::get<3>(moveModification)), newDifference.get(), moveType);
+			if (moveType == MoveType::MULTI_BEGIN || moveType == MoveType::MULTI_MIDDLE) {
+				doAnother = true;
+			}
 			break;
 		}
 	}
 	sendDifference(newDifference);
 	endUndo();
+	if (doAnother) {
+		undo();
+	}
 }
 
 void Circuit::redo() {
@@ -493,6 +510,7 @@ void Circuit::redo() {
 	MinimalDifference::block_modification_t blockModification;
 	MinimalDifference::connection_modification_t connectionModification;
 	MinimalDifference::move_modification_t moveModification;
+	bool doAnother = false;
 	for (auto modification : difference->getModifications()) {
 		switch (modification.first) {
 		case MinimalDifference::REMOVED_BLOCK:
@@ -512,12 +530,18 @@ void Circuit::redo() {
 			break;
 		case MinimalDifference::MOVE_BLOCK:
 			moveModification = std::get<MinimalDifference::move_modification_t>(modification.second);
-			blockContainer.tryMoveBlock(std::get<0>(moveModification), std::get<2>(moveModification), std::get<3>(moveModification).relativeTo(std::get<1>(moveModification)), newDifference.get());
+			blockContainer.tryMoveBlock(std::get<0>(moveModification), std::get<2>(moveModification), std::get<3>(moveModification).relativeTo(std::get<1>(moveModification)), newDifference.get(), std::get<4>(moveModification));
+			if (std::get<4>(moveModification) == MoveType::MULTI_BEGIN || std::get<4>(moveModification) == MoveType::MULTI_MIDDLE) {
+				doAnother = true;
+			}
 			break;
 		}
 	}
 	sendDifference(newDifference);
 	endUndo();
+	if (doAnother) {
+		redo();
+	}
 }
 
 void Circuit::blockSizeChange(const DataUpdateEventManager::EventData* eventData) {
@@ -536,6 +560,34 @@ void Circuit::blockSizeChange(const DataUpdateEventManager::EventData* eventData
 	blockContainer.resizeBlockType(data->get().first, data->get().second, difference.get());
 	sendDifference(std::move(difference));
 	undoSystem.addBlocker(); // cant undo after changing block size!
+}
+
+void Circuit::pushOntoStack(Position blockPosition, Difference * difference, MoveType moveType) {
+	assert(moveType != MoveType::SINGLE && moveType != MoveType::MULTI_FINAL && "Can't push blocks to stack and leave them there.");
+	const Block* block = blockContainer.getBlock(blockPosition);
+	if (!block) {
+		logError("Can't find block at {} to put on stack.", "Circuit", blockPosition);
+		return;
+	}
+	blockContainer.tryMoveBlock(block->getPosition(), stackTop, Orientation(), difference, moveType);
+	stackTop.y += block->size().h;
+}
+
+void Circuit::popOffStack(Position position, Orientation transformAmount, bool resetRotation, Difference * difference, MoveType moveType) {
+	assert(moveType != MoveType::SINGLE && "Can't pop blocks off stack with move type single because they have to had been moved there with multi.");
+	if (stackTop == stackBottom) {
+		logError("Can't pop off empty stack", "Circuit");
+		return;
+	}
+	stackTop.y -= 1; // shifts stackTop to look at the top block
+	const Block* block = blockContainer.getBlock(stackTop);
+	if (!block) {
+		logError("Can't find block on stack, this should never happen", "Circuit");
+		return;
+	}
+	stackTop.y -= block->size().h-1;
+	if (resetRotation) transformAmount *= block->getOrientation().inverse();
+	blockContainer.tryMoveBlock(block->getPosition(), position, transformAmount, difference, moveType);
 }
 
 void Circuit::setBlockType(BlockType blockType) {
