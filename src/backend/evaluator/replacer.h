@@ -20,8 +20,7 @@ public:
 		SimulatorOptimizer* optimizer,
 		IdProvider<middle_id_t>* middleIdProvider,
 		std::unordered_map<middle_id_t, middle_id_t>* replacedIds,
-		std::unordered_map<middle_id_t,
-		std::unordered_map<connection_port_id_t, EvalConnectionPoint>>* replacedConnectionPoints,
+		std::unordered_map<middle_id_t, std::unordered_map<connection_port_id_t, EvalConnectionPoint>>* replacedConnectionPoints,
 		std::unordered_set<middle_id_t>* replacementIds
 	) :
 		simulatorOptimizer(optimizer),
