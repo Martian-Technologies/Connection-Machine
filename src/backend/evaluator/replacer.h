@@ -20,12 +20,15 @@ public:
 		SimulatorOptimizer* optimizer,
 		IdProvider<middle_id_t>* middleIdProvider,
 		std::unordered_map<middle_id_t, middle_id_t>* replacedIds,
-		std::unordered_map<middle_id_t, std::unordered_map<connection_port_id_t, EvalConnectionPoint>>* replacedConnectionPoints
+		std::unordered_map<middle_id_t,
+		std::unordered_map<connection_port_id_t, EvalConnectionPoint>>* replacedConnectionPoints,
+		std::unordered_set<middle_id_t>* replacementIds
 	) :
 		simulatorOptimizer(optimizer),
 		middleIdProvider(middleIdProvider),
 		replacedIds(replacedIds),
-		replacedConnectionPoints(replacedConnectionPoints) {}
+		replacedConnectionPoints(replacedConnectionPoints),
+		replacementIds(replacementIds) {}
 
 	void removeGate(SimPauseGuard& pauseGuard, middle_id_t gateId, std::unordered_map<connection_port_id_t, EvalConnectionPoint> replacementConnectionPoints) {
 		isEmpty = false;
@@ -65,6 +68,7 @@ public:
 		idsToTrackOutputs.insert(gateId);
 		replacedIds->insert({ gateId, replacementId });
 		simulatorOptimizer->removeGate(pauseGuard, gateId);
+		replacementIds->insert(replacementId);
 	}
 
 	void addGate(SimPauseGuard& pauseGuard, GateType gateType, middle_id_t gateId) {
@@ -108,6 +112,7 @@ public:
 		}
 		for (const auto& id : reservedIds) {
 			middleIdProvider->releaseId(id);
+			replacementIds->erase(id);
 		}
 		addedConnections.clear();
 		addedGates.clear();
@@ -152,6 +157,7 @@ private:
 	IdProvider<middle_id_t>* middleIdProvider;
 	std::unordered_map<middle_id_t, middle_id_t>* replacedIds;
 	std::unordered_map<middle_id_t, std::unordered_map<connection_port_id_t, EvalConnectionPoint>>* replacedConnectionPoints;
+	std::unordered_set<middle_id_t>* replacementIds;
 	std::vector<ReplacementGate> addedGates;
 	std::vector<ReplacementGate> deletedGates;
 	std::vector<EvalConnection> addedConnections;
@@ -256,8 +262,9 @@ private:
 	std::vector<Replacement> replacements;
 	std::unordered_map<middle_id_t, std::unordered_map<connection_port_id_t, EvalConnectionPoint>> replacedConnectionPoints;
 	std::unordered_map<middle_id_t, middle_id_t> replacedIds;
+	std::unordered_set<middle_id_t> replacementIds;
 	Replacement& makeReplacement() {
-		replacements.push_back(Replacement(&simulatorOptimizer, &middleIdProvider, &replacedIds, &replacedConnectionPoints));
+		replacements.push_back(Replacement(&simulatorOptimizer, &middleIdProvider, &replacedIds, &replacedConnectionPoints, &replacementIds));
 		return replacements.back();
 	}
 	void cleanReplacements() {
@@ -325,10 +332,7 @@ private:
 	void mergeJunctions(SimPauseGuard& pauseGuard) {
 		std::vector<middle_id_t> allMiddleIds = middleIdProvider.getUsedIds();
 		for (const middle_id_t id : allMiddleIds) {
-			if (replacedIds.contains(id)) {
-				continue;
-			}
-			if (replacedConnectionPoints.contains(id)) {
+			if (replacementIds.contains(id)) {
 				continue;
 			}
 			// check if we're a junction
