@@ -41,6 +41,10 @@ TEST_F(CircuitTest, BlockPlacementCollision) {
 	const Block* block = circuit->getBlockContainer()->getBlock(pos);
 	ASSERT_TRUE(block != nullptr);
 	ASSERT_EQ(block->type(), BlockType::AND);
+
+	circuit->undo();
+	const Block* notBlock = circuit->getBlockContainer()->getBlock(pos);
+	ASSERT_TRUE(notBlock == nullptr);
 }
 
 TEST_F(CircuitTest, ConnectionCreation) {
@@ -167,32 +171,32 @@ TEST_F(CircuitTest, BlockTypePlacement) {
 }
 
 TEST_F(CircuitTest, ConnectionRemovalConnectionEnd) {
-	Position pos1(i, i); ++i;
-	Position pos2(i, i); ++i;
-	Rotation rot = Rotation::ZERO;
+	for (int i = 0; i < 100; i++) {
+		Position pos1(rand()%1000000, rand()%1000000);
+		Position pos2(rand()%1000000, rand()%1000000);
+		if (pos1 == pos2) { continue; --i; }
+		Rotation rot = Rotation::ZERO;
 
-	circuit->tryInsertBlock(pos1, rot, BlockType::AND);
-	circuit->tryInsertBlock(pos2, rot, BlockType::AND);
-	circuit->tryCreateConnection(pos1, pos2);
+		circuit->tryInsertBlock(pos1, rot, BlockType::AND);
+		circuit->tryInsertBlock(pos2, rot, BlockType::AND);
+		circuit->tryCreateConnection(pos1, pos2);
 
-	const BlockContainer* container = circuit->getBlockContainer();
+		const BlockContainer* container = circuit->getBlockContainer();
 
-	bool removed = circuit->tryRemoveConnection(
-		ConnectionEnd(container->getBlock(pos1)->id(), container->getBlock(pos1)->getOutputConnectionId(pos1).value()),
-		ConnectionEnd(container->getBlock(pos2)->id(), container->getBlock(pos2)->getInputConnectionId(pos2).value())
-	);
-	ASSERT_TRUE(removed);
+		bool removed = circuit->tryRemoveConnection(
+			ConnectionEnd(container->getBlock(pos1)->id(), container->getBlock(pos1)->getOutputConnectionId(pos1).value()),
+			ConnectionEnd(container->getBlock(pos2)->id(), container->getBlock(pos2)->getInputConnectionId(pos2).value())
+		);
+		ASSERT_TRUE(removed);
 
-	ASSERT_FALSE(container->connectionExists(pos1, pos2));
+		ASSERT_FALSE(container->connectionExists(pos1, pos2));
+	}
 }
 
 TEST_F(CircuitTest, CircuitPlacement) {
-
-
 	circuit_id_t circuitId = circuitManager.createNewCircuit(generate_uuid_v4(), "Circuit");
 	SharedCircuit circuit2 = circuitManager.getCircuit(circuitId);
 	const BlockType blockType = circuitManager.setupBlockData(circuitId);
-
 
 	ASSERT_NE(blockType, NONE);
 	ASSERT_TRUE(circuitManager.getBlockDataManager()->blockExists(blockType));
