@@ -49,6 +49,8 @@ public:
 
 private:
 	void createPopUp(const std::string& message, const std::vector<std::pair<std::string, std::function<void()>>>& options);
+	void offsetUiScale(double delta);
+	void applyUiScale(float scale);
 
 	WindowId windowId;
 	Environment* environment;
@@ -56,6 +58,11 @@ private:
 	// inputs and tools
 	KeybindHandler keybindHandler;
 	ToolManagerManager toolManagerManager;
+	float uiScale = 1.0f;
+	bool uiScaleSettingUpdateInProgress = false;
+	static constexpr double kUiScaleStep = 0.1;
+	static constexpr double kUiScaleMin = 0.5;
+	static constexpr double kUiScaleMax = 3.0;
 
 	// widgets
 	std::optional<SelectorWindow> selectorWindow;

@@ -2,6 +2,7 @@
 
 #include <RmlUi/Core.h>
 #include <RmlUi/Debugger.h>
+#include <SDL3/SDL_video.h>
 
 #include "gpu/mainRenderer.h"
 
@@ -15,6 +16,7 @@
 #include "computerAPI/directoryManager.h"
 #include "environment/environment.h"
 #include "app.h"
+#include "backend/settings/settings.h"
 
 MainWindow::MainWindow(Environment* environment) :
 	sdlWindow(App::get().registerWindow("Connection Machine")), environment(environment), toolManagerManager(environment->getBackend().getDataUpdateEventManager()) {
@@ -132,6 +134,24 @@ MainWindow::MainWindow(Environment* environment) :
 		"Keybinds/Window/Toggle Fullscreen",
 		[this]() { sdlWindow->toggleBorderlessFullscreen(); }
 	);
+	keybindHandler.addListener(
+		"Keybinds/Window/Increase UI Scale",
+		[this]() { offsetUiScale(kUiScaleStep); }
+	);
+	keybindHandler.addListener(
+		"Keybinds/Window/Decrease UI Scale",
+		[this]() { offsetUiScale(-kUiScaleStep); }
+	);
+	keybindHandler.addListener(
+		"Keybinds/Window/Reset UI Scale",
+		[this]() { applyUiScale(1.0f); }
+	);
+
+	const double* initialUiScale = Settings::get<SettingType::DECIMAL>("Appearance/UI Scale");
+	applyUiScale(initialUiScale ? static_cast<float>(*initialUiScale) : 1.0f);
+	Settings::registerListener<SettingType::DECIMAL>("Appearance/UI Scale", [this](const double& value) {
+		applyUiScale(static_cast<float>(value));
+	});
 
 	// show rmlUi document
 	rmlDocument->Show();
@@ -189,6 +209,10 @@ bool MainWindow::recieveEvent(SDL_Event& event) {
 
 		// send event to RML
 		RmlSDL::InputEventHandler(rmlContext, sdlWindow->getHandle(), event, getSdlWindowScalingSize());
+
+		if (event.type == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED) {
+			applyUiScale(uiScale);
+		}
 
 		// let renderer know we if resized the window
 		if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) {
@@ -251,6 +275,46 @@ void MainWindow::createPopUp(const std::string& message, const std::vector<std::
 		));
 		setPositionButton->SetClass("pop-up-action", true);
 		actionsElement->AppendChild(std::move(setPositionButton));
+	}
+}
+
+void MainWindow::offsetUiScale(double delta) {
+	const double* storedScale = Settings::get<SettingType::DECIMAL>("Appearance/UI Scale");
+	const double currentScale = storedScale ? *storedScale : static_cast<double>(uiScale);
+	const double targetScale = std::clamp(currentScale + delta, kUiScaleMin, kUiScaleMax);
+	if (std::abs(targetScale - currentScale) < 1e-6) {
+		applyUiScale(static_cast<float>(targetScale));
+		return;
+	}
+	if (!Settings::set<SettingType::DECIMAL>("Appearance/UI Scale", targetScale)) {
+		applyUiScale(static_cast<float>(targetScale));
+	}
+}
+
+void MainWindow::applyUiScale(float scale) {
+	const float clamped = std::clamp(scale, static_cast<float>(kUiScaleMin), static_cast<float>(kUiScaleMax));
+	if (std::abs(static_cast<double>(clamped) - static_cast<double>(scale)) > 1e-6 && !uiScaleSettingUpdateInProgress) {
+		const double* storedScale = Settings::get<SettingType::DECIMAL>("Appearance/UI Scale");
+		if (!storedScale || std::abs(*storedScale - clamped) > 1e-6) {
+			uiScaleSettingUpdateInProgress = true;
+			Settings::set<SettingType::DECIMAL>("Appearance/UI Scale", clamped);
+			uiScaleSettingUpdateInProgress = false;
+		}
+	}
+	uiScale = clamped;
+	if (!rmlContext) return;
+	float displayScale = 1.0f;
+	if (sdlWindow) {
+		displayScale = SDL_GetWindowDisplayScale(sdlWindow->getHandle());
+		if (!(displayScale > 0.0f)) {
+			displayScale = 1.0f;
+		}
+	}
+	rmlContext->SetDensityIndependentPixelRatio(displayScale * uiScale);
+
+	rmlContext->Update();
+	for (auto circuitViewWidget : circuitViewWidgets) {
+		circuitViewWidget->handleResize();
 	}
 }
 
