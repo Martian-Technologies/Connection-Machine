@@ -400,7 +400,7 @@ Rml::Input::KeyIdentifier RmlSDL::ConvertKey(int sdlkey) {
 	case key_y:             return Rml::Input::KI_Y;
 	case key_z:             return Rml::Input::KI_Z;
 	case SDLK_SEMICOLON:    return Rml::Input::KI_OEM_1;
-	case SDLK_PLUS:         return Rml::Input::KI_OEM_PLUS;
+	case SDLK_EQUALS:       return Rml::Input::KI_OEM_PLUS;
 	case SDLK_COMMA:        return Rml::Input::KI_OEM_COMMA;
 	case SDLK_MINUS:        return Rml::Input::KI_OEM_MINUS;
 	case SDLK_PERIOD:       return Rml::Input::KI_OEM_PERIOD;
