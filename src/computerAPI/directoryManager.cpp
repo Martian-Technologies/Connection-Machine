@@ -1,6 +1,7 @@
 #include "directoryManager.h"
 
 #include <cpplocate/cpplocate.h>
+#include <cfgpath.h>
 
 std::filesystem::path DirectoryManager::resourceDirectory("");
 std::filesystem::path DirectoryManager::projectDirectory("");
@@ -13,36 +14,39 @@ void DirectoryManager::findDirectories() {
 	std::filesystem::path relativeToExecutable = getExecutablePath().parent_path() / "resources";
 	if (std::filesystem::exists(relativeToExecutable)) {
 		resourceDirectory = relativeToExecutable;
-		logInfo("Found resource directory relative to executable at ({})", "", resourceDirectory.generic_string());
-		return;
+		logInfo("Found resource directory relative to executable at ({})", "DirectoryManager", resourceDirectory.generic_string());
+	} else {
+		// check relative to macOS bundle
+		std::filesystem::path relativeToBundle = getBundlePath().parent_path() / "resources";
+		if (std::filesystem::exists(relativeToBundle)) {
+			resourceDirectory = relativeToBundle;
+			logInfo("Found resource directory relative to MacOS bundle at ({})", "DirectoryManager", resourceDirectory.generic_string());
+		} else {
+			// check for resources directory relative to executable's parent
+			std::filesystem::path relativeToExecutableParent = getExecutablePath().parent_path().parent_path() / "resources";
+			if (std::filesystem::exists(relativeToExecutableParent)) {
+				resourceDirectory = relativeToExecutableParent;
+				logInfo("Found resource directory relative to executable's parent at ({})", "DirectoryManager", resourceDirectory.generic_string());
+			} else {
+				// check for resources directory relative to working directory
+				std::filesystem::path relativeToWorkingDirectory = "resources";
+				if (std::filesystem::exists(relativeToWorkingDirectory)) {
+					resourceDirectory = relativeToWorkingDirectory;
+					logWarning("Found resource directory strictly relative to working directory, this is probably not intended.", "DirectoryManager", resourceDirectory.generic_string());
+				} else {
+					logFatalError("Could not find resource directory. Make sure you are executing the program from the top of the source tree.", "DirectoryManager");
+				}
+			}
+		}
 	}
-
-	// check relative to macOS bundle
-	std::filesystem::path relativeToBundle = getBundlePath().parent_path() / "resources";
-	if (std::filesystem::exists(relativeToBundle)) {
-		resourceDirectory = relativeToBundle;
-		logInfo("Found resource directory relative to MacOS bundle at ({})", "", resourceDirectory.generic_string());
-		return;
+	char cfgdir[1024];
+	get_user_config_folder(cfgdir, sizeof(cfgdir), "ConnectionMachine");
+	if (cfgdir[0] == 0) {
+		logError("Could not find a config directory.", "DirectoryManager");
 	}
-
-	// check for resources directory relative to executable's parent
-	std::filesystem::path relativeToExecutableParent = getExecutablePath().parent_path().parent_path() / "resources";
-	if (std::filesystem::exists(relativeToExecutableParent)) {
-		resourceDirectory = relativeToExecutableParent;
-		logInfo("Found resource directory relative to executable's parent at ({})", "", resourceDirectory.generic_string());
-		return;
-	}
-
-	// check for resources directory relative to working directory
-	std::filesystem::path relativeToWorkingDirectory = "resources";
-	if (std::filesystem::exists(relativeToWorkingDirectory)) {
-		resourceDirectory = relativeToWorkingDirectory;
-		logWarning("Found resource directory strictly relative to working directory, this is probably not intended.", "", resourceDirectory.generic_string());
-		return;
-	}
-
-
-	logFatalError("Could not find resource directory. Make sure you are executing the program from the top of the source tree.");
+	configDirectory = std::string(cfgdir);
+	logInfo("Found config directory at ({})", "DirectoryManager", configDirectory.string());
+	std::filesystem::create_directories(configDirectory);
 }
 
 std::filesystem::path DirectoryManager::getExecutablePath() {

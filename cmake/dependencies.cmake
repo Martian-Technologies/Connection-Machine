@@ -2,6 +2,20 @@ include(cmake/CPM.cmake)
 include(ExternalProject)
 
 function(add_main_dependencies)
+	# cfgpath
+	CPMAddPackage(
+		NAME cfgpath
+		GITHUB_REPOSITORY Malvineous/cfgpath
+		GIT_TAG e61ccbae0da7bb3dfb0f71e4103e0ffa4ea4bcaa
+		EXCLUDE_FROM_ALL YES
+		DOWNLOAD_ONLY YES
+		SOURCE_DIR "${EXTERNAL_DIR}/cfgpath"
+	)
+	# add_library(cfgpath INTERFACE "${EXTERNAL_DIR}/cfgpath/cfgpath.h")
+	add_library(cfgpath INTERFACE)
+	target_include_directories(cfgpath INTERFACE "${EXTERNAL_DIR}/cfgpath")
+	list(APPEND EXTERNAL_LINKS cfgpath)
+
 	# JSON
 	CPMAddPackage(
 		NAME nlohmann_json
