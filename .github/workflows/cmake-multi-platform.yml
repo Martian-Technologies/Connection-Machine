@@ -104,7 +104,7 @@ jobs:
       # run: Gatality_tests
 
     - name: Notify Discord on test failure
-      if: failure() && steps.run_tests.outcome == 'failure'
+      if: failure()
       uses: sarisia/actions-status-discord@v1
       with:
         webhook: ${{ secrets.DISCORD_WEBHOOK }}
