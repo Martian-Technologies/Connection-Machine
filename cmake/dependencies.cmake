@@ -11,6 +11,9 @@ function(add_main_dependencies)
 		DOWNLOAD_ONLY YES
 		SOURCE_DIR "${EXTERNAL_DIR}/cfgpath"
 	)
+	if (WIN32)
+		file(REMOVE "${EXTERNAL_DIR}/cfgpath/shlobj.h")
+	endif()
 	# add_library(cfgpath INTERFACE "${EXTERNAL_DIR}/cfgpath/cfgpath.h")
 	add_library(cfgpath INTERFACE)
 	target_include_directories(cfgpath INTERFACE "${EXTERNAL_DIR}/cfgpath")
