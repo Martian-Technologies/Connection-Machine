@@ -131,7 +131,7 @@ struct ANDLikeGate : public MultiInputGate {
 				return (logic_state_t)outputInverted;
 			}
 			// Track any unknown/floating driver; only matters if no decisive state was found
-			foundGoofyState |= (state >= logic_state_t::UNDEFINED); // FLOATING or UNDEFINED
+			foundGoofyState |= (state >= logic_state_t::FLOATING); // FLOATING or UNDEFINED
 		}
 		return foundGoofyState ? logic_state_t::UNDEFINED : (logic_state_t)!outputInverted;
 	}
@@ -162,7 +162,7 @@ struct XORLikeGate : public MultiInputGate {
 		bool parity = outputInverted;
 		for (const simulator_id_t inputId : inputs) {
 			const logic_state_t state = statesA[inputId];
-			if (state >= logic_state_t::UNDEFINED) { // FLOATING or UNDEFINED
+			if (state >= logic_state_t::FLOATING) { // FLOATING or UNDEFINED
 				return logic_state_t::UNDEFINED;
 			}
 			parity = parity ^ (state == logic_state_t::HIGH);
