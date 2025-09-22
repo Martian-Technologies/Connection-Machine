@@ -72,10 +72,11 @@ void LogicSimulator::simulationLoop() {
 		processPendingStateChanges();
 
 		bool didSprint = false;
-		while (running && !pauseRequest.load(std::memory_order_acquire) && evalConfig.consumeSprintTick()) {
+		while (running && !pauseRequest.load(std::memory_order_acquire) && evalConfig.canConsumeSprintTick()) {
 			didSprint = true;
 			auto currentTime = clock::now();
 			tickOnce();
+			evalConfig.consumeSprintTick();
 			updateEmaTickrate(currentTime, lastTickTime, isFirstTick);
 			if (pauseRequest.load(std::memory_order_acquire)) break;
 		}

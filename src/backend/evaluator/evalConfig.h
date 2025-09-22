@@ -68,6 +68,10 @@ public:
 		return sprintCounter.load();
 	}
 
+	inline bool canConsumeSprintTick() {
+		return sprintCounter.load(std::memory_order_relaxed) > 0;
+	}
+	
 	inline bool consumeSprintTick() {
 		int expected = sprintCounter.load(std::memory_order_relaxed);
 		while (expected > 0) {
