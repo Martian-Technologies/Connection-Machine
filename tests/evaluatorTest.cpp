@@ -231,3 +231,61 @@ TEST_F(EvaluatorTest, EqualityCircuit) {
 		}
 	}
 }
+
+TEST_F(EvaluatorTest, JunctionRemovalGate) {
+	circuit->tryInsertBlock({ 0, 0 }, Rotation::ZERO, BlockType::SWITCH); // switch 1
+	circuit->tryInsertBlock({ 1, 0 }, Rotation::ZERO, BlockType::SWITCH); // switch 2
+	circuit->tryInsertBlock({ 2, 0 }, Rotation::ZERO, BlockType::JUNCTION); // junction 1
+	circuit->tryInsertBlock({ 3, 0 }, Rotation::ZERO, BlockType::JUNCTION); // junction 2
+	circuit->tryInsertBlock({ 4, 0 }, Rotation::ZERO, BlockType::AND);
+	circuit->tryCreateConnection(Position { 0, 0 }, Position { 2, 0 }); // switch 1 to junction 1
+	circuit->tryCreateConnection(Position { 1, 0 }, Position { 2, 0 }); // switch 2 to junction 1
+	circuit->tryCreateConnection(Position { 3, 0 }, Position { 4, 0 }); // junction 2 to and gate
+	circuit->tryCreateConnection(Position { 2, 0 }, Position { 3, 0 }); // junction 1 to junction 2
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::LOW);
+	evaluator->setState(Address({ 0, 0 }), logic_state_t::HIGH);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+	evaluator->setState(Address({ 1, 0 }), logic_state_t::HIGH);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::HIGH);
+	evaluator->setState(Address({ 0, 0 }), logic_state_t::LOW);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+	circuit->tryRemoveBlock(Position { 0, 0 });
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::HIGH);
+	circuit->tryRemoveConnection(Position { 2, 0 }, Position { 3, 0 });
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::FLOATING);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::HIGH);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::FLOATING);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+}
