@@ -35,11 +35,11 @@
 			<div id="settings-overlay" class="invisible">
 				<template src="settingsWindow"></template>
 			</div>
-			<div id="pop-up-overlay" class="invisible">
+			<!-- <div id="pop-up-overlay" class="invisible">
 				<div id="pop-up-overlay-internal">
 					<template src="popUpWindow"></template>
 				</div>
-			</div>
+			</div> was showing idk why-->
 		</div>
 	</body>
 </rml>
