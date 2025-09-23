@@ -5,8 +5,8 @@ function(add_main_dependencies)
 	# cfgpath
 	CPMAddPackage(
 		NAME cfgpath
-		GITHUB_REPOSITORY Malvineous/cfgpath
-		GIT_TAG e61ccbae0da7bb3dfb0f71e4103e0ffa4ea4bcaa
+		GITHUB_REPOSITORY sisyffe/cfgpath
+		GIT_TAG 4a48955f894a5d1ef292230f33a9e6caacfed572
 		EXCLUDE_FROM_ALL YES
 		DOWNLOAD_ONLY YES
 		SOURCE_DIR "${EXTERNAL_DIR}/cfgpath"

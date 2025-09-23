@@ -39,8 +39,8 @@ void DirectoryManager::findDirectories() {
 			}
 		}
 	}
-	char cfgdir[1024];
-	get_user_config_folder(cfgdir, sizeof(cfgdir), "ConnectionMachine");
+	char cfgdir[MAX_PATH];
+	cfgpath::get_user_config_folder(cfgdir, sizeof(cfgdir), "ConnectionMachine");
 	if (cfgdir[0] == 0) {
 		logError("Could not find a config directory.", "DirectoryManager");
 	}
