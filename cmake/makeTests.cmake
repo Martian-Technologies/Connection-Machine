@@ -8,8 +8,6 @@ if(CONNECTION_MACHINE_CODE_COVERAGE)
 	else()
 		message(WARNING "Code coverage not working with: \"${CMAKE_CXX_COMPILER_ID}\"")
 	endif()
-else()
-	message(WARNING "Code coverage cant not be used without also enabling tests.")
 endif()
 
 
