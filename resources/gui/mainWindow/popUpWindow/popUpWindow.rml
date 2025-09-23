@@ -5,7 +5,7 @@
 	</head>
 
 	<body>
-		<div id="pop-up-window">
+		<div id="pop-up-window" class="bordered bg-3">
 			<span id="pop-up-text"></span>
 			<div id="pop-up-actions">
 				<button class="pop-up-action" id="23">Close2</button>

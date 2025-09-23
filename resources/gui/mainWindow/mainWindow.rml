@@ -36,7 +36,9 @@
 				<template src="settingsWindow"></template>
 			</div>
 			<div id="pop-up-overlay" class="invisible">
-				<template src="popUpWindow"></template>
+				<div id="pop-up-overlay-internal">
+					<template src="popUpWindow"></template>
+				</div>
 			</div>
 		</div>
 	</body>

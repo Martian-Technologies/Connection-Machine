@@ -47,12 +47,20 @@ body {
 /* Pop Up Window */
 #pop-up-overlay {
 	position: absolute;
-	top: 20%;
-	left: 20%;
-	width: 60%;
-	height: 60%;
-	z-index: 1001;
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
 	align-items: center;
+	width: 100%;
+	height: 100%;
+}
+#pop-up-overlay-internal {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	height: 100%;
 }
 
 .invisible {
