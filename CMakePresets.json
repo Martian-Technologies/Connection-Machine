@@ -121,6 +121,13 @@
 			"jobs": 8
 		},
 		{
+			"name": "debug_cli",
+			"displayName": "Build Debug CLI",
+			"configurePreset": "debug_cli",
+			"configuration": "Debug",
+			"jobs": 8
+		},
+		{
 			"name": "debug&profiler",
 			"displayName": "Build Debug & Profiler",
 			"configurePreset": "debug&profiler",
