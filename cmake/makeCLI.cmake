@@ -15,6 +15,7 @@ else()
 endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${APP_NAME}")
+target_compile_definitions(${PROJECT_NAME} PRIVATE "CLI")
 
 # Platform specific business after add_executable
 if(APPLE) # MacOS
