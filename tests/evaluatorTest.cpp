@@ -231,3 +231,232 @@ TEST_F(EvaluatorTest, EqualityCircuit) {
 		}
 	}
 }
+
+TEST_F(EvaluatorTest, JunctionRemovalGate) {
+	circuit->tryInsertBlock({ 0, 0 }, Rotation::ZERO, BlockType::SWITCH); // switch 1
+	circuit->tryInsertBlock({ 1, 0 }, Rotation::ZERO, BlockType::SWITCH); // switch 2
+	circuit->tryInsertBlock({ 2, 0 }, Rotation::ZERO, BlockType::JUNCTION); // junction 1
+	circuit->tryInsertBlock({ 3, 0 }, Rotation::ZERO, BlockType::JUNCTION); // junction 2
+	circuit->tryInsertBlock({ 4, 0 }, Rotation::ZERO, BlockType::AND);
+	circuit->tryCreateConnection(Position { 0, 0 }, Position { 2, 0 }); // switch 1 to junction 1
+	circuit->tryCreateConnection(Position { 1, 0 }, Position { 2, 0 }); // switch 2 to junction 1
+	circuit->tryCreateConnection(Position { 3, 0 }, Position { 4, 0 }); // junction 2 to and gate
+	circuit->tryCreateConnection(Position { 2, 0 }, Position { 3, 0 }); // junction 1 to junction 2
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::LOW);
+	evaluator->setState(Address({ 0, 0 }), logic_state_t::HIGH);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+	evaluator->setState(Address({ 1, 0 }), logic_state_t::HIGH);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::HIGH);
+	evaluator->setState(Address({ 0, 0 }), logic_state_t::LOW);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+	circuit->tryRemoveBlock(Position { 0, 0 });
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::HIGH);
+	circuit->tryRemoveConnection(Position { 2, 0 }, Position { 3, 0 });
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::FLOATING);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::HIGH);
+	evaluator->tickStep(1);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::FLOATING);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+}
+
+logic_state_t naiveButCorrectGateImplementation(BlockType blockType, std::vector<logic_state_t> inputs) {
+	int numLow = 0;
+	int numHigh = 0;
+	int numFloating = 0;
+	int numUndefined = 0;
+	for (logic_state_t input : inputs) {
+		if (input == logic_state_t::LOW) {
+			++numLow;
+		} else if (input == logic_state_t::HIGH) {
+			++numHigh;
+		} else if (input == logic_state_t::FLOATING) {
+			++numFloating;
+		} else if (input == logic_state_t::UNDEFINED) {
+			++numUndefined;
+		}
+	}
+	int total = numLow + numHigh + numFloating + numUndefined;
+	if (total == 0) {
+		if (blockType == BlockType::JUNCTION) {
+			return logic_state_t::FLOATING;
+		}
+		return logic_state_t::LOW;
+	}
+	if (blockType == BlockType::AND) {
+		if (numLow != 0) {
+			return logic_state_t::LOW;
+		}
+		if (numUndefined != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		if (numFloating != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		return logic_state_t::HIGH;
+	} else if (blockType == BlockType::OR) {
+		if (numHigh != 0) {
+			return logic_state_t::HIGH;
+		}
+		if (numUndefined != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		if (numFloating != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		return logic_state_t::LOW;
+	} else if (blockType == BlockType::NAND) {
+		if (numLow != 0) {
+			return logic_state_t::HIGH;
+		}
+		if (numUndefined != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		if (numFloating != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		return logic_state_t::LOW;
+	} else if (blockType == BlockType::NOR) {
+		if (numHigh != 0) {
+			return logic_state_t::LOW;
+		}
+		if (numUndefined != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		if (numFloating != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		return logic_state_t::HIGH;
+	} else if (blockType == BlockType::XOR) {
+		if (numUndefined != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		if (numFloating != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		bool parity = (numHigh % 2 == 1);
+		if (parity) {
+			return logic_state_t::HIGH;
+		}
+		return logic_state_t::LOW;
+	} else if (blockType == BlockType::XNOR) {
+		if (numUndefined != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		if (numFloating != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		bool parity = (numHigh % 2 == 0);
+		if (parity) {
+			return logic_state_t::HIGH;
+		}
+		return logic_state_t::LOW;
+	} else if (blockType == BlockType::JUNCTION) {
+		if (numUndefined != 0) {
+			return logic_state_t::UNDEFINED;
+		}
+		bool hasHigh = numHigh > 0;
+		bool hasLow = numLow > 0;
+		if (hasHigh && hasLow) {
+			return logic_state_t::UNDEFINED;
+		} else if (hasHigh) {
+			return logic_state_t::HIGH;
+		} else if (hasLow) {
+			return logic_state_t::LOW;
+		}
+		return logic_state_t::FLOATING;
+	}
+	return logic_state_t::UNDEFINED;
+};
+
+TEST_F(EvaluatorTest, AllBasicGatesBehavior) {
+	struct Testcase {
+		BlockType blockType;
+		std::vector<logic_state_t> inputStates;
+	};
+	std::vector<Testcase> testcases = {};
+	std::vector<logic_state_t> allStates = {
+		logic_state_t::LOW,
+		logic_state_t::HIGH,
+		logic_state_t::FLOATING,
+		logic_state_t::UNDEFINED
+	};
+	std::vector<BlockType> allTypes = {
+		BlockType::AND,
+		BlockType::OR,
+		BlockType::XOR,
+		BlockType::NAND,
+		BlockType::NOR,
+		BlockType::XNOR,
+		BlockType::JUNCTION
+	};
+	for (BlockType blockType : allTypes) {
+		testcases.push_back({ blockType, {} });
+		for (logic_state_t state1 : allStates) {
+			testcases.push_back({ blockType, {state1} });
+			for (logic_state_t state2 : allStates) {
+				testcases.push_back({ blockType, {state1, state2} });
+				for (logic_state_t state3 : allStates) {
+					testcases.push_back({ blockType, {state1, state2, state3} });
+				}
+			}
+		}
+	}
+	BlockType currentType = BlockType::AND;
+	int maxNumInputs = 0;
+	for (Testcase testcase : testcases) {
+		maxNumInputs = std::max(maxNumInputs, (int)(testcase.inputStates.size()));
+	}
+	for (int i = 0; i < maxNumInputs; ++i) {
+		circuit->tryInsertBlock(Position { i, 0 }, Rotation::ZERO, BlockType::SWITCH);
+	}
+	circuit->tryInsertBlock(Position { 0, 1 }, Rotation::ZERO, BlockType::AND);
+	for (Testcase testcase : testcases) {
+		if (currentType != testcase.blockType) {
+			circuit->tryRemoveBlock(Position { 0, 1 });
+			circuit->tryInsertBlock(Position { 0, 1 }, Rotation::ZERO, testcase.blockType);
+			currentType = testcase.blockType;
+		}
+		for (int i = 0; i < testcase.inputStates.size(); ++i) {
+			circuit->tryCreateConnection(Position { i, 0 }, Position { 0, 1 });
+			evaluator->setState(Address({ i, 0 }), testcase.inputStates[i]);
+		}
+		evaluator->tickStep(1);
+		logic_state_t expectedState = naiveButCorrectGateImplementation(testcase.blockType, testcase.inputStates);
+		logic_state_t computedState = evaluator->getState(Address({ 0, 1 }));
+		ASSERT_EQ(expectedState, computedState);
+		for (int i = 0; i < testcase.inputStates.size(); ++i) {
+			circuit->tryRemoveConnection(Position { i, 0 }, Position { 0, 1 });
+		}
+	}
+}
