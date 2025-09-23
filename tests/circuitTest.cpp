@@ -28,6 +28,9 @@ TEST_F(CircuitTest, BlockContainerBasicOperations) {
 		const Block* blockById = container->getBlock(block->id());
 		ASSERT_TRUE(blockById != nullptr);
 		ASSERT_EQ(blockById, block);
+
+		bool blockRemoved = circuit->tryRemoveBlock(pos);
+		// ASSERT_TRUE(blockRemoved);
 	}
 }
 
@@ -48,6 +51,9 @@ TEST_F(CircuitTest, BlockPlacementCollision) {
 		circuit->undo();
 		const Block* notBlock = circuit->getBlockContainer()->getBlock(pos);
 		ASSERT_TRUE(notBlock == nullptr);
+
+		bool blockRemoved = circuit->tryRemoveBlock(pos);
+		ASSERT_FALSE(blockRemoved);
 	}
 }
 
@@ -81,6 +87,11 @@ TEST_F(CircuitTest, ConnectionCreation) {
 		bool invalid_connection = container->connectionExists(pos2, pos1); // transitive
 		ASSERT_TRUE(valid_connection);
 		ASSERT_FALSE(invalid_connection);
+
+		bool block1Removed = circuit->tryRemoveBlock(pos1);
+		bool block2Removed = circuit->tryRemoveBlock(pos2);
+		// ASSERT_TRUE(block1Removed);
+		// ASSERT_TRUE(block2Removed);
 	}
 }
 
@@ -107,6 +118,11 @@ TEST_F(CircuitTest, ConnectionCreationConnectionEnd) {
 		bool invalid_connection = container->connectionExists(pos2, pos1); // transitive
 		ASSERT_TRUE(valid_connection);
 		ASSERT_FALSE(invalid_connection);
+
+		bool block1Removed = circuit->tryRemoveBlock(pos1);
+		bool block2Removed = circuit->tryRemoveBlock(pos2);
+		// ASSERT_TRUE(block1Removed);
+		// ASSERT_TRUE(block2Removed);
 	}
 }
 
@@ -132,6 +148,11 @@ TEST_F(CircuitTest, InvalidConnections) {
 		const BlockContainer* container = circuit->getBlockContainer();
 		ASSERT_TRUE(container->connectionExists(pos1, pos1));
 		ASSERT_FALSE(container->connectionExists(pos1, nonExistent));
+
+		bool block1Removed = circuit->tryRemoveBlock(pos1);
+		bool block2Removed = circuit->tryRemoveBlock(pos2);
+		// ASSERT_TRUE(block1Removed);
+		// ASSERT_TRUE(block2Removed);
 	}
 }
 
@@ -167,6 +188,11 @@ TEST_F(CircuitTest, ConnectionRemoval) {
 
 		const BlockContainer* container = circuit->getBlockContainer();
 		ASSERT_FALSE(container->connectionExists(pos1, pos2));
+
+		bool block1Removed = circuit->tryRemoveBlock(pos1);
+		bool block2Removed = circuit->tryRemoveBlock(pos2);
+		// ASSERT_TRUE(block1Removed);
+		// ASSERT_TRUE(block2Removed);
 	}
 }
 
@@ -187,6 +213,8 @@ TEST_F(CircuitTest, BlockTypePlacement) {
 			const Block* block = circuit->getBlockContainer()->getBlock(pos);
 			ASSERT_EQ(block, nullptr);
 		}
+		bool blockRemoved = circuit->tryRemoveBlock(pos);
+		// ASSERT_TRUE(blockRemoved);
 	}
 }
 
@@ -208,6 +236,11 @@ TEST_F(CircuitTest, ConnectionRemovalConnectionEnd) {
 			ConnectionEnd(container->getBlock(pos2)->id(), container->getBlock(pos2)->getInputConnectionId(pos2).value())
 		);
 		ASSERT_TRUE(removed);
+
+		bool block1Removed = circuit->tryRemoveBlock(pos1);
+		bool block2Removed = circuit->tryRemoveBlock(pos2);
+		// ASSERT_TRUE(block1Removed);
+		// ASSERT_TRUE(block2Removed);
 
 		ASSERT_FALSE(container->connectionExists(pos1, pos2));
 	}
