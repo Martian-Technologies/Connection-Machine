@@ -114,8 +114,8 @@ TEST_F(CircuitTest, InvalidConnections) {
 	for (i = 0; i < 100; i++) {
 		Position pos1(rand() % 100000, rand() % 100000);
 		Position pos2(rand() % 100000, rand() % 100000);
-		if (pos1 == pos2) { --i; continue; }
 		Position nonExistent(rand() % 100000, rand() % 100000);
+		if (pos1 == pos2 || pos1 == nonExistent || pos2 == nonExistent) { --i; continue; }
 		Rotation rot = Rotation::ZERO;
 
 		circuit->tryInsertBlock(pos1, rot, BlockType::AND);
