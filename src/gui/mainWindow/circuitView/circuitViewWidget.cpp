@@ -61,6 +61,7 @@ CircuitViewWidget::CircuitViewWidget(
 	Settings::registerListener<SettingType::BOOL>("Keybinds/Camera/Scroll Panning", [this](const bool& enabled) {
 		mouseControls = !enabled;
 	});
+	mouseControls = Settings::get<SettingType::BOOL>("Keybinds/Camera/Scroll Panning");
 
 	// set initial view
 	element->AddEventListener(Rml::EventId::Resize, new EventPasser([this](Rml::Event&){handleResize();}));

@@ -6,6 +6,7 @@
 #include "backend/settings/settings.h"
 #include "backend/settings/settingsMap.h"
 #include "computerAPI/directoryManager.h"
+#include "computerAPI/saveSettings.h"
 
 int main(int argc, char* argv[]) {
 	try {
@@ -40,10 +41,11 @@ int main(int argc, char* argv[]) {
 		Settings::registerSetting<SettingType::KEYBIND>("Keybinds/Window/Decrease UI Scale", Keybind(Keybind::KeyId::KI_OEM_MINUS, Keybind::KeyMod::KM_CTRL));
 		Settings::registerSetting<SettingType::KEYBIND>("Keybinds/Window/Reset UI Scale", Keybind(Keybind::KeyId::KI_0, Keybind::KeyMod::KM_CTRL));
 		Settings::registerSetting<SettingType::KEYBIND>("Keybinds/Camera/Zoom", Keybind(Keybind::KeyId::KI_UNKNOWN, Keybind::KeyMod::KM_SHIFT));
-		Settings::registerSetting<SettingType::BOOL>("Keybinds/Camera/Scroll Panning", true);
+		Settings::registerSetting<SettingType::BOOL>("Keybinds/Camera/Scroll Panning", false);
 		Settings::registerSetting<SettingType::DECIMAL>("Appearance/UI Scale", 1.0);
 		Settings::registerSetting<SettingType::UINT>("Simulation/Max Thread Count", std::thread::hardware_concurrency() / 2);
-
+		// SaveSettings save;
+		// save.setup_settings(Settings::getSettingsMap());
 		App::get().runLoop();
 		App::kill();
 	} catch (const std::exception& e) {
