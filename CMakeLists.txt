@@ -38,10 +38,22 @@ file(GLOB_RECURSE PROJECT_SOURCES
 )
 
 option(CONNECTION_MACHINE_BUILD_APP "Build Connection Machine App" ON)
+option(CONNECTION_MACHINE_BUILD_CLI_APP "Build Connection Machine App" ON)
 option(CONNECTION_MACHINE_DISTRIBUTE_APP "Distribute App" OFF)
 option(CONNECTION_MACHINE_BUILD_TESTS "Build Connection Machine Tests" OFF)
 option(CONNECTION_MACHINE_CODE_COVERAGE "Enable code coverage reporting" OFF)
 option(RUN_TRACY_PROFILER "Enable runtime profiler" OFF)
+
+if(CONNECTION_MACHINE_BUILD_CLI_APP AND CONNECTION_MACHINE_BUILD_APP)
+	message("Do not build both cli and non cli app at once")
+	set(CONNECTION_MACHINE_BUILD_CLI_APP OFF)
+endif()
+
+if(CONNECTION_MACHINE_BUILD_APP)
+	list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR}/cli/.*")
+elseif()
+	list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR}/gui/.*")
+endif()
 
 if(MSVC)
 	add_compile_options(/W1)
@@ -49,6 +61,10 @@ endif()
 
 if (CONNECTION_MACHINE_BUILD_APP)
 	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/makeApp.cmake)
+endif()
+
+if (CONNECTION_MACHINE_BUILD_CLI_APP)
+	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/makeCLI.cmake)
 endif()
 
 # ==================================== CREATE TESTING EXECUTABLE ============================================

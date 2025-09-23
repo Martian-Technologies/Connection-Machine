@@ -18,6 +18,18 @@
 			}
 		},
 		{
+			"name": "debug_cli",
+			"displayName": "Debug CLI",
+			"binaryDir": "build-cli",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug",
+				"CONNECTION_MACHINE_BUILD_APP": "OFF",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "ON",
+				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
+				"RUN_TRACY_PROFILER": "OFF"
+			}
+		},
+		{
 			"name": "debug&profiler",
 			"displayName": "Debug & Profiler",
 			"binaryDir": "build",
@@ -26,6 +38,18 @@
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
 				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
 				"RUN_TRACY_PROFILER": "ON"
+			}
+		},
+		{
+			"name": "release_cli",
+			"displayName": "Release CLI",
+			"binaryDir": "build-release-cli",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"CONNECTION_MACHINE_BUILD_APP": "OFF",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "ON",
+				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
+				"RUN_TRACY_PROFILER": "OFF"
 			}
 		},
 		{
