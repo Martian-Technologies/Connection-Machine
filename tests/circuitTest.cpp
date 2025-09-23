@@ -172,20 +172,20 @@ TEST_F(CircuitTest, ConnectionRemoval) {
 
 TEST_F(CircuitTest, BlockTypePlacement) {
 	for (i = 0; i < 100; i++) {
-		Position pos(rand() % 100000, rand() % 100000);
+		Position pos(0, 100*i);
 		Rotation rot = Rotation::ZERO;
-		BlockType type = (BlockType)(i % 100);
+		BlockType type = (BlockType)(i);
 
 		bool success = circuit->tryInsertBlock(pos, rot, type);
-		if (!(circuitManager.getBlockDataManager()->blockExists(type))) {
-			ASSERT_FALSE(success);
-			const Block* block = circuit->getBlockContainer()->getBlock(pos);
-			ASSERT_EQ(block, nullptr);
-		} else {
+		if (circuit->getBlockContainer()->canInsertBlocktype(type)) {
 			ASSERT_TRUE(success);
 			const Block* block = circuit->getBlockContainer()->getBlock(pos);
 			ASSERT_NE(block, nullptr);
 			ASSERT_EQ(block->type(), type);
+		} else {
+			ASSERT_FALSE(success);
+			const Block* block = circuit->getBlockContainer()->getBlock(pos);
+			ASSERT_EQ(block, nullptr);
 		}
 	}
 }

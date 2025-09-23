@@ -26,6 +26,9 @@ public:
 	bool checkCollision(Position position, Orientation orientation, BlockType blockType) const;
 	bool checkCollision(Position position, Orientation orientation, BlockType blockType, block_id_t idToIgnore) const;
 
+	/* ----------- blocktype ---------- */
+	bool canInsertBlocktype(BlockType blockType) const;
+
 	/* ----------- blocks ----------- */
 	// -- getters --
 	// Gets the cell at that position. Returns nullptr the cell is empty

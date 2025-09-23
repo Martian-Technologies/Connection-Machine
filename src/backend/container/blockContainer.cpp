@@ -55,11 +55,8 @@ unsigned int BlockContainer::getBlockTypeCountRecursive(BlockType blockType) con
 }
 
 bool BlockContainer::tryInsertBlock(Position position, Orientation orientation, BlockType blockType, Difference* difference) {
-	if (selfBlockType == blockType || !blockDataManager->blockExists(blockType) || checkCollision(position, orientation, blockType))
-		return false;
-	circuit_id_t circuitId = circuitManager->getCircuitBlockDataManager()->getCircuitId(blockType);
-	if (circuitId != 0 && circuitManager->getCircuit(circuitId)->getBlockContainer()->getBlockTypeCountRecursive(selfBlockType) != 0)
-		return false;
+	if (!canInsertBlocktype(blockType)) return false;
+	if (checkCollision(position, orientation, blockType)) return false;
 	block_id_t id = getNewId();
 	auto iter = blocks.insert(std::make_pair(id, getBlockClass(blockDataManager, blockType))).first;
 	iter->second.setId(id);
@@ -69,6 +66,15 @@ bool BlockContainer::tryInsertBlock(Position position, Orientation orientation, 
 	blockTypeCounts[blockType]++;
 	placeBlockCells(&iter->second);
 	difference->addPlacedBlock(position, orientation, blockType);
+	return true;
+}
+
+bool BlockContainer::canInsertBlocktype(BlockType blockType) const {
+	if (selfBlockType == blockType || !blockDataManager->blockExists(blockType))
+		return false;
+	circuit_id_t circuitId = circuitManager->getCircuitBlockDataManager()->getCircuitId(blockType);
+	if (circuitId != 0 && circuitManager->getCircuit(circuitId)->getBlockContainer()->getBlockTypeCountRecursive(selfBlockType) != 0)
+		return false;
 	return true;
 }
 
