@@ -27,7 +27,7 @@ private:
 	VkDescriptorSetLayout stateBufferDescriptorSetLayout;
 
 	// refs
-	VulkanDevice* device;
+	VulkanDevice* device = nullptr;
 };
 
 #endif

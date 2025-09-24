@@ -58,13 +58,8 @@ endif()
 
 if (CONNECTION_MACHINE_BUILD_APP)
 	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/makeApp.cmake)
-endif()
-
-if (CONNECTION_MACHINE_BUILD_CLI_APP)
+elseif(CONNECTION_MACHINE_BUILD_CLI_APP)
 	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/makeCLI.cmake)
-endif()
-
-# ==================================== CREATE TESTING EXECUTABLE ============================================
-if (CONNECTION_MACHINE_BUILD_TESTS)
+elseif(CONNECTION_MACHINE_BUILD_TESTS)
 	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/makeTests.cmake)
 endif()

@@ -2,6 +2,7 @@ include(cmake/CPM.cmake)
 include(ExternalProject)
 
 function(add_main_dependencies)
+	message("adding main dependencies")
 	# cfgpath
 	CPMAddPackage(
 		NAME cfgpath

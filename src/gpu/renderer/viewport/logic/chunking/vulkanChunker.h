@@ -133,10 +133,10 @@ public:
 
 private:
 	std::optional<AllocatedBuffer> blockBuffer;
-	uint32_t numBlockInstances;
+	uint32_t numBlockInstances = 0;
 
 	std::optional<AllocatedBuffer> wireBuffer;
-	uint32_t numWireInstances;
+	uint32_t numWireInstances = 0;
 
 	std::optional<NBuffer> stateBuffer;
 	VkDescriptorBufferInfo stateDescriptorBufferInfo;
