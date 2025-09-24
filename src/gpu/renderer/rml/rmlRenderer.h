@@ -65,7 +65,7 @@ private:
 	std::vector<RmlRenderInstruction> tempRenderInstructions;
 	std::mutex rmlInstructionMux;
 
-	VulkanDevice* device;
+	VulkanDevice* device = nullptr;
 };
 
 #endif /* rmlRenderer_h */
