@@ -38,9 +38,6 @@ public:
 	// void addCircuitViewWidget() // once we can change element that it is attached to
 	void createCircuitViewWidget(Rml::Element* element);
 
-	void saveCircuit(circuit_id_t id, bool saveAs);
-	void loadCircuit();
-	void exportProject();
 	void addPopUp(const std::string& message, const std::vector<std::pair<std::string, std::function<void()>>>& options);
 	void savePopUp(const std::string& circuitUUID);
 	void saveAsPopUp(const std::string& circuitUUID);

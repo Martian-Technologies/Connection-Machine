@@ -23,7 +23,7 @@ void App::kill() {
 App::App() : rml(&rmlSystemInterface, &rmlRenderInterface) {}
 
 std::shared_ptr<SdlWindow> App::registerWindow(const std::string& windowName) {
-	return sdlWindows.emplace_back(std::make_shared<SdlWindow>(std::move(windowName)));
+	return sdlWindows.emplace_back(std::make_shared<SdlWindow>(windowName));
 }
 
 void App::deregisterWindow(std::shared_ptr<SdlWindow>& sdlWindow) {
