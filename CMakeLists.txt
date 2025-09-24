@@ -1,9 +1,9 @@
 # ======================================== CMAKE SETUP ========================================
 cmake_minimum_required(VERSION 3.10)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/apple.cmake)
 
 if(APPLE)
+	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/apple.cmake)
 	PreProjectAppleSetup()
 endif()
 
