@@ -25,3 +25,11 @@ TEST_F(BlockTest, constructor) {
 		}
 	}
 }
+
+TEST_F(BlockTest, copyConstructor) {
+	Block block(&(blockDataManager.value()));
+	Block copyBlock(block);
+	ASSERT_EQ(block.type(), copyBlock.type());
+	ASSERT_EQ(block.size(), copyBlock.size());
+	ASSERT_NE(&block, &copyBlock);
+}
