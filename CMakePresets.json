@@ -41,6 +41,17 @@
 			}
 		},
 		{
+			"name": "release",
+			"displayName": "Release",
+			"binaryDir": "build-release",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"CONNECTION_MACHINE_BUILD_APP": "ON",
+				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
+				"RUN_TRACY_PROFILER": "OFF"
+			}
+		},
+		{
 			"name": "release_cli",
 			"displayName": "Release CLI",
 			"binaryDir": "build-release-cli",
@@ -48,17 +59,6 @@
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_APP": "OFF",
 				"CONNECTION_MACHINE_BUILD_CLI_APP": "ON",
-				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
-				"RUN_TRACY_PROFILER": "OFF"
-			}
-		},
-		{
-			"name": "release",
-			"displayName": "Release",
-			"binaryDir": "build-release",
-			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Release",
-				"CONNECTION_MACHINE_BUILD_APP": "ON",
 				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
 				"RUN_TRACY_PROFILER": "OFF"
 			}
@@ -131,12 +131,20 @@
 			"name": "debug&profiler",
 			"displayName": "Build Debug & Profiler",
 			"configurePreset": "debug&profiler",
-			"configuration": "Debug"
+			"configuration": "Debug",
+			"jobs": 8
 		},
 		{
 			"name": "release",
 			"displayName": "Build Release",
 			"configurePreset": "release",
+			"configuration": "Release",
+			"jobs": 8
+		},
+		{
+			"name": "release_cli",
+			"displayName": "Build Release CLI",
+			"configurePreset": "release_cli",
 			"configuration": "Release",
 			"jobs": 8
 		},

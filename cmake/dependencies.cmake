@@ -3,6 +3,11 @@ include(ExternalProject)
 
 function(add_main_dependencies)
 	message("adding main dependencies")
+	if (APPLE)
+		find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)
+		list(APPEND EXTERNAL_LINKS ${COREFOUNDATION_FRAMEWORK})
+	endif()
+
 	# cfgpath
 	CPMAddPackage(
 		NAME cfgpath
@@ -58,6 +63,9 @@ function(add_main_dependencies)
 	list(APPEND EXTERNAL_LINKS cpplocate::liblocate)
 
 	# wasmtime
+	if (APPLE)
+		set(ENV{MACOSX_DEPLOYMENT_TARGET} "15.0")
+	endif()
 	if (APPLE AND CONNECTION_MACHINE_DISTRIBUTE_APP)
 		add_library(wasmtime STATIC IMPORTED GLOBAL)
 		CPMAddPackage(
