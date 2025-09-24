@@ -1,3 +1,13 @@
+# Find source files
+file(GLOB_RECURSE PROJECT_SOURCES
+	"${SOURCE_DIR}/*.cpp"
+)
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR}\/gui\/.*")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR}\/gpu\/.*")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR}\/environment\/blockRenderDataFeeder.cpp")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR}\/main.cpp")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR}\/app.cpp")
+
 # ===================================== CREATE APP EXECUTABLE ========================================
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})

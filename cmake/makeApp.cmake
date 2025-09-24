@@ -1,3 +1,9 @@
+# Find source files
+file(GLOB_RECURSE PROJECT_SOURCES
+	"${SOURCE_DIR}/*.cpp"
+)
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR}/cli/.*")
+
 # ===================================== CREATE APP EXECUTABLE ========================================
 
 # Platform specific business before add_executable
@@ -37,7 +43,7 @@ if(APPLE) # MacOS
 	# set(CMAKE_MACOSX_BUNDLE YES)
 
 	set_target_properties(${PROJECT_NAME} PROPERTIES MACOSX_BUNDLE TRUE)
-	# Bundle Properties 
+	# Bundle Properties
 	set_target_properties(${PROJECT_NAME} PROPERTIES
 		MACOSX_BUNDLE TRUE
 		# indentification
@@ -155,7 +161,7 @@ if (APPLE AND CONNECTION_MACHINE_DISTRIBUTE_APP)
 		)
 
 		set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR})
-		
+
 		install(TARGETS ${PROJECT_NAME} BUNDLE DESTINATION ".")
 
 		set(CPACK_PACKAGE_FILE_NAME "Connection-Machine-${PROJECT_VERSION}-Mac-universal")
