@@ -44,8 +44,8 @@ int main(int argc, char* argv[]) {
 		Settings::registerSetting<SettingType::BOOL>("Keybinds/Camera/Scroll Panning", false);
 		Settings::registerSetting<SettingType::DECIMAL>("Appearance/UI Scale", 1.0);
 		Settings::registerSetting<SettingType::UINT>("Simulation/Max Thread Count", std::thread::hardware_concurrency() / 2);
-		// SaveSettings save;
-		// save.setup_settings(Settings::getSettingsMap());
+		SaveSettings save;
+		save.setup_settings();
 		App::get().runLoop();
 		App::kill();
 	} catch (const std::exception& e) {

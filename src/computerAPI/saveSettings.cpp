@@ -2,7 +2,15 @@
 #include "directoryManager.h"
 #include "../backend/settings/keybind.h"
 
-void update_settings(const SettingsMap& settings) {
+SaveSettings::SaveSettings() {
+    Settings::registerListener([this](const std::string& key){
+        save();
+    });
+}
+
+void SaveSettings::save() {
+    SettingsMap& settings = Settings::getSettingsMap();
+    
     std::filesystem::path path = DirectoryManager::getConfigDirectory() / "stored_settings.txt";
     std::ofstream out(path);
     if (!out) {
@@ -14,35 +22,35 @@ void update_settings(const SettingsMap& settings) {
         const std::string& key = pair.first;
         const auto& entry = pair.second;
 
-        out << key << " = ";
+        out << std::quoted(key) << " = ";
 
         switch (entry->getType()) {
             case SettingType::STRING: {
-                if (auto val = settings.get<SettingType::STRING>(key)) out << *val;
+                out << std::quoted(*settings.get<SettingType::STRING>(key));
                 break;
             }
             case SettingType::INT: {
-                if (auto val = settings.get<SettingType::INT>(key)) out << *val;
+                out << std::quoted(std::to_string(*settings.get<SettingType::INT>(key)));
                 break;
             }
             case SettingType::UINT: {
-                if (auto val = settings.get<SettingType::UINT>(key)) out << *val;
+                out << std::quoted(std::to_string(*settings.get<SettingType::UINT>(key)));
                 break;
             }
             case SettingType::DECIMAL: {
-                if (auto val = settings.get<SettingType::DECIMAL>(key)) out << *val;
+                out << std::quoted(std::to_string(*settings.get<SettingType::DECIMAL>(key)));
                 break;
             }
             case SettingType::BOOL: {
-                if (auto val = settings.get<SettingType::BOOL>(key)) out << (*val ? "true" : "false");
+                out << std::quoted(*settings.get<SettingType::BOOL>(key) ? "true" : "false");
                 break;
             }
             case SettingType::KEYBIND: {
-                if (auto val = settings.get<SettingType::KEYBIND>(key)) out << val->getKeyCombined();
+                out << std::quoted(std::to_string(settings.get<SettingType::KEYBIND>(key)->getKeyCombined()));
                 break;
             }
             case SettingType::FILE_PATH: {
-                if (auto val = settings.get<SettingType::FILE_PATH>(key)) out << *val;
+                out << std::quoted(*settings.get<SettingType::FILE_PATH>(key));
                 break;
             }
             case SettingType::VOID:
@@ -55,84 +63,64 @@ void update_settings(const SettingsMap& settings) {
     }
 }
 
-static inline void trim(std::string& s) {
-    auto not_space = [](unsigned char c){ return !std::isspace(c); };
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), not_space));
-    s.erase(std::find_if(s.rbegin(), s.rend(), not_space).base(), s.end());
-}
-
-static inline bool parse_bool(const std::string& v) {
-    std::string t; t.reserve(v.size());
-    for (unsigned char c : v) t.push_back(static_cast<char>(std::tolower(c)));
-    return (t == "1" || t == "true" || t == "yes" || t == "on");
-}
-
 // NOTE: pass by reference so we actually modify the caller's map
-void setup_settings(SettingsMap& settingsMap) {
+void SaveSettings::load() {
     std::filesystem::path path = DirectoryManager::getConfigDirectory() / "stored_settings.txt";
     std::ifstream in(path);
     if (!in) {
-        // first run: no file yet = fine
+        // First run: no file yet
         return;
     }
 
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.empty() || line[0] == '#') continue;
-
-        auto eq = line.find('=');
-        if (eq == std::string::npos) continue;
-
-        std::string key   = line.substr(0, eq);
-        std::string value = line.substr(eq + 1);
-        trim(key); trim(value);
-
-        const SettingType type = settingsMap.getType(key);
-        if (type == SettingType::VOID) {
-            // unknown or unregistered key — skip
+    std::string key, eq, value;
+    while (in >> std::quoted(key) >> eq >> std::quoted(value)) {
+        if (eq != "=") {
+            logWarning("Malformed settings line in {}", "SaveSettings", path.string());
             continue;
         }
 
-        try {
-            switch (type) {
-                case SettingType::STRING:
-                    settingsMap.set<SettingType::STRING>(key, value);
-                    break;
+        if (!Settings::hasKey(key)) {
+            // Unknown key: skip instead of crashing
+            continue;
+        }
 
-                case SettingType::INT:
-                    settingsMap.set<SettingType::INT>(key, std::stoi(value));
-                    break;
-
-                case SettingType::UINT:
-                    settingsMap.set<SettingType::UINT>(key, static_cast<unsigned int>(std::stoul(value)));
-                    break;
-
-                case SettingType::DECIMAL:
-                    settingsMap.set<SettingType::DECIMAL>(key, std::stod(value));
-                    break;
-
-                case SettingType::BOOL:
-                    settingsMap.set<SettingType::BOOL>(key, parse_bool(value));
-                    break;
-
-                case SettingType::KEYBIND: {
-                    // value is raw keyCombined
-                    unsigned int combined = static_cast<unsigned int>(std::stoul(value));
-                    settingsMap.set<SettingType::KEYBIND>(key, Keybind(combined));
-                    break;
-                }
-
-                case SettingType::FILE_PATH:
-                    settingsMap.set<SettingType::FILE_PATH>(key, value);
-                    break;
-
-                case SettingType::VOID:
-                default:
-                    break;
-            }
-        } catch (const std::exception&) {
-            // malformed value; skip this line (optionally log)
-            // logWarning("Malformed setting line: {}", "SetupSettings", line);
+        switch (Settings::getType(key)) {
+            case SettingType::STRING:
+                Settings::set<SettingType::STRING>(key, value);
+                break;
+            case SettingType::INT:
+                try {
+                    Settings::set<SettingType::INT>(key, std::stoi(value));
+                } catch (...) {}
+                break;
+            case SettingType::UINT:
+                try {
+                    Settings::set<SettingType::UINT>(key, static_cast<unsigned int>(std::stoul(value)));
+                } catch (...) {}
+                break;
+            case SettingType::DECIMAL:
+                try {
+                    Settings::set<SettingType::DECIMAL>(key, std::stod(value));
+                } catch (...) {}
+                break;
+            case SettingType::BOOL:
+                std::string keyCopy = key;
+                std::transform(keyCopy.begin(), keyCopy.end(), keyCopy.begin(), ::tolower);
+                Settings::set<SettingType::BOOL>(key, keyCopy == "1" || keyCopy == "true" || keyCopy == "yes" || keyCopy == "on");
+                break;
+            case SettingType::KEYBIND:
+                try {
+                    Settings::set<SettingType::KEYBIND>(key, Keybind(std::stoi(value)));
+                } catch (...) {}
+                break;
+            case SettingType::FILE_PATH:
+                Settings::set<SettingType::FILE_PATH>(key, value);
+                break;
+            case SettingType::VOID:
+            default:
+                // Ignore void/unknown types
+                break;
         }
     }
 }
+

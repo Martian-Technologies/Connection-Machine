@@ -5,10 +5,11 @@
 #include "../backend/settings/settings.h"
 #include "../backend/settings/settingsMap.h"
 
-class SaveSettings{
-    
+class SaveSettings {
 public:
-    void update_settings(SettingsMap& settingsMap);
-    void setup_settings(SettingsMap& settingsMap);
+    SaveSettings();
+    void save();
+    void load();
 };
+
 #endif
