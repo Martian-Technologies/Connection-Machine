@@ -11,7 +11,7 @@ public:
 	void initializeDefaults() {
 		assert(blockData.size() == 0); // should call this before doing anything
 		// load default data
-		for (unsigned int i = 0; i < 13; i++) addBlock();
+		for (unsigned int i = 0; i < 14; i++) addBlock();
 		getBlockData(BlockType::AND)->setName("And");
 		getBlockData(BlockType::OR)->setName("Or");
 		getBlockData(BlockType::XOR)->setName("Xor");
@@ -47,6 +47,14 @@ public:
 		getBlockData(BlockType::LIGHT)->setName("Light");
 		getBlockData(BlockType::LIGHT)->setDefaultData(false);
 		getBlockData(BlockType::LIGHT)->setConnectionInput(Vector(0), 0);
+		// BUS
+		getBlockData(BlockType::BUS)->setName("Bus");
+		getBlockData(BlockType::BUS)->setDefaultData(false);
+		getBlockData(BlockType::BUS)->setConnectionOutput(Vector(1, 0), 0);
+		for (int i = 0; i < 8; ++i) {
+			getBlockData(BlockType::BUS)->setConnectionInput(Vector(0, i), i + 1);
+		}
+		getBlockData(BlockType::BUS)->setSize(Size(2, 8));
 	}
 
 	inline BlockType addBlock() noexcept {
