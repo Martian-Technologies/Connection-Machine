@@ -33,7 +33,7 @@ set(EXTERNAL_DIR "${CMAKE_SOURCE_DIR}/external")
 set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/resources")
 
 option(CONNECTION_MACHINE_BUILD_APP "Build Connection Machine App" ON)
-option(CONNECTION_MACHINE_BUILD_CLI_APP "Build Connection Machine App" ON)
+option(CONNECTION_MACHINE_BUILD_CLI_APP "Build Connection Machine CLI App" ON)
 option(CONNECTION_MACHINE_DISTRIBUTE_APP "Distribute App" OFF)
 option(CONNECTION_MACHINE_BUILD_TESTS "Build Connection Machine Tests" OFF)
 option(CONNECTION_MACHINE_CODE_COVERAGE "Enable code coverage reporting" OFF)
