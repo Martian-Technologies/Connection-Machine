@@ -1,5 +1,7 @@
 #include "commandManager.h"
 
+#include "environment/environment.h"
+
 std::optional<CommandManager> commandManagerSingleton;
 
 CommandManager& CommandManager::get() {
@@ -18,11 +20,11 @@ void CommandManager::registerCommand(std::unique_ptr<Command>&& command) {
     }
 }
 
-void CommandManager::run(const std::vector<std::string>& commandParams, Environment& environment) {
-    auto iter = commandMap.find(commandParams[0]);
+void CommandManager::run(const std::vector<std::string>& commandArgs, Environment& environment) {
+    auto iter = commandMap.find(commandArgs[0]);
     if (iter == commandMap.end()) {
-		logError("Failed to run nonexistent command {}", "CommandManager", commandParams[0]);
+		logError("Failed to run nonexistent command {}", "CommandManager", commandArgs[0]);
 		return;
     }
-    iter->second->run(commandParams);
+    iter->second->run(commandArgs, environment);
 }

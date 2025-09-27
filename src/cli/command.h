@@ -1,11 +1,16 @@
 #ifndef command_h
 #define command_h
 
+class Environment;
+
 class Command {
 public:
-    virtual ~Command() = 0;
-    virtual const std::string& getName() = 0;
-    virtual void run(std::vector<std::string> commands) = 0;
+	Command(std::string name) : name(std::move(name)) {}
+    virtual ~Command() {};
+    virtual const std::string& getName() { return name; };
+    virtual void run(const std::vector<std::string>& args, Environment& environment) = 0;
+private:
+	std::string name;
 };
 
 #endif

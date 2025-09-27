@@ -1,19 +1,29 @@
 #ifndef cliApp_h
 #define cliApp_h
 
+#include "commandManager.h"
+#include "environment/environment.h"
+#include "util/multiDelimiterQuoted.h"
+
 class CliApp {
 public:
     CliApp() {
         std::string input;
-        std::cout << "Enter command: " << std::flush;
+		std::cout << "Connection Machine CLI" << std::endl;
+        std::cout << "> " << std::flush;
         while (std::getline(std::cin, input)) {
             std::istringstream input_stream;
             input_stream.str(input);
-            for (std::string arg; input_stream >> std::quoted(arg);)
-                std::cout << arg << '\n';
-            std::cout << "Enter command: " << std::flush;
+			std::vector<std::string> args;
+            for (std::string arg; input_stream >> MultiDelimiterQuoted(arg, {'"', '\''});)
+                args.emplace_back(std::move(arg));
+			CommandManager::get().run(args, environment);
+			std::cout << "> " << std::flush;
         }
     }
+
+private:
+	Environment environment;
 };
 
 #endif
