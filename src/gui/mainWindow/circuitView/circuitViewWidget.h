@@ -32,6 +32,7 @@ public:
 	void load();
 	void save();
 	void asSave();
+    //void test();
 
 private:
 	// utility functions
@@ -50,6 +51,7 @@ private:
 	Rml::Element* element;
 	MainWindow* mainWindow;
 	KeybindHandler keybindHandler;
+    //std:unique_ptr<Tutorial> tutorial;
 
 	// settings (temp)
 	bool mouseControls = false;

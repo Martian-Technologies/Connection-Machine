@@ -10,10 +10,12 @@
 #include "gui/mainWindow/mainWindow.h"
 #include "gui/helper/keybindHelpers.h"
 #include "gui/helper/eventPasser.h"
+#include "gui/viewportManager/circuitView/tutorial/Tutorial.h"
 
 #include "environment/environment.h"
 
 void LoadCallback(void* userData, const char* const* filePaths, int filter) {
+    std::cout << *filePaths << " " << filter << std::endl;
 	CircuitViewWidget* circuitViewWidget = (CircuitViewWidget*)userData;
 	if (filePaths && filePaths[0]) {
 		std::string filePath = filePaths[0];
@@ -68,6 +70,11 @@ CircuitViewWidget::CircuitViewWidget(
 
 	// create keybind shortcuts and connect them
 	document->AddEventListener(Rml::EventId::Keydown, &keybindHandler);
+	keybindHandler.addListener(
+		Rml::Input::KeyIdentifier::KI_B,
+		[this]() { circuitView->tutorial->t();}
+		//[this]() { logInfo("helpme");}
+	);
 	keybindHandler.addListener(
 		"Keybinds/Editing/Undo",
 		[this]() { if (circuitView->getCircuit()) circuitView->getCircuit()->undo(); }
@@ -253,6 +260,7 @@ void CircuitViewWidget::setSimSpeed(double speed) {
 }
 
 void CircuitViewWidget::newCircuit() {
+    
 	if (circuitView->getBackend() == nullptr) {
 		logError("Can't make circuit when no backend is set", "CircuitViewWidget");
 		return;
@@ -265,6 +273,10 @@ void CircuitViewWidget::newCircuit() {
 		if (iter.second->getCircuitId(Address()) == id) {
 			circuitView->setEvaluator(circuitView->getBackend(), iter.second);
 			// circuitView->getBackend()->linkCircuitViewWithEvaluator(circuitView.get(), iter.first, Address());
+            //TUTORIAL TEST
+            //const char* filePath = "/Users/yuguang/Documents/test.cir";
+            //const char* const* = &filepath;
+            //LoadCallback(this, filePath, -1);
 			return;
 		}
 	}
@@ -333,3 +345,4 @@ inline float CircuitViewWidget::getPixelsXPos() const {
 inline float CircuitViewWidget::getPixelsYPos() const {
 	return element->GetAbsoluteTop() + element->GetClientTop();
 }
+

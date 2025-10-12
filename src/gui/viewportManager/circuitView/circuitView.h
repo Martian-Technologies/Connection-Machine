@@ -5,6 +5,7 @@
 #include "viewManager/viewManager.h"
 #include "events/eventRegister.h"
 #include "tools/toolManager.h"
+#include "tutorial/Tutorial.h"
 
 #include "gpu/mainRendererDefs.h"
 
@@ -46,6 +47,13 @@ public:
 	void setCircuit(Backend* backend, circuit_id_t circuitId);
 
 	void viewChanged();
+    //TODO: make private and public getter
+    std::unique_ptr<Tutorial> tutorial;
+    //yuguang
+    ViewportId getrViewportId(){ return viewportId; }
+    void p(){
+        logInfo("eeee");
+    }
 
 private:
 	Backend* backend;
