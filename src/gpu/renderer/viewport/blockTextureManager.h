@@ -16,6 +16,7 @@ struct BlockTextureArray {
     VkSampler sampler;
     VkDescriptorSet descriptor;
 	VkExtent3D textureSize;
+	std::vector<bool> layerInitialized;
 
     uint32_t maxLayers;
     uint32_t nextFreeLayer;

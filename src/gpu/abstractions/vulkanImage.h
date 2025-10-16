@@ -22,6 +22,8 @@ AllocatedImage createImage(VulkanDevice* device, VkExtent3D size, VkFormat forma
 AllocatedImage createImage(VulkanDevice* device, void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 void destroyImage(AllocatedImage& image);
 
+void generateMipmapsCmd(VkCommandBuffer cmd, const AllocatedImage& image, uint32_t baseArrayLayer, uint32_t layerCount);
+
 bool transitionImageLayout(VkCommandBuffer cmd, AllocatedImage& image, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 #endif

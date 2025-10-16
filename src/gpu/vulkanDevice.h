@@ -33,6 +33,7 @@ public:
 	inline const vkb::Device& getDevice() const { return device; }
 	inline VmaAllocator getAllocator() { return vmaAllocator; }
 	inline const VmaAllocator getAllocator() const { return vmaAllocator; }
+	inline VkPhysicalDevice getPhysicalDevice() const { return physicalDevice; }
 
 	inline BlockTextureManager& getBlockTextureManager() { return blockTextureManager; }
 	inline RmlResourceManager& getRmlResourceManager() { return rmlResourceManager; }

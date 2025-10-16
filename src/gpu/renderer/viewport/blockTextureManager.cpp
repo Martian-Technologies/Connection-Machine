@@ -3,6 +3,11 @@
 #include "gpu/vulkanDevice.h"
 #include "util/algorithm.h"
 
+namespace {
+constexpr uint32_t kSkippedTailMipLevels = 2;
+constexpr float kBlockSamplerMipBias = -0.5f;
+}
+
 BlockTextureArray::~BlockTextureArray() {
 	destroyImage(image);
 	vkDestroySampler(device->getDevice(), sampler, nullptr);
@@ -19,8 +24,9 @@ void BlockTextureManager::init(VulkanDevice* device) {
 	textureArray->device = device;
 	textureArray->maxLayers = 1;
 	textureArray->nextFreeLayer = 0;
+	textureArray->layerInitialized.assign(textureArray->maxLayers, false);
 	textureArray->image =
-		createImage(device, textureSize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, false, textureArray->maxLayers);
+		createImage(device, textureSize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, true, textureArray->maxLayers);
 
 	// create layout and descriptor set
 	DescriptorLayoutBuilder textureLayoutBuilder;
@@ -33,6 +39,17 @@ void BlockTextureManager::init(VulkanDevice* device) {
 	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	samplerInfo.minFilter = VK_FILTER_LINEAR;
 	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.mipLodBias = kBlockSamplerMipBias;
+	samplerInfo.minLod = 0.0f;
+	const uint32_t totalMipLevels = std::max(1u, textureArray->image.mipLevels);
+	const uint32_t usableMipLevels =
+		totalMipLevels > kSkippedTailMipLevels ? totalMipLevels - kSkippedTailMipLevels : totalMipLevels;
+	samplerInfo.maxLod = static_cast<float>(usableMipLevels - 1);
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
 	vkCreateSampler(device->getDevice(), &samplerInfo, nullptr, &textureArray->sampler);
 
 	// write descriptor
@@ -205,6 +222,8 @@ void BlockTextureManager::addTextureToArray(const stbi_uc* pixels, glm::vec2 tex
 		resizeTextureArray(textureLayer + 1);
 	}
 
+	const bool layerAlreadyInitialized = textureArray->layerInitialized.size() > textureLayer && textureArray->layerInitialized[textureLayer];
+
 	VkDevice device = textureArray->device->getDevice();
 
 	VkDeviceSize imageSize = static_cast<VkDeviceSize>(textureSize.x) * textureSize.y * 4;
@@ -221,20 +240,21 @@ void BlockTextureManager::addTextureToArray(const stbi_uc* pixels, glm::vec2 tex
 		// Transition target layer to TRANSFER_DST_OPTIMAL
 		VkImageMemoryBarrier barrier{};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		barrier.oldLayout = layerAlreadyInitialized ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
 		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.image = textureArray->image.image;
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		barrier.subresourceRange.baseMipLevel = 0;
-		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.levelCount = textureArray->image.mipLevels;
 		barrier.subresourceRange.baseArrayLayer = textureLayer;
 		barrier.subresourceRange.layerCount = 1;
-		barrier.srcAccessMask = 0;
+		barrier.srcAccessMask = layerAlreadyInitialized ? VK_ACCESS_SHADER_READ_BIT : 0;
 		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
-		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+		VkPipelineStageFlags srcStage = layerAlreadyInitialized ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		vkCmdPipelineBarrier(cmd, srcStage, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
 		// Copy staging buffer → texture layer
 		VkBufferImageCopy region{};
@@ -252,17 +272,21 @@ void BlockTextureManager::addTextureToArray(const stbi_uc* pixels, glm::vec2 tex
 
 		vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, textureArray->image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-		// Transition layer to SHADER_READ_ONLY_OPTIMAL
-		VkImageMemoryBarrier shaderBarrier = barrier;
-		shaderBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		shaderBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		shaderBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		shaderBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		if (textureArray->image.mipLevels > 1) {
+			generateMipmapsCmd(cmd, textureArray->image, textureLayer, 1);
+		} else {
+			VkImageMemoryBarrier shaderBarrier = barrier;
+			shaderBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			shaderBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			shaderBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			shaderBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-		vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &shaderBarrier);
+			vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &shaderBarrier);
+		}
 	});
 
 	destroyBuffer(stagingBuffer);
+	textureArray->layerInitialized[textureLayer] = true;
 }
 
 void BlockTextureManager::resizeTextureArray(uint32_t newLayerCount) {
@@ -275,23 +299,59 @@ void BlockTextureManager::resizeTextureArray(uint32_t newLayerCount) {
 		textureArray->textureSize,
 		VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-		false,
+		true,
 		newLayerCount
 	);
 
 	dev->immediateSubmit([&](VkCommandBuffer cmd) {
+		transitionImageLayout(cmd, newImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
 		for (uint32_t layer = 0; layer < oldLayerCount; layer++) {
+			const bool hadData = textureArray->layerInitialized.size() > layer && textureArray->layerInitialized[layer];
+			if (!hadData) {
+				continue;
+			}
+
+			VkImageMemoryBarrier srcBarrier{};
+			srcBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			srcBarrier.image = oldImage.image;
+			srcBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			srcBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			srcBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			srcBarrier.subresourceRange.baseMipLevel = 0;
+			srcBarrier.subresourceRange.levelCount = oldImage.mipLevels;
+			srcBarrier.subresourceRange.baseArrayLayer = layer;
+			srcBarrier.subresourceRange.layerCount = 1;
+			srcBarrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			srcBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+			srcBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			srcBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+			vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &srcBarrier);
+
 			VkImageCopy region{};
 			region.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, layer, 1 };
 			region.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, layer, 1 };
 			region.extent = { textureArray->textureSize.width, textureArray->textureSize.height, 1 };
 			vkCmdCopyImage(cmd, oldImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 		}
+
+		if (newImage.mipLevels > 1) {
+			generateMipmapsCmd(cmd, newImage, 0, newLayerCount);
+		} else {
+			transitionImageLayout(cmd, newImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}
 	});
+
+	std::vector<bool> updatedInitialization(newLayerCount, false);
+	for (uint32_t layer = 0; layer < oldLayerCount && layer < textureArray->layerInitialized.size(); layer++) {
+		updatedInitialization[layer] = textureArray->layerInitialized[layer];
+	}
 
 	destroyImage(oldImage);
 	textureArray->image = newImage;
 	textureArray->maxLayers = newLayerCount;
+	textureArray->layerInitialized = std::move(updatedInitialization);
 
 	DescriptorWriter writer;
 	writer.writeImage(0, newImage.imageView, textureArray->sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
