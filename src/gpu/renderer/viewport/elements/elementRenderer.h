@@ -3,6 +3,7 @@
 
 #include "backend/position/position.h"
 #include "gpu/abstractions/vulkanPipeline.h"
+#include "gpu/abstractions/vulkanBuffer.h"
 #include "gpu/renderer/frameManager.h"
 
 #include <glm/ext/matrix_float4x4.hpp>
@@ -25,7 +26,11 @@ struct BlockPreviewRenderData {
 	glm::vec2 texPos;
 	glm::vec2 texSize;
 };
-
+struct BlockPreviewRenderBatch {
+    AllocatedBuffer buffer;
+    uint32_t instanceCount;
+    glm::vec2 offset;
+};
 struct BoxSelectionPushConstant {
     alignas(16) glm::mat4 mvp;
     alignas(8)  glm::vec2 position;

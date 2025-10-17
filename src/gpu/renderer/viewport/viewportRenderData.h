@@ -67,6 +67,7 @@ private:
 	// Elements
 	ElementId currentElementId = 0;
 	std::unordered_multimap<ElementId, BlockPreviewRenderData> blockPreviews;
+	std::unordered_map<ElementId, BlockPreviewRenderBatch> blockPreviewBatches;
 	std::unordered_map<ElementId, std::vector<BoxSelectionRenderData>> boxSelections;
 	std::unordered_map<ElementId, ConnectionPreviewRenderData> connectionPreviews;
 	std::unordered_map<ElementId, std::vector<ArrowRenderData>> arrows;
@@ -75,6 +76,8 @@ private:
 	// View data
 	ViewportViewData viewData;
 	std::mutex viewMux;
+
+	VulkanDevice* device = nullptr;
 };
 
 #endif

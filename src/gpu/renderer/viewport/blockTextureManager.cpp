@@ -266,6 +266,7 @@ void BlockTextureManager::addTextureToArray(const stbi_uc* pixels, glm::vec2 tex
 }
 
 void BlockTextureManager::resizeTextureArray(uint32_t newLayerCount) {
+	logInfo("resize");	
 	VulkanDevice* dev = textureArray->device;
 	auto oldImage = textureArray->image;
 	uint32_t oldLayerCount = textureArray->maxLayers;

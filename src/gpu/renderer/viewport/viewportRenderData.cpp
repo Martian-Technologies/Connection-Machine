@@ -8,7 +8,7 @@
 #include "gpu/renderer/viewport/elements/elementRenderer.h"
 #include "gpu/mainRenderer.h"
 
-ViewportRenderData::ViewportRenderData(VulkanDevice* device) : chunker(device) {}
+ViewportRenderData::ViewportRenderData(VulkanDevice* device_) : chunker(device_), device(device_) {}
 
 ViewportViewData ViewportRenderData::getViewData() {
 	std::lock_guard<std::mutex> lock(viewMux);
@@ -183,23 +183,82 @@ ElementId ViewportRenderData::addBlockPreview(BlockPreview&& blockPreview) {
 
 	ElementId newElement = ++currentElementId;
 
-	blockPreviews.reserve(blockPreviews.size() + blockPreview.blocks.size());
+	if (blockPreview.blocks.empty()) {
+		return newElement;
+	}
 
-	for (const BlockPreview::Block& block : blockPreview.blocks) {
+	if (blockPreview.blocks.size() == 1) {
+		const auto& block = blockPreview.blocks.front();
+		const auto* blockRenderData = MainRenderer::get()
+			.getBlockRenderDataManager()
+			.getBlockRenderData(block.blockRenderDataId);
+
+		if (!blockRenderData)
+			return newElement;
+
 		BlockPreviewRenderData newPreview;
 		newPreview.position = glm::vec2(block.position.x, block.position.y);
 		newPreview.orientation = block.orientation;
-		const BlockRenderDataManager::BlockRenderData* blockRenderData = MainRenderer::get().getBlockRenderDataManager().getBlockRenderData(block.blockRenderDataId);
-		if (!blockRenderData) continue;
+
 		Size size = block.orientation * blockRenderData->size;
 		newPreview.size = glm::vec2(size.w, size.h);
 		newPreview.textureIndex = blockRenderData->blockTextureCords.textureLayer;
 		newPreview.texPos = blockRenderData->blockTextureCords.textureOriginUV;
 		newPreview.texSize = blockRenderData->blockTextureCords.textureSizeUV;
 
-		// insert new block preview into map
-		blockPreviews.emplace(newElement, newPreview);
+		blockPreviews.emplace(newElement, std::move(newPreview));
+		return newElement;
 	}
+
+	std::vector<BlockInstance> blockInstances;
+	blockInstances.reserve(blockPreview.blocks.size());
+
+	for (const auto& block : blockPreview.blocks) {
+		const auto* blockRenderData = MainRenderer::get()
+			.getBlockRenderDataManager()
+			.getBlockRenderData(block.blockRenderDataId);
+
+		if (!blockRenderData) {
+			continue;
+		}
+
+		Size size = block.orientation * blockRenderData->size;
+
+		BlockInstance instance;
+		instance.pos = glm::vec2(block.position.x, block.position.y);
+		instance.sizeX = size.w;
+		instance.sizeY = size.h;
+		instance.orientation = block.orientation.rotation + 4 * block.orientation.flipped;
+		instance.texLayer = blockRenderData->blockTextureCords.textureLayer;
+		instance.texPos = blockRenderData->blockTextureCords.textureOriginUV;
+		instance.texSize = blockRenderData->blockTextureCords.textureSizeUV;
+
+		blockInstances.push_back(instance);
+	}
+
+	if (blockInstances.empty()) {
+		return newElement;
+	}
+
+	uint32_t numBlockInstances = blockInstances.size();
+	size_t blockBufferSize = sizeof(BlockInstance) * numBlockInstances;
+	AllocatedBuffer blockBuffer = createBuffer(
+		device,
+		blockBufferSize,
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+	);
+	void* mappedData;
+	vmaMapMemory(device->getAllocator(), blockBuffer.allocation, &mappedData);
+	memcpy(mappedData, blockInstances.data(), blockBufferSize);
+	vmaUnmapMemory(device->getAllocator(), blockBuffer.allocation);
+
+	BlockPreviewRenderBatch batch;
+	batch.buffer = blockBuffer;
+	batch.instanceCount = static_cast<uint32_t>(blockInstances.size());
+	batch.offset = glm::vec2(0.0f);
+
+	blockPreviewBatches.emplace(newElement, std::move(batch));
 
 	return newElement;
 }
@@ -211,12 +270,19 @@ void ViewportRenderData::shiftBlockPreview(ElementId id, Vector shift) {
 	for (auto iter = iterPair.first; iter != iterPair.second; ++iter) {
 		iter->second.position += glm::vec2(shift.dx, shift.dy);
 	}
+
+	auto batchIter = blockPreviewBatches.find(id);
+	if (batchIter != blockPreviewBatches.end()) {
+		auto& batch = batchIter->second;
+		batch.offset += glm::vec2(shift.dx, shift.dy);
+	}
 }
 
 void ViewportRenderData::removeBlockPreview(ElementId id) {
 	std::lock_guard<std::mutex> lock(elementsMux);
 
 	blockPreviews.erase(id);
+	blockPreviewBatches.erase(id);
 }
 
 std::vector<BlockPreviewRenderData> ViewportRenderData::getBlockPreviews() {

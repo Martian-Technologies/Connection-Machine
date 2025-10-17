@@ -47,7 +47,7 @@ void BlockRenderDataFeeder::newBlockTypeUpdate(const DataUpdateEventManager::Eve
 
 	if (!blockData->getUsesTileMapTexture()) {
 		if (blockData->getTexturePath() == "") {
-			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture(DirectoryManager::getResourceDirectory() / "gateIcon.png");
+			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture((DirectoryManager::getResourceDirectory() / "gateIcon.png").string());
 			if (blockTextureId == 0) return;
 			MainRenderer::get().setBlockTexture(blockRenderDataId, blockTextureId);
 		} else {
@@ -57,7 +57,7 @@ void BlockRenderDataFeeder::newBlockTypeUpdate(const DataUpdateEventManager::Eve
 		}
 	} else {
 		if (blockData->getTexturePath() == "") {
-			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture(DirectoryManager::getResourceDirectory() / "gateIcon.png");
+			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture((DirectoryManager::getResourceDirectory() / "gateIcon.png").string());
 			if (blockTextureId == 0) return;
 			MainRenderer::get().setBlockTexture(
 				blockRenderDataId,
@@ -180,7 +180,7 @@ void BlockRenderDataFeeder::blockDataTextureChangeUpdate(const DataUpdateEventMa
 
 	if (!blockData->getUsesTileMapTexture()) {
 		if (blockData->getTexturePath() == "") {
-			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture(DirectoryManager::getResourceDirectory() / "gateIcon.png");
+			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture((DirectoryManager::getResourceDirectory() / "gateIcon.png").string());
 			if (blockTextureId == 0) return;
 			MainRenderer::get().setBlockTexture(iter->second.blockRenderDataId, blockTextureId);
 		} else {
@@ -190,7 +190,7 @@ void BlockRenderDataFeeder::blockDataTextureChangeUpdate(const DataUpdateEventMa
 		}
 	} else {
 		if (blockData->getTexturePath() == "") {
-			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture(DirectoryManager::getResourceDirectory() / "gateIcon.png");
+			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture((DirectoryManager::getResourceDirectory() / "gateIcon.png").string());
 			if (blockTextureId == 0) return;
 			MainRenderer::get().setBlockTexture(
 				iter->second.blockRenderDataId,
@@ -231,7 +231,7 @@ void BlockRenderDataFeeder::blockDataUsesTileMapTextureChangeUpdate(const DataUp
 
 	if (!blockData->getUsesTileMapTexture()) {
 		if (blockData->getTexturePath() == "") {
-			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture(DirectoryManager::getResourceDirectory() / "gateIcon.png");
+			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture((DirectoryManager::getResourceDirectory() / "gateIcon.png").string());
 			if (blockTextureId == 0) return;
 			MainRenderer::get().setBlockTexture(iter->second.blockRenderDataId, blockTextureId);
 		} else {
@@ -241,7 +241,7 @@ void BlockRenderDataFeeder::blockDataUsesTileMapTextureChangeUpdate(const DataUp
 		}
 	} else {
 		if (blockData->getTexturePath() == "") {
-			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture(DirectoryManager::getResourceDirectory() / "gateIcon.png");
+			BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture((DirectoryManager::getResourceDirectory() / "gateIcon.png").string());
 			if (blockTextureId == 0) return;
 			MainRenderer::get().setBlockTexture(
 				iter->second.blockRenderDataId,
@@ -282,7 +282,7 @@ void BlockRenderDataFeeder::blockDataTextureTileSizeChangeUpdate(const DataUpdat
 	}
 
 	if (blockData->getTexturePath() == "") {
-		BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture(DirectoryManager::getResourceDirectory() / "gateIcon.png");
+		BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture((DirectoryManager::getResourceDirectory() / "gateIcon.png").string());
 		if (blockTextureId == 0) return;
 		MainRenderer::get().setBlockTexture(
 			iter->second.blockRenderDataId,
@@ -322,7 +322,7 @@ void BlockRenderDataFeeder::blockDataTextureSmallestCordTileChangeUpdate(const D
 	}
 
 	if (blockData->getTexturePath() == "") {
-		BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture(DirectoryManager::getResourceDirectory() / "gateIcon.png");
+		BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture((DirectoryManager::getResourceDirectory() / "gateIcon.png").string());
 		if (blockTextureId == 0) return;
 		MainRenderer::get().setBlockTexture(
 			iter->second.blockRenderDataId,
@@ -362,7 +362,7 @@ void BlockRenderDataFeeder::blockDataTextureBlockTileSizeChangeUpdate(const Data
 	}
 
 	if (blockData->getTexturePath() == "") {
-		BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture(DirectoryManager::getResourceDirectory() / "gateIcon.png");
+		BlockTextureId blockTextureId = MainRenderer::get().addBlockTexture((DirectoryManager::getResourceDirectory() / "gateIcon.png").string());
 		if (blockTextureId == 0) return;
 		MainRenderer::get().setBlockTexture(
 			iter->second.blockRenderDataId,
