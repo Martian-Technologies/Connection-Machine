@@ -55,12 +55,12 @@ bool Circuit::tryRemoveBlock(Position position) {
 	return out;
 }
 
-bool Circuit::tryMoveBlock(Position positionOfBlock, Position position) {
+bool Circuit::tryMoveBlock(Position positionOfBlock, Position position, Orientation transformAmount) {
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
 	DifferenceSharedPtr difference = std::make_shared<Difference>();
-	bool out = blockContainer.tryMoveBlock(positionOfBlock, position, Orientation(), difference.get());
+	bool out = blockContainer.tryMoveBlock(positionOfBlock, position, transformAmount, difference.get());
 	assert(out != difference->empty());
 	sendDifference(std::move(difference));
 	return out;
@@ -139,6 +139,13 @@ void Circuit::setType(const SharedSelection& selection, BlockType type) {
 	sendDifference(std::move(difference));
 }
 
+bool Circuit::setType(Position positionOfBlock, BlockType type) {
+	DifferenceSharedPtr difference = std::make_shared<Difference>();
+	bool output = blockContainer.trySetType(positionOfBlock, type, difference.get());
+	sendDifference(std::move(difference));
+	return output;
+}
+
 void Circuit::setType(const SharedSelection& selection, BlockType type, Difference* difference) {
 
 	// Cell Selection
@@ -156,7 +163,7 @@ void Circuit::setType(const SharedSelection& selection, BlockType type, Differen
 	}
 }
 
-void Circuit::tryInsertOverArea(Position cellA, Position cellB, Orientation transformAmount, BlockType blockType) {
+void Circuit::tryInsertOverArea(Position cellA, Position cellB, Orientation orientation, BlockType blockType) {
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
@@ -166,7 +173,7 @@ void Circuit::tryInsertOverArea(Position cellA, Position cellB, Orientation tran
 	DifferenceSharedPtr difference = std::make_shared<Difference>();
 	for (coordinate_t x = cellA.x; x <= cellB.x; x++) {
 		for (coordinate_t y = cellA.y; y <= cellB.y; y++) {
-			blockContainer.tryInsertBlock(Position(x, y), transformAmount, blockType, difference.get());
+			blockContainer.tryInsertBlock(Position(x, y), orientation, blockType, difference.get());
 		}
 	}
 	sendDifference(std::move(difference));

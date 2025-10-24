@@ -13,17 +13,26 @@ std::optional<App> appSingleton;
 
 App& App::get() {
 	if (!appSingleton) {
+		logInfo("Creating App", "App");
 		appSingleton.emplace();
 		appSingleton->newMainWindow();
 	}
 	return *appSingleton;
 }
 
-void App::kill() { appSingleton.reset(); }
+void App::kill() {
+	logInfo("Killing App", "App");
+	appSingleton.reset();
+}
 
-App::App() { rml.emplace(&rmlSystemInterface, &rmlRenderInterface); }
+App::App() {
+	logInfo("Initializing App", "App");
+	rml.emplace(&rmlSystemInterface, &rmlRenderInterface);
+	logInfo("App initialized", "App");
+}
 
 App::~App() {
+	logInfo("Shutting down App", "App");
 	windows.clear();
 	sdlWindows.clear();
 	rml.reset();
@@ -44,11 +53,13 @@ void App::deregisterWindow(const SdlWindow* sdlWindow) {
 }
 
 void App::newMainWindow() {
+	logInfo("Creating new MainWindow", "App");
 	windows.push_back(std::make_unique<MainWindow>(&environment));
 	newlyCreatedWindowsNext.push_back(windows.back().get());
 }
 
 bool App::closeMainWindow(const MainWindow* mainWindow) {
+	logInfo("Closing MainWindow", "App");
 	if (windows.size() == windowsToDestroy.size() + 1) {
 		startTryingToQuit();
 		return false;
@@ -63,8 +74,12 @@ const char* const addLoopTracyName = "appLoop";
 #endif
 
 void App::runLoop() {
+	logInfo("Starting App loop", "App");
 	running = true;
 	while (running) {
+		// do texture updates
+		environment.getBlockRenderDataFeeder().doBlockTextureUpdates();
+
 		// Wait for the next event (so we don't broork the cpu)
 		bool gotEvent = SDL_WaitEventTimeout(nullptr, 50);
 #ifdef TRACY_PROFILER
@@ -201,7 +216,7 @@ void App::startTryingToQuit() {
 			std::make_pair("Save", [window=windowIter->get(), uuid=circuit.second->getUUID(), this]() {
 				logInfo("Saving circuit {}", "", uuid);
 				static const SDL_DialogFileFilter filters[] = {
-					{ "Circuit Files",  ".cir" }
+					{ "Circuit Files",  "cir" }
 				};
 				std::pair<CircuitFileManager*, std::string>* data = new std::pair<CircuitFileManager*, std::string>(&environment.getCircuitFileManager(), uuid);
 				SDL_ShowSaveFileDialog(

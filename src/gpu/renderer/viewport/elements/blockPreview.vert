@@ -23,6 +23,10 @@ void main() {
 	vec2 posCoord = vec2((bitmasksX[0] & b) != 0, (bitmasksY[0] & b) != 0);
     vec2 uvCoord = vec2((bitmasksX[push.rotation] & b) != 0, (bitmasksY[push.rotation] & b) != 0);
 
-	outTex = vec3(push.texPos.x + uvCoord.x * push.texSize.x, push.texPos.y + uvCoord.y * push.texSize.y, push.texLayer);
+	outTex = vec3(
+		push.texPos.x + uvCoord.x * push.texSize.x,
+		push.texPos.y + uvCoord.y * push.texSize.y,
+		push.texLayer
+		);
 	gl_Position = push.mvp * vec4(push.position + (posCoord * push.size), 0.0, 1.0);
 }

@@ -18,6 +18,7 @@ public:
 					fileListener(std::chrono::milliseconds(200)), blockRenderDataFeeder(&backend) {
 #endif
 		backend.getBlockDataManager()->initializeDefaults();
+		logInfo("Environment initialized", "Environment");
 	}
 
 	const Backend& getBackend() const { return backend; }

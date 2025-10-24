@@ -15,6 +15,8 @@ VulkanInstance::VulkanInstance() {
 		throwFatalError("Failed to find Vulkan loader, Connection Machine requires Vulkan. Please make sure that your graphics drivers are installed and up to date.");
 	}
 
+	logInfo("Loader initialized", "Vulkan");
+
 	// Start creating vulkan instance
 	vkb::InstanceBuilder instanceBuilder(vkGetInstanceProcAddr);
 
@@ -23,13 +25,20 @@ VulkanInstance::VulkanInstance() {
 	if (!systemInfoRet) { throwFatalError("Could not fetch Vulkan system info. Error: " + systemInfoRet.error().message()); }
 	auto systemInfo = systemInfoRet.value();
 
+	logInfo("API Version Supported by Instance: " +
+	        std::to_string(VK_VERSION_MAJOR(systemInfo.instance_api_version)) + "." +
+	        std::to_string(VK_VERSION_MINOR(systemInfo.instance_api_version)) + "." +
+	        std::to_string(VK_VERSION_PATCH(systemInfo.instance_api_version)),
+		"Vulkan");
+	logInfo("Validation Layers Available: " + std::string(systemInfo.validation_layers_available ? "Yes" : "No"), "Vulkan");
+	logInfo("Debug Utils Available: " + std::string(systemInfo.debug_utils_available ? "Yes" : "No"), "Vulkan");
+
 #ifndef NDEBUG
-	#if not __APPLE__
-		// Enable validation layers
-		if (systemInfo.validation_layers_available){
-			instanceBuilder.enable_validation_layers().set_debug_callback(&vulkanDebugCallback);
-		}
-	#endif
+	// Enable validation layers
+	if (systemInfo.validation_layers_available){
+		instanceBuilder.enable_validation_layers().set_debug_callback(&vulkanDebugCallback);
+		logInfo("Enabled validation layers", "Vulkan");
+	}
 #endif
 
 	// Create Vulkan Instance
@@ -40,8 +49,12 @@ VulkanInstance::VulkanInstance() {
 	if (!instanceRet) { throwFatalError("Failed to create Vulkan instance. Error: " + instanceRet.error().message()); }
 	instance = instanceRet.value();
 
+	logInfo("Vulkan instance created successfully", "Vulkan");
+
 	// Load instance functions
 	volkLoadInstance(instance);
+
+	logInfo("Vulkan initialized successfully", "Vulkan");
 }
 
 VulkanInstance::~VulkanInstance() {

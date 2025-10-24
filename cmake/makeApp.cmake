@@ -35,6 +35,9 @@ if (RUN_TRACY_PROFILER)
 else()
 	target_compile_definitions(${PROJECT_NAME} PRIVATE VK_NO_PROTOTYPES)
 endif()
+if (CONNECTION_MACHINE_TRY_CATCH)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE "MAIN_TRY_CATCH")
+endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${APP_NAME}")
 

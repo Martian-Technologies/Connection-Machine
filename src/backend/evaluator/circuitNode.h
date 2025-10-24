@@ -1,7 +1,7 @@
 #ifndef circuitNode_h
 #define circuitNode_h
 
-#include "evalTypedef.h"
+#include "evalDefs.h"
 
 class CircuitNode {
 public:

@@ -5,8 +5,10 @@
 class CircuitFileManager;
 
 Backend::Backend(CircuitFileManager* fileManager) : circuitManager(&dataUpdateEventManager, &evaluatorManager, fileManager), evaluatorManager(&dataUpdateEventManager) {
+	logInfo("Initializing Backend", "Backend");
 	Wasm::initialize();
 	circuitManager.connectListener(&evaluatorManager, std::bind(&EvaluatorManager::applyDiff, &evaluatorManager, std::placeholders::_1, std::placeholders::_2), 0);
+	logInfo("Backend initialized", "Backend");
 }
 
 circuit_id_t Backend::createCircuit(const std::string& name, const std::string& uuid) {

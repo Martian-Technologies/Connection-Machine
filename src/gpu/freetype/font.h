@@ -1,26 +1,24 @@
-#ifndef font_h_
-#define font_h_
+#ifndef font_h
+#define font_h
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#include "util/vec2.h"
 
 class Font {
 public:
 	struct AtlasMetric {
-		uint32_t advance_x 	= 0;
-		uint32_t advance_y 	= 0;
-		uint32_t width 		= 0;
-		uint32_t height 	= 0;
-		uint32_t left 		= 0;
-		uint32_t top 		= 0;
-		uint32_t offset 	= 0;
+		Vec2Int advance;
+		Vec2Int size;
+		Vec2Int bearing; // down is positive
+		Vec2Int offset;
 	};
 
 	struct AtlasInfo {
 		std::vector<AtlasMetric> metrics;
-		uint32_t textureWidth = 0;
-		uint32_t textureHeight = 0;
+		Vec2Int textureSize;
+		uint32_t newlineHeight;
 	};
 
 	Font(FT_Face face, uint32_t fontSize);
@@ -29,11 +27,14 @@ public:
 	const std::string& getFontFamily();
 
 	void setSize(uint32_t ptSize);
+	uint32_t getSize() const { return fontSize; }
 
 	void createAtlas();
 
-	const AtlasInfo& getAtlasInfo();
-	const std::vector<uint8_t>& getTexture();
+	const AtlasInfo& getAtlasInfo() const;
+	const std::vector<uint8_t>& getTexture() const;
+
+	std::optional<Font::AtlasInfo> getAtlasInfoDifferentSizeText(uint32_t ptSize);
 
 private:
 	FT_Face face;
@@ -42,4 +43,4 @@ private:
 	uint32_t fontSize;
 	std::string fontFamily;
 };
-#endif
+#endif /* font_h */

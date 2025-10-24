@@ -1,5 +1,7 @@
 #include "evaluatorTest.h"
 
+#include "backend/evaluator/evaluator.h"
+
 // Note that logic simulator is tested separately
 void EvaluatorTest::SetUp() {
 	circuit_id_t circuitId = backend.createCircuit();
@@ -79,7 +81,7 @@ TEST_F(EvaluatorTest, BasicStateManagement) {
 // 	for (const Position& pos : positions) {
 // 		addresses.push_back(Address(pos));
 // 	}
-// 
+//
 // 	std::vector<logic_state_t> states = evaluator->getBulkStates(addresses);
 // 	ASSERT_EQ(states.size(), addresses.size());
 // 	for (logic_state_t state : states) {
@@ -137,7 +139,7 @@ TEST_F(EvaluatorTest, EvaluatingCircuitModifications) {
 	// block movement
 	evaluator->setState(pos2, true);
 	Position newPos(i, i); ++i;
-	circuit->tryMoveBlock(pos2, newPos);
+	circuit->tryMoveBlock(pos2, newPos, Orientation());
 
 	// reaccess addresses
 	//ASSERT_EQ(evaluator->getState(Address(pos2)), false); // This old address will cause an error as it is not found in address tree
@@ -310,6 +312,12 @@ logic_state_t naiveButCorrectGateImplementation(BlockType blockType, std::vector
 		if (blockType == BlockType::JUNCTION) {
 			return logic_state_t::FLOATING;
 		}
+		if (blockType == BlockType::JUNCTION_H) {
+			return logic_state_t::HIGH;
+		}
+		if (blockType == BlockType::JUNCTION_X || blockType == BlockType::BUFFER || blockType == BlockType::NOT) {
+			return logic_state_t::UNDEFINED;
+		}
 		return logic_state_t::LOW;
 	}
 	if (blockType == BlockType::AND) {
@@ -380,7 +388,12 @@ logic_state_t naiveButCorrectGateImplementation(BlockType blockType, std::vector
 			return logic_state_t::HIGH;
 		}
 		return logic_state_t::LOW;
-	} else if (blockType == BlockType::JUNCTION) {
+	} else if (blockType == BlockType::JUNCTION ||
+			   blockType == BlockType::JUNCTION_L ||
+			   blockType == BlockType::JUNCTION_H ||
+			   blockType == BlockType::JUNCTION_X ||
+			   blockType == BlockType::BUFFER ||
+			   blockType == BlockType::NOT) {
 		if (numUndefined != 0) {
 			return logic_state_t::UNDEFINED;
 		}
@@ -389,9 +402,22 @@ logic_state_t naiveButCorrectGateImplementation(BlockType blockType, std::vector
 		if (hasHigh && hasLow) {
 			return logic_state_t::UNDEFINED;
 		} else if (hasHigh) {
+			if (blockType == BlockType::NOT) {
+				return logic_state_t::LOW;
+			}
 			return logic_state_t::HIGH;
 		} else if (hasLow) {
+			if (blockType == BlockType::NOT) {
+				return logic_state_t::HIGH;
+			}
 			return logic_state_t::LOW;
+		}
+		if (blockType == BlockType::JUNCTION_L) {
+			return logic_state_t::LOW;
+		} else if (blockType == BlockType::JUNCTION_H) {
+			return logic_state_t::HIGH;
+		} else if (blockType == BlockType::JUNCTION_X || blockType == BlockType::BUFFER || blockType == BlockType::NOT) {
+			return logic_state_t::UNDEFINED;
 		}
 		return logic_state_t::FLOATING;
 	}
@@ -402,6 +428,7 @@ TEST_F(EvaluatorTest, AllBasicGatesBehavior) {
 	struct Testcase {
 		BlockType blockType;
 		std::vector<logic_state_t> inputStates;
+		Vector placeOffset;
 	};
 	std::vector<Testcase> testcases = {};
 	std::vector<logic_state_t> allStates = {
@@ -417,16 +444,36 @@ TEST_F(EvaluatorTest, AllBasicGatesBehavior) {
 		BlockType::NAND,
 		BlockType::NOR,
 		BlockType::XNOR,
-		BlockType::JUNCTION
+		BlockType::BUFFER,
+		BlockType::NOT,
+		BlockType::JUNCTION,
+		BlockType::JUNCTION_L,
+		BlockType::JUNCTION_H,
+		BlockType::JUNCTION_X
 	};
-	for (BlockType blockType : allTypes) {
-		testcases.push_back({ blockType, {} });
+	std::vector<Vector> placeOffsets = {
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, -2 },
+		{ 0, -2 },
+		{ 0, -2 }
+	};
+	for (unsigned int i = 0; i < allTypes.size(); ++i) {
+		BlockType blockType = allTypes[i];
+		testcases.push_back({ blockType, {}, placeOffsets[i] });
 		for (logic_state_t state1 : allStates) {
-			testcases.push_back({ blockType, {state1} });
+			testcases.push_back({ blockType, {state1}, placeOffsets[i] });
 			for (logic_state_t state2 : allStates) {
-				testcases.push_back({ blockType, {state1, state2} });
+				testcases.push_back({ blockType, {state1, state2}, placeOffsets[i] });
 				for (logic_state_t state3 : allStates) {
-					testcases.push_back({ blockType, {state1, state2, state3} });
+					testcases.push_back({ blockType, {state1, state2, state3}, placeOffsets[i] });
 				}
 			}
 		}
@@ -437,25 +484,25 @@ TEST_F(EvaluatorTest, AllBasicGatesBehavior) {
 		maxNumInputs = std::max(maxNumInputs, (int)(testcase.inputStates.size()));
 	}
 	for (int i = 0; i < maxNumInputs; ++i) {
-		circuit->tryInsertBlock(Position { i, 0 }, Rotation::ZERO, BlockType::SWITCH);
+		circuit->tryInsertBlock(Position(0, i), Rotation::ZERO, BlockType::SWITCH);
 	}
-	circuit->tryInsertBlock(Position { 0, 1 }, Rotation::ZERO, BlockType::AND);
+	circuit->tryInsertBlock(Position(1, 0), Rotation::ZERO, BlockType::AND);
 	for (Testcase testcase : testcases) {
 		if (currentType != testcase.blockType) {
-			circuit->tryRemoveBlock(Position { 0, 1 });
-			circuit->tryInsertBlock(Position { 0, 1 }, Rotation::ZERO, testcase.blockType);
+			circuit->tryRemoveBlock(Position(1, 0));
+			circuit->tryInsertBlock(Position(1, 0) + testcase.placeOffset, Rotation::ZERO, testcase.blockType);
 			currentType = testcase.blockType;
 		}
 		for (int i = 0; i < testcase.inputStates.size(); ++i) {
-			circuit->tryCreateConnection(Position { i, 0 }, Position { 0, 1 });
-			evaluator->setState(Address({ i, 0 }), testcase.inputStates[i]);
+			circuit->tryCreateConnection(Position(0, i), Position(1, 0));
+			evaluator->setState(Address({ 0, i }), testcase.inputStates[i]);
 		}
 		evaluator->tickStep(1);
 		logic_state_t expectedState = naiveButCorrectGateImplementation(testcase.blockType, testcase.inputStates);
-		logic_state_t computedState = evaluator->getState(Address({ 0, 1 }));
+		logic_state_t computedState = evaluator->getState(Address({ 1, 0 }));
 		ASSERT_EQ(expectedState, computedState);
 		for (int i = 0; i < testcase.inputStates.size(); ++i) {
-			circuit->tryRemoveConnection(Position { i, 0 }, Position { 0, 1 });
+			circuit->tryRemoveConnection(Position(0, i), Position(1, 0));
 		}
 	}
 }
@@ -474,7 +521,7 @@ TEST_F(EvaluatorTest, LargeEvaluatorTest) {
 		BlockType::NOR,
 		BlockType::XNOR
 	};
-	
+
 	for (i = 0; i < LARGE_NUMBER; i++) {
 		circuit->tryInsertBlock(Position(i, 0), Rotation::ZERO, BlockType::SWITCH);
 		evaluator->setState(Address( {i, 0} ), logic_state_t::HIGH);

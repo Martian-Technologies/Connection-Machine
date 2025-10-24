@@ -33,6 +33,10 @@ public:
 		std::optional<connection_end_id_t> connectionId = getOutputConnectionId(position);
 		return connectionId ? getConnectionContainer().getConnections(connectionId.value()) : nullptr;
 	}
+	inline const std::unordered_set<ConnectionEnd>* getBidirectionalConnections(Position position) const {
+		std::optional<connection_end_id_t> connectionId = getBidirectionalConnectionId(position);
+		return connectionId ? getConnectionContainer().getConnections(connectionId.value()) : nullptr;
+	}
 	inline std::optional<connection_end_id_t> getInputConnectionId(Position position) const {
 		if (!withinBlock(position)) return std::nullopt;
 		return blockDataManager->getInputConnectionId(type(), getOrientation(), position - getPosition());
@@ -40,6 +44,18 @@ public:
 	inline std::optional<connection_end_id_t> getOutputConnectionId(Position position) const {
 		if (!withinBlock(position)) return std::nullopt;
 		return blockDataManager->getOutputConnectionId(type(), getOrientation(), position - getPosition());
+	}
+	inline std::optional<connection_end_id_t> getBidirectionalConnectionId(Position position) const {
+		if (!withinBlock(position)) return std::nullopt;
+		return blockDataManager->getBidirectionalConnectionId(type(), getOrientation(), position - getPosition());
+	}
+	inline std::optional<connection_end_id_t> getInputOrBidirectionalConnectionId(Position position) const {
+		if (!withinBlock(position)) return std::nullopt;
+		return blockDataManager->getInputOrBidirectionalConnectionId(type(), getOrientation(), position - getPosition());
+	}
+	inline std::optional<connection_end_id_t> getOutputOrBidirectionalConnectionId(Position position) const {
+		if (!withinBlock(position)) return std::nullopt;
+		return blockDataManager->getOutputOrBidirectionalConnectionId(type(), getOrientation(), position - getPosition());
 	}
 	inline std::optional<Position> getConnectionPosition(connection_end_id_t connectionId) const {
 		std::optional<Vector> output = blockDataManager->getConnectionVector(type(), getOrientation(), connectionId);
@@ -52,6 +68,9 @@ public:
 	inline bool connectionExists(connection_end_id_t connectionId) const { return blockDataManager->connectionExists(type(), connectionId); }
 	inline bool isConnectionInput(connection_end_id_t connectionId) const { return blockDataManager->isConnectionInput(type(), connectionId); }
 	inline bool isConnectionOutput(connection_end_id_t connectionId) const { return blockDataManager->isConnectionOutput(type(), connectionId); }
+	inline bool isConnectionBidirectional(connection_end_id_t connectionId) const { return blockDataManager->isConnectionBidirectional(type(), connectionId); }
+	inline bool isConnectionInputOrBidirectional(connection_end_id_t connectionId) const { return blockDataManager->isConnectionInputOrBidirectional(type(), connectionId); }
+	inline bool isConnectionOutputOrBidirectional(connection_end_id_t connectionId) const { return blockDataManager->isConnectionOutputOrBidirectional(type(), connectionId); }
 
 protected:
 	inline void destroy() { }

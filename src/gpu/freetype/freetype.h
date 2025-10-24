@@ -10,7 +10,7 @@ public:
 	Freetype();
 	~Freetype();
 
-	static const Freetype& get();
+	static Freetype& get();
 
 	std::shared_ptr<Font> loadFont(const std::string& fontFile, uint32_t ptSize = 12);
 

@@ -112,8 +112,7 @@ void SimulatorOptimizer::removeConnection(SimPauseGuard& pauseGuard, EvalConnect
 	simulator_id_t sourceId = sourceSimId.value();
 	simulator_id_t destinationId = destinationSimId.value();
 
-	simulator.removeConnection(sourceId, sourcePort, destinationId, destinationPort);
-
+	bool foundConnection = false;
 	// Remove from connection tracking
 	if (inputConnections.size() > destinationGateId) {
 		auto& connections = inputConnections.at(destinationGateId);
@@ -126,6 +125,7 @@ void SimulatorOptimizer::removeConnection(SimPauseGuard& pauseGuard, EvalConnect
 			});
 		if (it != connections.end()) {
 			connections.erase(it);
+			foundConnection = true;
 		}
 	}
 
@@ -140,7 +140,11 @@ void SimulatorOptimizer::removeConnection(SimPauseGuard& pauseGuard, EvalConnect
 			});
 		if (it != connections.end()) {
 			connections.erase(it);
+			foundConnection = true;
 		}
+	}
+	if (foundConnection){
+		simulator.removeConnection(sourceId, sourcePort, destinationId, destinationPort);
 	}
 }
 

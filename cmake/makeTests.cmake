@@ -21,14 +21,16 @@ CPMAddPackage(
 )
 
 set(TEST_DIR "${CMAKE_SOURCE_DIR}/tests")
-set(TEST_FILES)
-file(GLOB_RECURSE TEST_FILES
+set(PROJECT_SOURCES)
+file(GLOB_RECURSE PROJECT_SOURCES
 	"${SOURCE_DIR}/backend/*.cpp"
 	"${SOURCE_DIR}/computerAPI/*.cpp"
 	"${SOURCE_DIR}/logging/*.cpp"
 	"${SOURCE_DIR}/util/*.cpp"
 	"${TEST_DIR}/*.cpp"
 )
+
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR}\/util\/rectPacker.cpp")
 
 add_main_dependencies()
 
@@ -41,7 +43,7 @@ if(APPLE)
 	list(APPEND EXTERNAL_LINKS "-framework CoreFoundation")
 endif()
 
-add_executable(${PROJECT_NAME}_tests ${TEST_FILES})
+add_executable(${PROJECT_NAME}_tests ${PROJECT_SOURCES})
 
 target_include_directories(${PROJECT_NAME}_tests PRIVATE ${SOURCE_DIR} ${TEST_DIR} "${EXTERNAL_DIR}/wasmtime")
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE ${EXTERNAL_LINKS})

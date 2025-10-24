@@ -25,17 +25,17 @@ function(add_main_dependencies)
 	target_include_directories(cfgpath INTERFACE "${EXTERNAL_DIR}/cfgpath")
 	list(APPEND EXTERNAL_LINKS cfgpath)
 
-	# JSON
-	CPMAddPackage(
-		NAME nlohmann_json
-		GITHUB_REPOSITORY nlohmann/json
-		GIT_TAG v3.12.0
-		OPTIONS
-			"JSON_BuildTests OFF"
-		EXCLUDE_FROM_ALL YES
-		SOURCE_DIR "${EXTERNAL_DIR}/json"
-	)
-	list(APPEND EXTERNAL_LINKS nlohmann_json)
+	# # JSON # We dont use this anymore
+	# CPMAddPackage(
+	# 	NAME nlohmann_json
+	# 	GITHUB_REPOSITORY nlohmann/json
+	# 	GIT_TAG v3.12.0
+	# 	OPTIONS
+	# 		"JSON_BuildTests OFF"
+	# 	EXCLUDE_FROM_ALL YES
+	# 	SOURCE_DIR "${EXTERNAL_DIR}/json"
+	# )
+	# list(APPEND EXTERNAL_LINKS nlohmann_json)
 
 	# fmt
 	CPMAddPackage(

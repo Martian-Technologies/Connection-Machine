@@ -1,40 +1,18 @@
 #ifndef evaluator_h
 #define evaluator_h
 
-#include "backend/circuit/circuit.h"
-#include "backend/circuit/circuitManager.h"
-#include "backend/container/difference.h"
-
-#include "backend/address.h"
-#include "logicState.h"
 #include "diffCache.h"
 #include "evalCircuitContainer.h"
-#include "evalConfig.h"
 #include "evalAddressTree.h"
-#include "evalSimulator.h"
+#include "evalConnection.h"
+#include "evalConfig.h"
 #include "directionEnum.h"
-
-typedef unsigned int evaluator_id_t;
-
-enum class SimulatorMappingUpdateType {
-	BLOCK,
-	PIN
-};
-
-struct SimulatorMappingUpdate {
-	Position portPosition;
-	std::variant<simulator_id_t, std::vector<simulator_id_t>> simulatorIds;
-	SimulatorMappingUpdateType type;
-};
-
-typedef std::function<void(const std::vector<SimulatorMappingUpdate>&)> SimulatorMappingUpdateListenerFunction;
-
-struct SimulatorMappingUpdateListener {
-	eval_circuit_id_t evalCircuitId;
-	std::function<void(const std::vector<SimulatorMappingUpdate>&)> callback;
-};
+#include "logicState.h"
 
 class DataUpdateEventManager;
+class CircuitManager;
+class EvalSimulator;
+class SimPauseGuard;
 
 struct CircuitPortDependency {
 	circuit_id_t circuitId;
@@ -69,19 +47,10 @@ public:
 		circuit_id_t circuitId,
 		DataUpdateEventManager* dataUpdateEventManager
 	);
+	~Evaluator();
 
 	inline evaluator_id_t getEvaluatorId() const { return evaluatorId; }
-	std::string getEvaluatorName() const {
-		std::optional<circuit_id_t> circuitId = evalCircuitContainer.getCircuitId(0);
-		if (!circuitId.has_value()) {
-			return "Eval " + std::to_string(evaluatorId) + " (No Circuit)";
-		}
-		auto circuit = circuitManager.getCircuit(circuitId.value());
-		if (!circuit) {
-			return "Eval " + std::to_string(evaluatorId) + " (Invalid Circuit)";
-		}
-		return "Eval " + std::to_string(evaluatorId) + " (" + circuit->getCircuitNameNumber() + ")";
-	}
+	std::string getEvaluatorName() const;
 
 	void reset();
 	void setPause(bool pause) { evalConfig.setRunning(!pause); }
@@ -101,7 +70,7 @@ public:
 	double getTickrate() const { return evalConfig.getTargetTickrate(); }
 	void setUseTickrate(bool useTickrate) { evalConfig.setTickrateLimiter(useTickrate); }
 	bool getUseTickrate() const { return evalConfig.isTickrateLimiterEnabled(); }
-	double getRealTickrate() const { return evalSimulator.getAverageTickrate(); }
+	double getRealTickrate() const;
 	void makeEdit(DifferenceSharedPtr difference, circuit_id_t circuitId);
 	logic_state_t getState(const Address& address);
 	bool getBoolState(const Address& address) { return toBool(getState(address)); };
@@ -129,7 +98,7 @@ public:
 	const EvalAddressTree buildAddressTree() const;
 	const EvalAddressTree buildAddressTree(eval_circuit_id_t evalCircuitId) const;
 
-	std::vector<std::variant<simulator_id_t, std::vector<simulator_id_t>>> getBlockSimulatorIds(const Address& addressOrigin, const std::vector<Position>& positions) const;
+	std::vector<simulator_id_t> getBlockSimulatorIds(const Address& addressOrigin, const std::vector<Position>& positions) const;
 	std::vector<std::variant<simulator_id_t, std::vector<simulator_id_t>>> getPinSimulatorIds(const Address& addressOrigin, const std::vector<Position>& positions) const;
 	std::vector<logic_state_t> getStatesFromSimulatorIds(const std::vector<simulator_id_t>& simulatorIds) const;
 
@@ -155,7 +124,7 @@ private:
 	EvalCircuitContainer evalCircuitContainer;
 	EvalConfig evalConfig;
 	IdProvider<middle_id_t> middleIdProvider;
-	EvalSimulator evalSimulator;
+	std::unique_ptr<EvalSimulator> evalSimulator;
 
 	bool changedICs = false;
 
@@ -203,9 +172,10 @@ private:
 		std::set<CircuitNode>& circuitNodeDependencies
 	);
 	std::vector<simulator_id_t> dirtySimulatorIds;
+	std::vector<middle_id_t> dirtyMiddleIds;
 	std::unordered_set<EvalPosition> dirtyNodes;
-	std::unordered_multimap<simulator_id_t, EvalPosition> portSimulatorIdToEvalPositionMap;
 	std::unordered_multimap<simulator_id_t, EvalPosition> pinSimulatorIdToEvalPositionMap;
+	std::unordered_map<middle_id_t, EvalPosition> middleIdToEvalPositionMap;
 
 	std::map<void*, SimulatorMappingUpdateListener> listeners;
 	void sendSimulatorMappingUpdate(eval_circuit_id_t targetEvalCircuitId, const std::vector<SimulatorMappingUpdate>& updates) {
@@ -221,7 +191,5 @@ private:
 
 	mutable std::shared_mutex simMutex;
 };
-
-typedef std::shared_ptr<Evaluator> SharedEvaluator;
 
 #endif /* evaluator_h */

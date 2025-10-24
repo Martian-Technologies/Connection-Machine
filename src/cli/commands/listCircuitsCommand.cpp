@@ -7,9 +7,8 @@
 runAtStartup(CommandManager::get().registerCommand(std::make_unique<ListCircuitsCommand>());)
 
 void ListCircuitsCommand::run(const std::vector<std::string>& args, Environment& environment) {
-    std::string circuitDetails = "";
 	for (auto iter = environment.getBackend().getCircuitManager().begin(); iter != environment.getBackend().getCircuitManager().end(); iter++) {
-        circuitDetails = circuitDetails + iter->second->getCircuitName() + " (" + iter->second->getUUID() + ")\n";
+        logInfo("{} {} {}", "ListCircuitsCommand", iter->first, iter->second->getCircuitName(), iter->second->getUUID());
     }
-    std::cout << circuitDetails << std::flush;
+    //std::cout << circuitDetails << std::flush;
 }

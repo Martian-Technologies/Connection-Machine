@@ -45,6 +45,8 @@ public:
 	Vec2 gridToView(FPosition position) const;
 	Vec2 gridToView(FVector vector) const;
 
+
+
 private:
 	// helpers
 	void applyLimits();
@@ -74,11 +76,11 @@ private:
 	// view data per circuit
 	std::map<circuit_id_t, ViewPositioningData> perCircuitViewData;
 	circuit_id_t currentCircuitId = 0;
-	
+
 	// view
 	FPosition viewCenter;
 	float viewScale;
-	
+
 	float aspectRatio;
 
 	EventRegister* eventRegister = nullptr;

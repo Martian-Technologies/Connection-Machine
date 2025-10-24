@@ -2,9 +2,7 @@
 #define evalCircuit_h
 
 #include "backend/circuit/circuit.h"
-#include "backend/position/sparse2d.h"
 #include "circuitNode.h"
-#include "evalTypedef.h"
 
 class EvalCircuit {
 public:

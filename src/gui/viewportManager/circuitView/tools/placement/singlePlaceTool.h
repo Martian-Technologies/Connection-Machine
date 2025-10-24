@@ -18,6 +18,7 @@ public:
 
 private:
 	char clicks[2] = { 'n', 'n' };
+	Vector calculateElementOffset() const;
 };
 
 #endif /* SinglePlaceTool_h */

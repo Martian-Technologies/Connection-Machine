@@ -1,15 +1,16 @@
 #ifndef evalCircuitContainer_h
 #define evalCircuitContainer_h
 
-#include "backend/position/position.h"
-#include "circuitNode.h"
+#include "backend/address.h"
 #include "evalCircuit.h"
 #include "idProvider.h"
-#include "backend/address.h"
 
 struct EvalPosition {
 	Position position;
 	eval_circuit_id_t evalCircuitId;
+
+	inline EvalPosition()
+		: position(0, 0), evalCircuitId(0) {}
 
 	inline EvalPosition(Position position, eval_circuit_id_t evalCircuitId)
 		: position(position), evalCircuitId(evalCircuitId) {}

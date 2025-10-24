@@ -20,7 +20,7 @@ bool CircuitValidator::validateBlockData() {
 	if (size.h == 0)
 		size.h = 1;
 	for (auto& port : parsedCircuit.getConnectionPorts()) {
-		size.extentToFit(port.positionOnBlock);
+		size.extentToFitTartgetCell(port.positionOnBlock);
 	}
 	parsedCircuit.setSize(size);
 	return true;
@@ -57,30 +57,36 @@ bool CircuitValidator::handleInvalidConnections() {
 
 	// count the connections
 	for (auto& conn : parsedCircuit.connections) {
-		++connectionCounts[conn];
+		const ParsedCircuit::BlockData* inputBlockData = parsedCircuit.getBlock(conn.inputBlockId);
+		const ParsedCircuit::BlockData* outputBlockData = parsedCircuit.getBlock(conn.outputBlockId);
+
+		if (inputBlockData && inputBlockData->type == BlockType::JUNCTION) conn.inputEndId = 0;
+		if (outputBlockData && outputBlockData->type == BlockType::JUNCTION) conn.outputEndId = 0;
 	}
 
-	int i = 0;
-	while (i < (int)parsedCircuit.connections.size()) {
-		ParsedCircuit::ConnectionData& conn = parsedCircuit.connections[i];
+	// ++connectionCounts[conn];
 
-		ParsedCircuit::ConnectionData reversePair(conn.inputBlockId, conn.inputEndId, conn.outputBlockId, conn.outputEndId);
+	// int i = 0;
+	// while (i < (int)parsedCircuit.connections.size()) {
+	// 	ParsedCircuit::ConnectionData& conn = parsedCircuit.connections[i];
 
-		if (--connectionCounts[reversePair] < 0) {
-			parsedCircuit.connections.push_back(reversePair);
-			logInfo("Added reciprocated connection between: ({} {}) and ({} {})", "CircuitValidator", conn.inputBlockId, conn.inputEndId, conn.outputBlockId, conn.outputEndId);
-			connectionCounts[reversePair] = 0;
-		}
-		++i;
-	}
+	// 	ParsedCircuit::ConnectionData reversePair(conn.inputBlockId, conn.inputEndId, conn.outputBlockId, conn.outputEndId);
 
-	// check all remaining connections were found
-	for (const auto& [pair, count] : connectionCounts) {
-		if (count != 0) {
-			logWarning("Invalid connection handling, connection frequency: ({} {}) {}", "CircuitValidator", pair.outputBlockId, pair.inputBlockId, count);
-			return false;
-		}
-	}
+	// 	if (--connectionCounts[reversePair] < 0) {
+	// 		parsedCircuit.connections.push_back(reversePair);
+	// 		// logInfo("Added reciprocated connection between: ({} {}) and ({} {})", "CircuitValidator", conn.inputBlockId, conn.inputEndId, conn.outputBlockId, conn.outputEndId);
+	// 		connectionCounts[reversePair] = 0;
+	// 	}
+	// 	++i;
+	// }
+
+	// // check all remaining connections were found
+	// for (const auto& [pair, count] : connectionCounts) {
+	// 	if (count != 0) {
+	// 		logWarning("Invalid connection handling, connection frequency: ({} {}) {}", "CircuitValidator", pair.outputBlockId, pair.inputBlockId, count);
+	// 		return false;
+	// 	}
+	// }
 
 	return true;
 }

@@ -8,6 +8,7 @@ layout(location = 2) in uint inTexLayer;
 layout(location = 3) in vec2 inTexPos;
 layout(location = 4) in vec2 inTexSize;
 layout(location = 5) in uint inRotation;
+layout(location = 6) in vec2 stateStep;
 
 layout(location = 0) out vec3 outTex;
 
@@ -32,6 +33,10 @@ void main() {
 	vec2 posCoord = vec2((bitmasksX[0] & b) != 0, (bitmasksY[0] & b) != 0);
     vec2 uvCoord = vec2((bitmasksX[inRotation] & b) != 0, (bitmasksY[inRotation] & b) != 0);
 
-	outTex = vec3(inTexPos.x + uvCoord.x*inTexSize.x, inTexPos.y + (uvCoord.y+float(state))*inTexSize.y, inTexLayer);
-	gl_Position = push.mvp * vec4(inPosition + posCoord*inSize, 0.0, 1.0);
+	outTex = vec3(
+		inTexPos.x + uvCoord.x * inTexSize.x + float(state) * stateStep.x,
+		inTexPos.y + uvCoord.y * inTexSize.y + float(state) * stateStep.y,
+		inTexLayer
+	);
+	gl_Position = push.mvp * vec4(inPosition + (posCoord * inSize), 0.0, 1.0);
 }

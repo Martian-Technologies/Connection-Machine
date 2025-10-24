@@ -1,8 +1,7 @@
 #ifndef evalConnection_h
 #define evalConnection_h
 
-#include "logicState.h"
-#include "evalTypedef.h"
+#include "evalDefs.h"
 
 struct EvalConnectionPoint {
 	middle_id_t gateId;
@@ -64,6 +63,10 @@ struct EvalConnection {
 	std::string toString() const {
 		return "EC( (" + std::to_string(source.gateId) + ", " + std::to_string(source.portId) + ") -> (" +
 			   std::to_string(destination.gateId) + ", " + std::to_string(destination.portId) + ") )";
+	}
+
+	EvalConnection reverse() const {
+		return EvalConnection(destination, source);
 	}
 };
 

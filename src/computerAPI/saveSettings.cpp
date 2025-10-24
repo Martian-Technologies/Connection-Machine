@@ -61,6 +61,7 @@ void SaveSettings::save() {
 
 // NOTE: pass by reference so we actually modify the caller's map
 void SaveSettings::load() {
+	logInfo("Loading settings", "SaveSettings");
 	std::filesystem::path path = DirectoryManager::getConfigDirectory() / "stored_settings.txt";
 	std::ifstream in(path);
 	if (!in) {

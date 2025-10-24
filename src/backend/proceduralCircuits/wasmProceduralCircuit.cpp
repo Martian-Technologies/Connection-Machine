@@ -39,7 +39,10 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 			else if (blockName == "BUTTON") return BlockType::BUTTON;
 			else if (blockName == "TICK_BUTTON") return BlockType::TICK_BUTTON;
 			else if (blockName == "SWITCH") return BlockType::SWITCH;
-			else if (blockName == "CONSTANT") return BlockType::CONSTANT;
+			else if (blockName == "CONSTANT_OFF") return BlockType::CONSTANT_OFF;
+			else if (blockName == "CONSTANT_ON") return BlockType::CONSTANT_ON;
+			else if (blockName == "CONSTANT_Z") return BlockType::CONSTANT_Z;
+			else if (blockName == "CONSTANT_X") return BlockType::CONSTANT_X;
 			else if (blockName == "LIGHT") return BlockType::LIGHT;
 			return BlockType::NONE;
 		});

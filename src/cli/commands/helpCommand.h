@@ -8,7 +8,7 @@ public:
 	HelpCommand() : Command("help") {}
 
 	void run(const std::vector<std::string>& args, Environment& environment) override final;
-	const std::string getHelpString() { return "Brings up this menu."; }
+	const std::string getHelpString() const override final { return "Brings up this menu."; }
 };
 
 #endif /* helpCommand_h */

@@ -19,7 +19,7 @@ bool GeneratedCircuitValidator::validateBlockData() {
 	if (size.w == 0) size.w = 1;
 	if (size.h == 0) size.h = 1;
 	for (auto& port : generatedCircuit.getConnectionPorts()) {
-		size.extentToFit(port.positionOnBlock);
+		size.extentToFitTartgetCell(port.positionOnBlock);
 	}
 	generatedCircuit.setSize(size);
 	return true;

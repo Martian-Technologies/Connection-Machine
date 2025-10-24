@@ -3,6 +3,7 @@
 #include "backend/evaluator/evaluatorManager.h"
 #include "backend/proceduralCircuits/generatedCircuit.h"
 #include "parsedCircuit.h"
+#include "backend/evaluator/evaluator.h"
 
 circuit_id_t CircuitManager::createNewCircuit(const std::string& name, const std::string& uuid, bool createEval) {
 	circuit_id_t id = getNewCircuitId();

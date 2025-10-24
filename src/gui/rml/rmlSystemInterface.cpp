@@ -36,6 +36,7 @@
 
 RmlSystemInterface::RmlSystemInterface()
 {
+	logInfo("Initializing RmlUI System Interface...");
 #if SDL_MAJOR_VERSION >= 3
 	cursor_default = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT);
 	cursor_move = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_MOVE);

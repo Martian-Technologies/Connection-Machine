@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 #include "backend/backend.h"
+#include "backend/address.h"
 
 class EvaluatorTest : public ::testing::Test {
 public:

@@ -1,12 +1,10 @@
 #ifndef simulatorOptimizer_h
 #define simulatorOptimizer_h
 
-#include "evalConfig.h"
-#include "evalConnection.h"
-#include "evalTypedef.h"
-#include "idProvider.h"
 #include "logicSimulator.h"
-#include "simulatorGates.h"
+#include "idProvider.h"
+#include "evalConnection.h"
+#include "evalConfig.h"
 
 class SimulatorOptimizer {
 public:
@@ -74,7 +72,7 @@ public:
 				std::vector<EvalConnection> outputs = getOutputs(point.gateId);
 				EvalConnection output = outputs.at(0);
 				BlockType blockType = getBlockType(output.destination.gateId);
-				if (blockType == BlockType::JUNCTION) {
+				if (isJunctionType(blockType)) {
 					// get the simId of the output
 					std::optional<simulator_id_t> simIdOpt = getSimIdFromConnectionPoint(output.destination);
 					simIds.push_back(simIdOpt.value_or(0));
@@ -103,7 +101,7 @@ public:
 			std::vector<EvalConnection> outputs = getOutputs(point.gateId);
 			EvalConnection output = outputs.at(0);
 			BlockType blockType = getBlockType(output.destination.gateId);
-			if (blockType == BlockType::JUNCTION) {
+			if (isJunctionType(blockType)) {
 				// get the simId of the output
 				std::optional<simulator_id_t> pinSimIdOpt = getSimIdFromConnectionPoint(output.destination);
 				return pinSimIdOpt.value_or(0);
@@ -157,6 +155,12 @@ public:
 			logError("Sim ID not found for connection point", "SimulatorOptimizer::setState");
 			return;
 		}
+		BlockType blockType = getBlockType(point.gateId);
+		if (blockType == BlockType::CONSTANT_ON || blockType == BlockType::CONSTANT_OFF ||
+			blockType == BlockType::CONSTANT_Z || blockType == BlockType::CONSTANT_X) {
+			// cannot set state of constant blocks
+			return;
+		}
 		simulator.setState(simIdOpt.value(), state);
 	}
 	void makeConnection(SimPauseGuard& pauseGuard, EvalConnection connection);
@@ -197,6 +201,9 @@ private:
 	std::vector<std::vector<EvalConnection>> inputConnections;  // inputConnections[middleId] = connections TO this gate
 	std::vector<std::vector<EvalConnection>> outputConnections; // outputConnections[middleId] = connections FROM this gate
 	std::vector<BlockType> blockTypes; // maps middle_id_t to BlockType
+	bool isJunctionType(BlockType blockType) const {
+		return blockType == BlockType::JUNCTION || blockType == BlockType::JUNCTION_L || blockType == BlockType::JUNCTION_H || blockType == BlockType::JUNCTION_X;
+	}
 };
 
 #endif /* simulatorOptimizer_h */

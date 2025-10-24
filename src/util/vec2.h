@@ -1,6 +1,7 @@
 #ifndef vec2_h
 #define vec2_h
 
+#include "backend/position/position.h"
 #include "fastMath.h"
 
 typedef float vec_coordinate_t;
@@ -25,6 +26,11 @@ struct Vec2 {
 	vec_coordinate_t x, y;
 };
 
+template <>
+struct fmt::formatter<Vec2> : fmt::formatter<std::string> {
+	auto format(Vec2 v, format_context& ctx) const { return formatter<std::string>::format(v.toString(), ctx); }
+};
+
 typedef int vec_int_coordinate_t;
 
 struct Vec2Int {
@@ -46,5 +52,36 @@ struct Vec2Int {
 
 	vec_int_coordinate_t x, y;
 };
+
+template <>
+struct fmt::formatter<Vec2Int> : fmt::formatter<std::string> {
+	auto format(Vec2Int v, format_context& ctx) const { return formatter<std::string>::format(v.toString(), ctx); }
+};
+
+inline Vec2Int rotateVector(Vec2Int vector, Rotation rotationAmount) noexcept {
+	switch (rotationAmount) {
+	case Rotation::TWO_SEVENTY: return Vec2Int(vector.y, -vector.x);
+	case Rotation::ONE_EIGHTY: return Vec2Int(-vector.x, -vector.y);
+	case Rotation::NINETY: return Vec2Int(-vector.y, vector.x);
+	default: return vector;
+	}
+}
+
+inline Vec2Int rotateVectorWithArea(Vec2Int vector, Vec2Int size, Rotation rotationAmount) {
+	switch (rotationAmount) {
+	case Rotation::NINETY: return Vec2Int(size.y - vector.y - 1, vector.x);
+	case Rotation::ONE_EIGHTY: return Vec2Int(size.x - vector.x - 1, size.y - vector.y - 1);
+	case Rotation::TWO_SEVENTY: return Vec2Int(vector.y, size.x - vector.x - 1);
+	default: return vector;
+	}
+}
+inline Vec2Int reverseRotateVectorWithArea(Vec2Int vector, Vec2Int size, Rotation rotationAmount) {
+	switch (rotationAmount) {
+	case Rotation::NINETY: return Vec2Int(vector.y, size.x - vector.x - 1);
+	case Rotation::ONE_EIGHTY: return Vec2Int(size.x - vector.x - 1, size.y - vector.y - 1);
+	case Rotation::TWO_SEVENTY: return Vec2Int(size.y - vector.y - 1, vector.x);
+	default: return vector;
+	}
+}
 
 #endif /* vec2_h */

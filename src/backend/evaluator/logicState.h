@@ -28,4 +28,19 @@ inline logic_state_t fromBool(bool value) {
 	return value ? logic_state_t::HIGH : logic_state_t::LOW;
 }
 
+inline std::string to_string(logic_state_t state) {
+	switch (state) {
+		case logic_state_t::LOW:
+			return "L";
+		case logic_state_t::HIGH:
+			return "H";
+		case logic_state_t::FLOATING:
+			return "Z";
+		case logic_state_t::UNDEFINED:
+			return "X";
+		default:
+			return "UNKNOWN_STATE";
+	}
+}
+
 #endif /* logicState_h */

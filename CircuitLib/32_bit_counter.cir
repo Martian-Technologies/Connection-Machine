@@ -1,0 +1,263 @@
+version_7
+Circuit: "circuit5"
+UUID: d9ba96ec-a33c-49ac-af94-41082298717d
+size: 1x1
+ports:
+blockId 97 LIGHT -33 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (32 1)
+blockId 96 LIGHT -32 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (33 1)
+blockId 95 LIGHT -31 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (34 1)
+blockId 94 LIGHT -30 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (19 1)
+blockId 93 LIGHT -29 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (20 1)
+blockId 92 LIGHT -28 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (21 1)
+blockId 91 LIGHT -27 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (22 1)
+blockId 90 LIGHT -26 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (23 1)
+blockId 89 LIGHT -25 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (24 1)
+blockId 88 LIGHT -24 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (25 1)
+blockId 87 LIGHT -23 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (26 1)
+blockId 86 LIGHT -22 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (11 1)
+blockId 85 LIGHT -21 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (12 1)
+blockId 84 LIGHT -20 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (13 1)
+blockId 83 LIGHT -19 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (14 1)
+blockId 82 LIGHT -18 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (15 1)
+blockId 81 LIGHT -17 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (16 1)
+blockId 80 LIGHT -16 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (17 1)
+blockId 79 LIGHT -15 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (18 1)
+blockId 78 LIGHT -14 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (8 1)
+blockId 77 LIGHT -13 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (7 1)
+blockId 76 LIGHT -12 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (6 1)
+blockId 75 LIGHT -11 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (5 1)
+blockId 74 LIGHT -10 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (4 1)
+blockId 73 LIGHT -9 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (3 1)
+blockId 72 LIGHT -8 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (2 1)
+blockId 71 LIGHT -7 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (68 1)
+blockId 70 SWITCH -5 -3 ONE_EIGHTY_FLIPPED
+	(connId:0) (1 0)
+blockId 68 AND -7 -4 TWO_SEVENTY
+	(connId:1) (71 0)
+	(connId:0) (1 1)
+blockId 67 AND -8 -4 TWO_SEVENTY
+	(connId:1) (2 0)
+	(connId:0) (1 1)
+blockId 66 AND -9 -4 TWO_SEVENTY
+	(connId:1) (3 0)
+	(connId:0) (2 1) (1 1)
+blockId 65 AND -10 -4 TWO_SEVENTY
+	(connId:1) (4 0)
+	(connId:0) (3 1) (2 1) (1 1)
+blockId 64 AND -11 -4 TWO_SEVENTY
+	(connId:1) (5 0)
+	(connId:0) (4 1) (3 1) (2 1) (1 1)
+blockId 63 AND -12 -4 TWO_SEVENTY
+	(connId:1) (6 0)
+	(connId:0) (5 1) (4 1) (3 1) (2 1) (1 1)
+blockId 62 AND -13 -4 TWO_SEVENTY
+	(connId:1) (7 0)
+	(connId:0) (6 1) (5 1) (4 1) (3 1) (2 1) (1 1)
+blockId 61 AND -14 -4 TWO_SEVENTY
+	(connId:1) (8 0)
+	(connId:0) (6 1) (5 1) (4 1) (3 1) (2 1) (7 1) (1 1)
+blockId 60 AND -15 -4 TWO_SEVENTY
+	(connId:1) (18 0)
+	(connId:0) (8 1) (6 1) (5 1) (4 1) (3 1) (2 1) (7 1) (1 1)
+blockId 59 AND -16 -4 TWO_SEVENTY
+	(connId:1) (17 0)
+	(connId:0) (18 1) (8 1) (6 1) (5 1) (4 1) (3 1) (2 1) (7 1) (1 1)
+blockId 58 AND -17 -4 TWO_SEVENTY
+	(connId:1) (16 0)
+	(connId:0) (17 1) (18 1) (8 1) (6 1) (5 1) (4 1) (3 1) (2 1) (7 1) (1 1)
+blockId 57 AND -18 -4 TWO_SEVENTY
+	(connId:1) (15 0)
+	(connId:0) (17 1) (18 1) (8 1) (6 1) (5 1) (4 1) (16 1) (3 1) (2 1) (7 1) (1 1)
+blockId 56 AND -19 -4 TWO_SEVENTY
+	(connId:1) (14 0)
+	(connId:0) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (16 1) (2 1) (7 1) (1 1)
+blockId 55 AND -20 -4 TWO_SEVENTY
+	(connId:1) (13 0)
+	(connId:0) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (16 1) (2 1) (7 1) (1 1)
+blockId 54 AND -21 -4 TWO_SEVENTY
+	(connId:1) (12 0)
+	(connId:0) (13 1) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (16 1) (2 1) (7 1) (1 1)
+blockId 53 AND -22 -4 TWO_SEVENTY
+	(connId:1) (11 0)
+	(connId:0) (13 1) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 52 AND -23 -4 TWO_SEVENTY
+	(connId:1) (26 0)
+	(connId:0) (13 1) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 51 AND -24 -4 TWO_SEVENTY
+	(connId:1) (25 0)
+	(connId:0) (26 1) (13 1) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 47 AND -28 -4 TWO_SEVENTY
+	(connId:1) (21 0)
+	(connId:0) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 46 AND -29 -4 TWO_SEVENTY
+	(connId:1) (20 0)
+	(connId:0) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 45 AND -30 -4 TWO_SEVENTY
+	(connId:1) (19 0)
+	(connId:0) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (20 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 44 AND -31 -4 TWO_SEVENTY
+	(connId:1) (34 0)
+	(connId:0) (19 1) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (20 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 43 AND -32 -4 TWO_SEVENTY
+	(connId:1) (33 0)
+	(connId:0) (19 1) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (20 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (34 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 42 AND -33 -4 TWO_SEVENTY
+	(connId:1) (32 0)
+	(connId:0) (33 1) (19 1) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (20 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (34 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 41 AND -34 -4 TWO_SEVENTY
+	(connId:1) (31 0)
+	(connId:0) (32 1) (33 1) (19 1) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (20 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (34 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 40 AND -35 -4 TWO_SEVENTY
+	(connId:1) (30 0)
+	(connId:0) (32 1) (33 1) (19 1) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (20 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (34 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (31 1) (1 1)
+blockId 39 AND -36 -4 TWO_SEVENTY
+	(connId:1) (29 0)
+	(connId:0) (30 1) (32 1) (33 1) (19 1) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (20 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (34 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (31 1) (1 1)
+blockId 38 AND -37 -4 TWO_SEVENTY
+	(connId:1) (28 0)
+	(connId:0) (29 1) (30 1) (32 1) (33 1) (19 1) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (20 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (34 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (31 1) (1 1)
+blockId 37 AND -38 -4 TWO_SEVENTY
+	(connId:1) (27 0)
+	(connId:0) (28 1) (29 1) (30 1) (32 1) (33 1) (19 1) (21 1) (22 1) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (20 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (34 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (31 1) (1 1)
+blockId 34 XOR -31 -3 TWO_SEVENTY
+	(connId:0) (34 1) (44 1)
+	(connId:1) (95 0) (34 0) (42 0) (41 0) (40 0) (39 0) (38 0) (43 0) (37 0)
+blockId 33 XOR -32 -3 TWO_SEVENTY
+	(connId:0) (33 1) (43 1)
+	(connId:1) (42 0) (41 0) (40 0) (96 0) (33 0) (39 0) (38 0) (37 0)
+blockId 32 XOR -33 -3 TWO_SEVENTY
+	(connId:0) (32 1) (42 1)
+	(connId:1) (97 0) (41 0) (40 0) (39 0) (32 0) (38 0) (37 0)
+blockId 31 XOR -34 -3 TWO_SEVENTY
+	(connId:0) (31 1) (41 1)
+	(connId:1) (98 0) (40 0) (39 0) (31 0) (38 0) (37 0)
+blockId 30 XOR -35 -3 TWO_SEVENTY
+	(connId:0) (30 1) (40 1)
+	(connId:1) (99 0) (39 0) (38 0) (30 0) (37 0)
+blockId 29 XOR -36 -3 TWO_SEVENTY
+	(connId:0) (29 1) (39 1)
+	(connId:1) (100 0) (29 0) (38 0) (37 0)
+blockId 28 XOR -37 -3 TWO_SEVENTY
+	(connId:0) (28 1) (38 1)
+	(connId:1) (101 0) (28 0) (37 0)
+blockId 27 XOR -38 -3 TWO_SEVENTY
+	(connId:1) (102 0) (27 0)
+	(connId:0) (27 1) (37 1)
+blockId 26 XOR -23 -3 TWO_SEVENTY
+	(connId:0) (26 1) (52 1)
+	(connId:1) (87 0) (26 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 23 XOR -26 -3 TWO_SEVENTY
+	(connId:0) (23 1) (49 1)
+	(connId:1) (90 0) (23 0) (45 0) (39 0) (44 0) (42 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 22 XOR -27 -3 TWO_SEVENTY
+	(connId:0) (22 1) (48 1)
+	(connId:1) (91 0) (22 0) (45 0) (39 0) (44 0) (42 0) (47 0) (41 0) (46 0) (40 0) (38 0) (43 0) (37 0)
+blockId 21 XOR -28 -3 TWO_SEVENTY
+	(connId:0) (21 1) (47 1)
+	(connId:1) (92 0) (45 0) (39 0) (44 0) (42 0) (41 0) (21 0) (46 0) (40 0) (38 0) (43 0) (37 0)
+blockId 20 XOR -29 -3 TWO_SEVENTY
+	(connId:0) (20 1) (46 1)
+	(connId:1) (93 0) (20 0) (45 0) (44 0) (42 0) (41 0) (40 0) (39 0) (38 0) (43 0) (37 0)
+blockId 19 XOR -30 -3 TWO_SEVENTY
+	(connId:0) (19 1) (45 1)
+	(connId:1) (94 0) (44 0) (42 0) (41 0) (40 0) (39 0) (19 0) (38 0) (43 0) (37 0)
+blockId 18 XOR -15 -3 TWO_SEVENTY
+	(connId:0) (18 1) (60 1)
+	(connId:1) (18 0) (59 0) (58 0) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (79 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 17 XOR -16 -3 TWO_SEVENTY
+	(connId:0) (17 1) (59 1)
+	(connId:1) (80 0) (58 0) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (17 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 16 XOR -17 -3 TWO_SEVENTY
+	(connId:0) (16 1) (58 1)
+	(connId:1) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (49 0) (16 0) (45 0) (39 0) (44 0) (42 0) (81 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 15 XOR -18 -3 TWO_SEVENTY
+	(connId:0) (15 1) (57 1)
+	(connId:1) (55 0) (54 0) (82 0) (53 0) (56 0) (51 0) (50 0) (15 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 14 XOR -19 -3 TWO_SEVENTY
+	(connId:0) (14 1) (56 1)
+	(connId:1) (55 0) (83 0) (54 0) (53 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (14 0) (48 0) (43 0) (37 0)
+blockId 11 XOR -22 -3 TWO_SEVENTY
+	(connId:0) (11 1) (53 1)
+	(connId:1) (86 0) (51 0) (50 0) (49 0) (11 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 8 XOR -14 -3 TWO_SEVENTY
+	(connId:0) (8 1) (61 1)
+	(connId:1) (60 0) (59 0) (58 0) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (8 0) (38 0) (78 0) (48 0) (43 0) (37 0)
+blockId 7 XOR -13 -3 TWO_SEVENTY
+	(connId:0) (7 1) (62 1)
+	(connId:1) (77 0) (61 0) (60 0) (59 0) (58 0) (57 0) (55 0) (54 0) (53 0) (7 0) (56 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 6 XOR -12 -3 TWO_SEVENTY
+	(connId:0) (6 1) (63 1)
+	(connId:1) (76 0) (6 0) (62 0) (61 0) (60 0) (59 0) (58 0) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 102 LIGHT -38 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (27 1)
+blockId 5 XOR -11 -3 TWO_SEVENTY
+	(connId:0) (5 1) (64 1)
+	(connId:1) (5 0) (63 0) (62 0) (61 0) (60 0) (59 0) (58 0) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (49 0) (75 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 101 LIGHT -37 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (28 1)
+blockId 4 XOR -10 -3 TWO_SEVENTY
+	(connId:0) (4 1) (65 1)
+	(connId:1) (4 0) (64 0) (63 0) (62 0) (61 0) (60 0) (59 0) (58 0) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (49 0) (45 0) (39 0) (74 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 50 AND -25 -4 TWO_SEVENTY
+	(connId:1) (24 0)
+	(connId:0) (25 1) (26 1) (13 1) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 100 LIGHT -36 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (29 1)
+blockId 3 XOR -9 -3 TWO_SEVENTY
+	(connId:0) (3 1) (66 1)
+	(connId:1) (73 0) (65 0) (64 0) (63 0) (62 0) (61 0) (60 0) (59 0) (58 0) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (3 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 13 XOR -20 -3 TWO_SEVENTY
+	(connId:0) (13 1) (55 1)
+	(connId:1) (54 0) (53 0) (51 0) (84 0) (50 0) (49 0) (45 0) (39 0) (44 0) (13 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 25 XOR -24 -3 TWO_SEVENTY
+	(connId:0) (25 1) (51 1)
+	(connId:1) (88 0) (25 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 49 AND -26 -4 TWO_SEVENTY
+	(connId:1) (23 0)
+	(connId:0) (24 1) (25 1) (26 1) (13 1) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 99 LIGHT -35 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (30 1)
+blockId 2 XOR -8 -3 TWO_SEVENTY
+	(connId:0) (2 1) (67 1)
+	(connId:1) (72 0) (2 0) (66 0) (65 0) (64 0) (63 0) (62 0) (61 0) (60 0) (59 0) (58 0) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 12 XOR -21 -3 TWO_SEVENTY
+	(connId:0) (12 1) (54 1)
+	(connId:1) (53 0) (85 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (12 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 24 XOR -25 -3 TWO_SEVENTY
+	(connId:0) (24 1) (50 1)
+	(connId:1) (89 0) (24 0) (49 0) (45 0) (39 0) (44 0) (42 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (37 0)
+blockId 48 AND -27 -4 TWO_SEVENTY
+	(connId:1) (22 0)
+	(connId:0) (23 1) (24 1) (25 1) (26 1) (13 1) (14 1) (15 1) (17 1) (18 1) (3 1) (8 1) (6 1) (5 1) (4 1) (11 1) (16 1) (2 1) (12 1) (7 1) (1 1)
+blockId 98 LIGHT -34 -6 TWO_SEVENTY_FLIPPED
+	(connId:0) (31 1)
+blockId 1 XOR -7 -3 TWO_SEVENTY
+	(connId:0) (70 0) (1 1)
+	(connId:1) (1 0) (68 0) (66 0) (65 0) (64 0) (63 0) (62 0) (61 0) (60 0) (59 0) (58 0) (57 0) (55 0) (54 0) (53 0) (56 0) (51 0) (50 0) (49 0) (45 0) (39 0) (44 0) (42 0) (52 0) (47 0) (41 0) (46 0) (40 0) (38 0) (48 0) (43 0) (67 0) (37 0)

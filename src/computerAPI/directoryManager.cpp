@@ -8,8 +8,7 @@ std::filesystem::path DirectoryManager::projectDirectory("");
 std::filesystem::path DirectoryManager::configDirectory("");
 
 void DirectoryManager::findDirectories() {
-	// only logic for finding resource directory right now, other will be set later somehow
-
+	logInfo("Finding directories", "DirectoryManager");
 	// check for resources directory relative to executable
 	std::filesystem::path relativeToExecutable = getExecutablePath().parent_path() / "resources";
 	if (std::filesystem::exists(relativeToExecutable)) {

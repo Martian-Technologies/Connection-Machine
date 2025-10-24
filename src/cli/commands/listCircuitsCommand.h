@@ -8,7 +8,7 @@ public:
 	ListCircuitsCommand() : Command("list_circuits") {}
 
 	void run(const std::vector<std::string>& args, Environment& environment) override final;
-	const std::string getHelpString() { return "Lists all open files."; }
+	const std::string getHelpString() const override final { return "Lists all open circuits."; }
 };
 
 #endif /* listCircuitsCommand_h */

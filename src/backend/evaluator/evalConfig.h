@@ -1,8 +1,8 @@
 #ifndef evalConfig_h
 #define evalConfig_h
 
-#include "backend/settings/settings.h"
 #include "backend/dataUpdateEventManager.h"
+#include "backend/settings/settings.h"
 
 typedef unsigned int evaluator_id_t;
 

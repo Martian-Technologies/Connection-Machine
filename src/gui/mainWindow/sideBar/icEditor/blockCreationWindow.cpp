@@ -420,7 +420,7 @@ void BlockCreationWindow::resetMenu() {
 	const std::unordered_map<connection_end_id_t, BlockData::ConnectionData>& conncections = blockData->getConnections();
 	for (auto& iter : conncections) {
 		connection_end_id_t endId = iter.first;
-		bool isInputBool = iter.second.isInput;
+		bool isInputBool = iter.second.portType == BlockData::ConnectionData::INPUT;
 		Vector positionOnBlock = iter.second.positionOnBlock;
 		std::optional<std::string> connectionName = blockData->getConnectionIdToName(endId);
 		if (!connectionName) connectionName = "";

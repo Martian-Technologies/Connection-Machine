@@ -1,5 +1,7 @@
 #include "evaluatorICTest.h"
 
+#include "backend/evaluator/evaluator.h"
+
 void EvaluatorICTest::SetUp() {
     circuit_id_t circuitId = backend.createCircuit();
     parentCircuit = backend.getCircuit(circuitId);

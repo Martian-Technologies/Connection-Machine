@@ -12,7 +12,7 @@ const std::vector<std::pair<BlockType, std::string>> types = {
 	{BlockType::XNOR, "Xnor"},
 	{BlockType::BUFFER, "Buffer"},
 	{BlockType::NOT, "Not"},
-	{BlockType::JUNCTION, "Junction"}
+	// {BlockType::JUNCTION, "Junction"}
 };
 
 void ModeChangerTool::reset() {

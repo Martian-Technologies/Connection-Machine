@@ -18,7 +18,7 @@ public:
 		};
 		std::string blockName = "";
 		Size size = Size(1);
-		BlockTextureCords blockTextureCords = BlockTextureCords({0, 0}, {1, 1}, 0);
+		BlockTextureCords blockTextureCords = BlockTextureCords({0, 0}, {1, 1}, 0, {0, 0});
 		std::map<BlockPortRenderDataId, BlockPortRenderData> blockPortRenderData;
 	};
 
@@ -30,6 +30,7 @@ public:
 	void setBlockSize(BlockRenderDataId blockRenderDataId, Size size);
 	void setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId);
 	void setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize);
+	void setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize, Vec2Int textureStepSize);
 	BlockPortRenderDataId addBlockPort(BlockRenderDataId blockRenderDataId, bool isInput, FVector positionOnBlock);
 	void removeBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId);
 	void moveBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId, FVector newPositionOnBlock);

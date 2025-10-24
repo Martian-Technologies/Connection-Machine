@@ -1,11 +1,11 @@
 #ifndef logicSimulator_h
 #define logicSimulator_h
 
+#include "backend/container/block/blockDefs.h"
 #include "simulatorGates.h"
 #include "idProvider.h"
 #include "evalConfig.h"
 #include "threadPool.h"
-#include "backend/container/block/blockDefs.h"
 
 enum class SimGateType : int {
 	AND = 0,
@@ -16,7 +16,8 @@ enum class SimGateType : int {
 	TRISTATE_BUFFER = 5,
 	CONSTANT = 6,
 	CONSTANT_RESET = 7,
-	COPY_SELF_OUTPUT = 8
+	COPY_SELF_OUTPUT = 8,
+	PORTS_TO_INT = 9
 };
 
 class LogicSimulator {
@@ -75,6 +76,7 @@ private:
 	std::vector<ConstantGate> constantGates;
 	std::vector<ConstantResetGate> constantResetGates;
 	std::vector<CopySelfOutputGate> copySelfOutputGates;
+	std::vector<PortsToIntGate> portsToIntGates;
 
 	struct JobInstruction {
 		LogicSimulator* self;
@@ -93,6 +95,7 @@ private:
 	static void execSingleBufferRealistic(void* jobInstruction);
 	static void execConstantReset(void* jobInstruction);
 	static void execCopySelfOutput(void* jobInstruction);
+	static void execPortsToInt(void* jobInstruction);
 
 	void tickANDGates(void* jobInstruction) {
 		auto* ji = static_cast<JobInstruction*>(jobInstruction);
@@ -122,6 +125,12 @@ private:
 		auto* ji = static_cast<JobInstruction*>(jobInstruction);
 		for (size_t i = ji->start; i < ji->end; ++i) {
 			copySelfOutputGates[i].tick(statesA, statesB);
+		}
+	}
+	void tickPortsToIntGates(void* jobInstruction) {
+		auto* ji = static_cast<JobInstruction*>(jobInstruction);
+		for (size_t i = ji->start; i < ji->end; ++i) {
+			portsToIntGates[i].tick(statesA, statesB);
 		}
 	}
 

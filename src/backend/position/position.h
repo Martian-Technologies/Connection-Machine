@@ -22,10 +22,6 @@ struct Vector {
 	inline Vector(coordinate_t d) noexcept : dx(d), dy(d) { }
 	inline FVector free() const noexcept;
 
-	inline void extentToFit(Vector vector) noexcept {
-		dx = std::max(dx, vector.dx);
-		dy = std::max(dy, vector.dy);
-	}
 	inline std::string toString() const noexcept { return "<" + std::to_string(dx) + ", " + std::to_string(dy) + ">"; }
 
 	inline bool operator==(Vector other) const noexcept { return dx == other.dx && dy == other.dy; }
@@ -134,9 +130,7 @@ struct std::hash<Vector> {
 
 template <>
 struct fmt::formatter<Vector> : fmt::formatter<std::string> {
-	auto format(Vector v, format_context& ctx) const {
-		return formatter<std::string>::format(v.toString(), ctx);
-	}
+	auto format(Vector v, format_context& ctx) const { return formatter<std::string>::format(v.toString(), ctx); }
 };
 
 struct FVector {
@@ -188,9 +182,7 @@ struct FVector {
 
 template <>
 struct fmt::formatter<FVector> : fmt::formatter<std::string> {
-	auto format(FVector v, format_context& ctx) const {
-		return formatter<std::string>::format(v.toString(), ctx);
-	}
+	auto format(FVector v, format_context& ctx) const { return formatter<std::string>::format(v.toString(), ctx); }
 };
 
 struct Position {
@@ -298,10 +290,9 @@ Position::Iterator Position::iterTo(Position other) const noexcept { return Iter
 
 inline bool areaWithinArea(Position area1Small, Position area1Large, Position area2Small, Position area2Large) {
 	return (
-		area2Small.withinArea(area1Small, area1Large) ||
-		area2Large.withinArea(area1Small, area1Large) ||
-		area1Small.withinArea(area2Small, area2Large) ||
-		area2Large.withinArea(area2Small, area2Large));
+		area2Small.withinArea(area1Small, area1Large) || area2Large.withinArea(area1Small, area1Large) || area1Small.withinArea(area2Small, area2Large) ||
+		area2Large.withinArea(area2Small, area2Large)
+	);
 }
 
 template <>
@@ -324,9 +315,7 @@ struct std::hash<std::pair<Position, Position>> {
 
 template <>
 struct fmt::formatter<Position> : fmt::formatter<std::string> {
-	auto format(Position v, format_context& ctx) const {
-		return formatter<std::string>::format(v.toString(), ctx);
-	}
+	auto format(Position v, format_context& ctx) const { return formatter<std::string>::format(v.toString(), ctx); }
 };
 
 struct FPosition {
@@ -374,17 +363,14 @@ struct FPosition {
 
 inline bool areaWithinArea(FPosition area1Small, FPosition area1Large, FPosition area2Small, FPosition area2Large) noexcept {
 	return (
-		area2Small.withinArea(area1Small, area1Large) ||
-		area2Large.withinArea(area1Small, area1Large) ||
-		area1Small.withinArea(area2Small, area2Large) ||
-		area2Large.withinArea(area2Small, area2Large));
+		area2Small.withinArea(area1Small, area1Large) || area2Large.withinArea(area1Small, area1Large) || area1Small.withinArea(area2Small, area2Large) ||
+		area2Large.withinArea(area2Small, area2Large)
+	);
 }
 
 template <>
 struct fmt::formatter<FPosition> : fmt::formatter<std::string> {
-	auto format(FPosition v, format_context& ctx) const {
-		return formatter<std::string>::format(v.toString(), ctx);
-	}
+	auto format(FPosition v, format_context& ctx) const { return formatter<std::string>::format(v.toString(), ctx); }
 };
 
 struct Size {
@@ -397,10 +383,18 @@ struct Size {
 	inline Size(Position cornerA, Position cornerB) noexcept : w(Abs(cornerA.x - cornerB.x)), h(Abs(cornerA.y - cornerB.y)) { }
 	inline FSize free() const noexcept;
 
-	inline void extentToFit(Vector vector) noexcept {
+	inline void extentToFitTartgetCell(Vector vector) noexcept {
 		w = std::max(w, vector.dx + 1);
 		h = std::max(h, vector.dy + 1);
 	}
+	// inline void extentToFitVector(Vector vector) noexcept {
+	// 	w = std::max(w, vector.dx);
+	// 	h = std::max(h, vector.dy);
+	// }
+
+	inline bool containsTartgetCell(Vector vector) const noexcept { return vector.dx >= 0 && vector.dy >= 0 && vector.dx + 1 <= w && vector.dy + 1 <= h; }
+	// inline bool containsVector(Vector vector) const noexcept { return vector.dx >= 0 && vector.dy >= 0 && vector.dx <= w && vector.dy <= h; }
+
 	inline std::string toString() const noexcept { return std::to_string(w) + "x" + std::to_string(h); }
 
 	inline bool operator==(Size other) const noexcept { return w == other.w && h == other.h; }
@@ -421,9 +415,7 @@ struct Size {
 
 template <>
 struct fmt::formatter<Size> : fmt::formatter<std::string> {
-	auto format(Size v, format_context& ctx) const {
-		return formatter<std::string>::format(v.toString(), ctx);
-	}
+	auto format(Size v, format_context& ctx) const { return formatter<std::string>::format(v.toString(), ctx); }
 };
 
 class Size::Iterator {
@@ -489,12 +481,25 @@ bool Vector::widthInSize(Size size) const noexcept { return dx < size.w && dx >=
 
 struct FSize {
 	inline FSize() noexcept : w(0), h(0) { }
+	inline FSize(f_coordinate_t sideLength) noexcept : w(sideLength), h(sideLength) { }
 	inline FSize(f_coordinate_t w, f_coordinate_t h) noexcept : w(w), h(h) { }
 	inline Size snap() const noexcept;
 
-	inline void extentToFit(FVector vector) noexcept {
-		w = std::max(w, vector.dx + 1);
-		h = std::max(h, vector.dy + 1);
+	inline void extentToFitTartgetCell(FVector vector) noexcept { extentToFitTartgetCell(vector.snap()); }
+	inline void extentToFitTartgetCell(Vector vector) noexcept {
+		Size size = snap();
+		size.extentToFitTartgetCell(vector);
+		*this = size.free();
+	}
+	inline void extentToFitVector(FVector vector) noexcept {
+		w = std::max(w, vector.dx);
+		h = std::max(h, vector.dy);
+	}
+	inline bool containsTartgetCell(FVector vector) const noexcept {
+		return !isNegative(vector.dx) && !isNegative(vector.dy) && approx_lessOrEquals(std::floor(vector.dx) + 1, w) && approx_lessOrEquals(std::floor(vector.dy) + 1, h);
+	}
+	inline bool containsVector(FVector vector) const noexcept {
+		return !isNegative(vector.dx) && !isNegative(vector.dy) && approx_lessOrEquals(vector.dx, w) && approx_lessOrEquals(vector.dy, h);
 	}
 	inline std::string toString() const noexcept { return std::to_string(w) + "x" + std::to_string(h); }
 
@@ -514,9 +519,7 @@ struct FSize {
 
 template <>
 struct fmt::formatter<FSize> : fmt::formatter<std::string> {
-	auto format(FSize v, format_context& ctx) const {
-		return formatter<std::string>::format(v.toString(), ctx);
-	}
+	auto format(FSize v, format_context& ctx) const { return formatter<std::string>::format(v.toString(), ctx); }
 };
 
 // conversion
@@ -528,8 +531,7 @@ inline FPosition Position::free() const noexcept { return FPosition(x, y); }
 inline Position FPosition::snap() const noexcept { return Position(std::floor(x), std::floor(y)); }
 
 // ---- we also define block rotation here so ----
-enum Rotation : char
-{
+enum Rotation : char {
 	ZERO = 0,
 	NINETY = 1,
 	ONE_EIGHTY = 2,
@@ -582,14 +584,11 @@ inline constexpr Rotation rotate(Rotation rotation, bool clockWise) {
 }
 inline constexpr Rotation addRotations(Rotation rotationA, Rotation rotationB) {
 	char output = rotationA + rotationB;
-	if ((char)output > (char)Rotation::TWO_SEVENTY)
-		output -= 4;
+	if ((char)output > (char)Rotation::TWO_SEVENTY) output -= 4;
 	return (Rotation)output;
 }
 inline constexpr Rotation rotationNeg(Rotation rotation) { return (Rotation)((4 - (char)rotation) & 0b11); }
-inline constexpr Rotation subRotations(Rotation rotationA, Rotation rotationB) {
-	return addRotations(rotationA, rotationNeg(rotationB));
-}
+inline constexpr Rotation subRotations(Rotation rotationA, Rotation rotationB) { return addRotations(rotationA, rotationNeg(rotationB)); }
 inline constexpr int getDegrees(Rotation rotation) { return rotation * 90; }
 inline Vector rotateVectorWithArea(Vector vector, Size size, Rotation rotationAmount) {
 	switch (rotationAmount) {
@@ -607,19 +606,19 @@ inline Vector reverseRotateVectorWithArea(Vector vector, Size size, Rotation rot
 	default: return vector;
 	}
 }
-inline FVector rotateVectorWithArea(FVector vector, FSize size, Rotation rotationAmount) {
+inline FVector rotateFVectorWithArea(FVector vector, FSize size, Rotation rotationAmount) {
 	switch (rotationAmount) {
-	case Rotation::NINETY: return FVector(size.h - vector.dy - 1.f, vector.dx);
-	case Rotation::ONE_EIGHTY: return FVector(size.w - vector.dx - 1.f, size.h - vector.dy - 1.f);
-	case Rotation::TWO_SEVENTY: return FVector(vector.dy, size.w - vector.dx - 1.f);
+	case Rotation::NINETY: return FVector(size.h - vector.dy, vector.dx);
+	case Rotation::ONE_EIGHTY: return FVector(size.w - vector.dx, size.h - vector.dy);
+	case Rotation::TWO_SEVENTY: return FVector(vector.dy, size.w - vector.dx);
 	default: return vector;
 	}
 }
-inline FVector reverseRotateVectorWithArea(FVector vector, FSize size, Rotation rotationAmount) {
+inline FVector reverseRotateFVectorWithArea(FVector vector, FSize size, Rotation rotationAmount) {
 	switch (rotationAmount) {
-	case Rotation::NINETY: return FVector(vector.dy, size.w - vector.dx - 1.f);
-	case Rotation::ONE_EIGHTY: return FVector(size.w - vector.dx - 1.f, size.h - vector.dy - 1.f);
-	case Rotation::TWO_SEVENTY: return FVector(size.h - vector.dy - 1.f, vector.dx);
+	case Rotation::NINETY: return FVector(vector.dy, size.w - vector.dx);
+	case Rotation::ONE_EIGHTY: return FVector(size.w - vector.dx, size.h - vector.dy);
+	case Rotation::TWO_SEVENTY: return FVector(size.h - vector.dy, vector.dx);
 	default: return vector;
 	}
 }
@@ -635,13 +634,19 @@ struct Orientation {
 	inline std::string toString() const { return "(r:" + std::to_string(rotation) + ", f:" + std::to_string(flipped) + ")"; }
 
 	inline void nextOrientation() {
-		rotate(true);
-		if (rotation == Rotation::ZERO) flip();
+		// logInfo("n pre: {}", "", toString());
+		if (rotation == Rotation::ONE_EIGHTY && !flipped) flipped = true;
+		else if (rotation == Rotation::TWO_SEVENTY && flipped) flipped = false;
+		else rotate(!flipped);
+		// logInfo("n pre: {}", "", toString());
 	}
 
 	inline void lastOrientation() {
-		if (rotation == Rotation::ZERO) flip();
-		rotate(false);
+		// logInfo("l post: {}", "", toString());
+		if (rotation == Rotation::ONE_EIGHTY && flipped) flipped = false;
+		else if (rotation == Rotation::TWO_SEVENTY && !flipped) flipped = true;
+		else rotate(flipped);
+		// logInfo("l post: {}", "", toString());
 	}
 
 	inline Vector operator*(Vector vector) const noexcept {
@@ -666,12 +671,8 @@ struct Orientation {
 		flipped ^= other.flipped;
 		return *this;
 	}
-	inline Orientation inverse() const noexcept {
-		return Orientation(flipped ? rotation : rotationNeg(rotation), flipped);
-	}
-	inline Orientation relativeTo(Orientation orientation) const noexcept {
-		return (*this) * (orientation.inverse());
-	}
+	inline Orientation inverse() const noexcept { return Orientation(flipped ? rotation : rotationNeg(rotation), flipped); }
+	inline Orientation relativeTo(Orientation orientation) const noexcept { return (*this) * (orientation.inverse()); }
 	inline Vector transformVectorWithArea(Vector vector, Size size) const noexcept {
 		Vector vec(vector.dx, flipped ? (size.h - vector.dy - 1) : vector.dy);
 		return rotateVectorWithArea(vec, size, rotation);
@@ -681,12 +682,12 @@ struct Orientation {
 		// Vector vec = reverseRotateVectorWithArea(vector, size, rotation);
 		// return Vector(vec.dx, flipped ? (rotateSize(rotation, size).h - vec.dy - 1) : vec.dy);
 	}
-	inline FVector transformVectorWithArea(FVector vector, FSize size) const noexcept {
-		FVector vec(vector.dx, flipped ? (size.h - vector.dy - 1.f) : vector.dy);
-		return rotateVectorWithArea(vec, size, rotation);
+	inline FVector transformFVectorWithArea(FVector vector, FSize size) const noexcept {
+		FVector vec(vector.dx, flipped ? (size.h - vector.dy) : vector.dy);
+		return rotateFVectorWithArea(vec, size, rotation);
 	}
-	inline FVector inverseTransformVectorWithArea(FVector vector, FSize size) const noexcept {
-		return inverse().transformVectorWithArea(vector, size);
+	inline FVector inverseTransformFVectorWithArea(FVector vector, FSize size) const noexcept {
+		return inverse().transformFVectorWithArea(vector, size);
 		// FVector vec = reverseRotateVectorWithArea(vector, size, rotation);
 		// return FVector(vec.dx, flipped ? (rotateSize(rotation, size).h - vec.dy - 1) : vec.dy);
 	}
@@ -694,9 +695,7 @@ struct Orientation {
 
 template <>
 struct fmt::formatter<Orientation> : fmt::formatter<std::string> {
-	auto format(Orientation o, format_context& ctx) const {
-		return formatter<std::string>::format(o.toString(), ctx);
-	}
+	auto format(Orientation o, format_context& ctx) const { return formatter<std::string>::format(o.toString(), ctx); }
 };
 
 #endif /* position_h */

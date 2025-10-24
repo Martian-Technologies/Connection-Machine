@@ -15,7 +15,7 @@ Freetype::~Freetype() {
 	}
 }
 
-const Freetype& Freetype::get() {
+Freetype& Freetype::get() {
 	static Freetype freetype;
 	return freetype;
 }
@@ -34,4 +34,3 @@ std::shared_ptr<Font> Freetype::loadFont(const std::string& fontFile, uint32_t p
 	}
 	return std::make_shared<Font>(face, ptSize);
 }
-

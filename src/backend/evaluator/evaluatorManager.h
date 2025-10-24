@@ -1,8 +1,10 @@
 #ifndef evaluatorManager_h
 #define evaluatorManager_h
 
-#include "evaluator.h"
+#include "backend/circuit/circuit.h"
+#include "evalDefs.h"
 
+class CircuitManager;
 class DataUpdateEventManager;
 
 class EvaluatorManager {
@@ -22,18 +24,7 @@ public:
 		return iter->second;
 	}
 
-	inline evaluator_id_t createNewEvaluator(CircuitManager& circuitManager, circuit_id_t circuitId) {
-		evaluator_id_t id = getNewEvaluatorId();
-		evaluators.emplace(id, std::make_shared<Evaluator>(
-			id,
-			circuitManager,
-			*circuitManager.getBlockDataManager(),
-			*circuitManager.getCircuitBlockDataManager(),
-			circuitId, dataUpdateEventManager
-		));
-		dataUpdateEventManager->sendEvent("addressTreeMakeBranch");
-		return id;
-	}
+	evaluator_id_t createNewEvaluator(CircuitManager& circuitManager, circuit_id_t circuitId);
 	inline void destroyEvaluator(evaluator_id_t id) {
 		auto iter = evaluators.find(id);
 		if (iter != evaluators.end()) {
@@ -49,17 +40,13 @@ public:
 	inline const_iterator begin() const { return evaluators.begin(); }
 	inline const_iterator end() const { return evaluators.end(); }
 
-	void applyDiff(DifferenceSharedPtr difference, circuit_id_t circuitId) {
-		for (auto& [id, evaluator] : evaluators) {
-			evaluator->makeEdit(difference, circuitId);
-		}
-	}
+	void applyDiff(DifferenceSharedPtr difference, circuit_id_t circuitId);
 
 private:
 	evaluator_id_t getNewEvaluatorId() { return ++lastId; }
 
 	DataUpdateEventManager* dataUpdateEventManager;
-	
+
 	evaluator_id_t lastId = 0;
 	std::map<evaluator_id_t, SharedEvaluator> evaluators;
 };

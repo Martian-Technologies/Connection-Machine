@@ -9,6 +9,7 @@
 #include "computerAPI/saveSettings.h"
 
 void registerSettings() {
+	logInfo("Registering settings", "Main");
 	Settings::registerSetting<SettingType::FILE_PATH>("Appearance/Font", (DirectoryManager::getResourceDirectory() / "gui/fonts/monaspace.otf").generic_string());
 	Settings::registerSetting<SettingType::KEYBIND>("Keybinds/File/Save", Keybind(Keybind::KeyId::KI_S, Keybind::KeyMod::KM_CTRL));
 	Settings::registerSetting<SettingType::KEYBIND>("Keybinds/File/Save As", Keybind(Keybind::KeyId::KI_S, Keybind::KeyMod::KM_CTRL | Keybind::KeyMod::KM_SHIFT));
@@ -44,22 +45,32 @@ void registerSettings() {
 	save.load();
 	// set font again incase another font was loaded because other fonts wont work for now
 	Settings::set<SettingType::FILE_PATH>("Appearance/Font", (DirectoryManager::getResourceDirectory() / "gui/fonts/monaspace.otf").generic_string());
+
+	// std::shared_ptr<Font> font = Freetype::get().loadFont(*Settings::get<SettingType::FILE_PATH>("Appearance/Font"));
+	// logInfo(font->getFontFamily());
+
+	// stbi_uc w;
+	// stbi_loadf_from_memory(const stbi_uc *buffer, int len, int *x, int *y, int *channels_in_file, int desired_channels)
+
 }
 
 int main(int argc, char* argv[]) {
+#ifdef MAIN_TRY_CATCH
 	try {
+#endif
 		// Set up directory manager
 		DirectoryManager::findDirectories();
-
 		registerSettings();
 
 		App::get().runLoop();
 		App::kill();
+#ifdef MAIN_TRY_CATCH
 	} catch (const std::exception& e) {
 		// Top level fatal error catcher, logs issue
 		logFatalError("Exiting Connection Machine because of fatal error: '{}'", "", e.what());
 		return EXIT_FAILURE;
 	}
+#endif
 
 	logInfo("Exiting Connection Machine...");
 	return EXIT_SUCCESS;

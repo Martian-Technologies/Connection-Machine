@@ -3,11 +3,16 @@
 std::optional<MainRenderer> mainRendererSingleton;
 
 MainRenderer& MainRenderer::get() {
-	if (!mainRendererSingleton) mainRendererSingleton.emplace();
+	if (!mainRendererSingleton) {
+		logInfo("Creating MainRenderer", "MainRenderer");
+		mainRendererSingleton.emplace();
+		logInfo("MainRenderer created", "MainRenderer");
+	};
 	return *mainRendererSingleton;
 }
 
 void MainRenderer::kill() {
+	logInfo("Killing MainRenderer", "MainRenderer");
 	mainRendererSingleton.reset();
 }
 
@@ -206,6 +211,10 @@ void MainRenderer::setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTex
 	blockRenderDataManager.setBlockTexture(blockRenderDataId, blockTextureId, tileSize, smallestCordTile, blockSize);
 }
 
+void MainRenderer::setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize, Vec2Int textureStepSize) {
+	blockRenderDataManager.setBlockTexture(blockRenderDataId, blockTextureId, tileSize, smallestCordTile, blockSize, textureStepSize);
+}
+
 BlockPortRenderDataId MainRenderer::addBlockPort(BlockRenderDataId blockRenderDataId, bool isInput, FVector positionOnBlock) {
 	return blockRenderDataManager.addBlockPort(blockRenderDataId, isInput, positionOnBlock);
 }
@@ -295,13 +304,13 @@ void MainRenderer::stopMakingEdits(ViewportId viewportId) {
 	iter->second.getChunker().stopMakingEdits();
 }
 
-void MainRenderer::addBlock(ViewportId viewportId, BlockRenderDataId blockRenderDataId, Position position, Orientation orientation, Position statePosition) {
+void MainRenderer::addBlock(ViewportId viewportId, BlockRenderDataId blockRenderDataId, Position position, Orientation orientation) {
 	auto iter = viewportRenderers.find(viewportId);
 	if (iter == viewportRenderers.end()) {
 		logError("Failed to call startMakingEdits on non existent viewport {}", "MainRenderer", viewportId);
 		return;
 	}
-	iter->second.getChunker().addBlock(blockRenderDataId, position, orientation, statePosition);
+	iter->second.getChunker().addBlock(blockRenderDataId, position, orientation);
 }
 
 void MainRenderer::removeBlock(ViewportId viewportId, Position position) {
