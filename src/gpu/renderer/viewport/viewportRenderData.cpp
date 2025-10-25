@@ -265,7 +265,6 @@ ElementId ViewportRenderData::addBlockPreview(BlockPreview&& blockPreview) {
 
 void ViewportRenderData::shiftBlockPreview(ElementId id, Vector shift) {
 	std::lock_guard<std::mutex> lock(elementsMux);
-
 	auto iterPair = blockPreviews.equal_range(id);
 	for (auto iter = iterPair.first; iter != iterPair.second; ++iter) {
 		iter->second.position += glm::vec2(shift.dx, shift.dy);
@@ -296,6 +295,19 @@ std::vector<BlockPreviewRenderData> ViewportRenderData::getBlockPreviews() {
 	}
 
 	return returnBlockPreviews;
+}
+
+std::vector<BlockPreviewRenderBatch> ViewportRenderData::getblockPreviewBatches() {
+	std::lock_guard<std::mutex> lock(elementsMux);
+
+	std::vector<BlockPreviewRenderBatch> returnBlockPreviewBatches;
+	returnBlockPreviewBatches.reserve(blockPreviewBatches.size());
+
+	for (const auto& preview : blockPreviewBatches) {
+		returnBlockPreviewBatches.push_back(preview.second);
+	}
+
+	return returnBlockPreviewBatches;
 }
 
 ElementId ViewportRenderData::addConnectionPreview(const ConnectionPreview& connectionPreview) {

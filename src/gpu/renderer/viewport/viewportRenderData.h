@@ -30,6 +30,7 @@ public:
 	}
 
 	std::vector<BlockPreviewRenderData> getBlockPreviews();
+	std::vector<BlockPreviewRenderBatch> getblockPreviewBatches();
 	std::vector<BoxSelectionRenderData> getBoxSelections();
 	std::vector<ConnectionPreviewRenderData> getConnectionPreviews();
 	std::vector<ArrowRenderData> getArrows();

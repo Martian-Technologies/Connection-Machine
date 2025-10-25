@@ -118,6 +118,41 @@ void ElementRenderer::renderBlockPreviews(Frame& frame, const glm::mat4& viewMat
 	}
 }
 
+void ElementRenderer::renderBlockPreviewBatches(Frame& frame, const glm::mat4& viewMatrix, const std::vector<BlockPreviewRenderBatch>& blockPreviewBatches) {
+    if (blockPreviewBatches.empty())
+        return;
+
+    VkCommandBuffer cmd = frame.mainCommandBuffer;
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPreviewPipeline.getHandle());
+
+    std::shared_ptr<BlockTextureArray> blockTexture = device->getBlockTextureManager().getTextureArray();
+    frame.lifetime.push(blockTexture);
+    vkCmdBindDescriptorSets(
+        cmd,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        blockPreviewPipeline.getLayout(),
+        0, 1, &blockTexture->descriptor,
+        0, nullptr
+    );
+
+    BlockPreviewPushConstant pushConstant{};
+    pushConstant.mvp = viewMatrix;
+    blockPreviewPipeline.cmdPushConstants(cmd, &pushConstant);
+
+    for (const auto& batch : blockPreviewBatches) {
+        if (!batch.buffer.buffer || batch.instanceCount == 0)
+            continue;
+
+        VkBuffer vertexBuffers[] = { batch.buffer.buffer };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+        vkCmdDraw(cmd, 6, batch.instanceCount, 0, 0);
+    }
+}
+
+
+
 void ElementRenderer::renderBoxSelections(Frame& frame, const glm::mat4& viewMatrix, const std::vector<BoxSelectionRenderData>& boxSelections) {
 	if (!boxSelections.empty()) {
 		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boxSelectionPipeline.getHandle());
