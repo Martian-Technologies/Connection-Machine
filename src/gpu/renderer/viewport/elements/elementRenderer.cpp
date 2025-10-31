@@ -12,6 +12,42 @@
 void ElementRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	this->device = device;
 
+	// block previews & wires
+	DescriptorLayoutBuilder stateBufferBuilder;
+	stateBufferBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+	stateBufferDescriptorSetLayout = stateBufferBuilder.build(device->getDevice(), VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR);
+
+	VkShaderModule blockVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/block.vert.spv"));
+	VkShaderModule blockFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/block.frag.spv"));
+	VkShaderModule wireVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/wire.vert.spv"));
+	VkShaderModule wireFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/wire.frag.spv"));
+
+	PipelineInformation blockPipelineInfo{};
+	blockPipelineInfo.vertShader = blockVertShader;
+	blockPipelineInfo.fragShader = blockFragShader;
+	blockPipelineInfo.renderPass = renderPass;
+	blockPipelineInfo.vertexBindingDescriptions = BlockInstance::getBindingDescriptions();
+	blockPipelineInfo.vertexAttributeDescriptions = BlockInstance::getAttributeDescriptions();
+	blockPipelineInfo.pushConstants.push_back({VK_SHADER_STAGE_VERTEX_BIT, sizeof(ChunkPushConstants)});
+	blockPipelineInfo.descriptorSets.push_back(stateBufferDescriptorSetLayout);
+	blockPipelineInfo.descriptorSets.push_back(device->getBlockTextureManager().getDescriptorLayout());
+	blockPipeline.init(device, blockPipelineInfo);
+
+	PipelineInformation wirePipelineInfo{};
+	wirePipelineInfo.vertShader = wireVertShader;
+	wirePipelineInfo.fragShader = wireFragShader;
+	wirePipelineInfo.renderPass = renderPass;
+	wirePipelineInfo.vertexBindingDescriptions = WireInstance::getBindingDescriptions();
+	wirePipelineInfo.vertexAttributeDescriptions = WireInstance::getAttributeDescriptions();
+	wirePipelineInfo.pushConstants.push_back({VK_SHADER_STAGE_VERTEX_BIT, sizeof(ChunkPushConstants)});
+	wirePipelineInfo.descriptorSets.push_back(stateBufferDescriptorSetLayout);
+	wirePipeline.init(device, wirePipelineInfo);
+
+	destroyShaderModule(device->getDevice(), blockVertShader);
+	destroyShaderModule(device->getDevice(), blockFragShader);
+	destroyShaderModule(device->getDevice(), wireVertShader);
+	destroyShaderModule(device->getDevice(), wireFragShader);
+
 	// block preview
 	VkShaderModule blockPreviewVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/blockPreview.vert.spv"));
 	VkShaderModule blockPreviewFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/blockPreview.frag.spv"));
@@ -119,7 +155,7 @@ void ElementRenderer::renderBlockPreviews(Frame& frame, const glm::mat4& viewMat
 }
 
 void ElementRenderer::renderBlockPreviewBatches(Frame& frame, const glm::mat4& viewMatrix, const std::vector<BlockPreviewRenderBatch>& blockPreviewBatches) {
-    if (blockPreviewBatches.empty())
+	if (blockPreviewBatches.empty())
         return;
 
     VkCommandBuffer cmd = frame.mainCommandBuffer;
@@ -145,6 +181,7 @@ void ElementRenderer::renderBlockPreviewBatches(Frame& frame, const glm::mat4& v
             continue;
 
         VkBuffer vertexBuffers[] = { batch.buffer.buffer };
+
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
         vkCmdDraw(cmd, 6, batch.instanceCount, 0, 0);
