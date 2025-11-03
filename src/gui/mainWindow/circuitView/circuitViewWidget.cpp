@@ -10,7 +10,7 @@
 #include "gui/mainWindow/mainWindow.h"
 #include "gui/helper/keybindHelpers.h"
 #include "gui/helper/eventPasser.h"
-#include "gui/viewportManager/circuitView/tutorial/Tutorial.h"
+//#include "gui/viewportManager/circuitView/tutorial/Tutorial.h"
 
 #include "environment/environment.h"
 
@@ -37,6 +37,29 @@ void LoadCallback(void* userData, const char* const* filePaths, int filter) {
 	} else {
 		logInfo("File dialog canceled.");
 	}
+}
+void CircuitViewWidget::createCTest(){
+    newCircuit();
+    Backend* backend = circuitView->getBackend();
+    if (!backend) {
+        logError("No backend available in CircuitViewWidget::createNewCircuitAndPlaceAllBlocks");
+        return;
+    }
+
+    SharedCircuit circuit = circuitView->getCircuit();
+    if (!circuit) {
+        logError("No circuit active after newCircuit()");
+        return;
+    }
+
+    auto& toolManager = circuitView->getToolManager();
+
+    auto blockTool = std::make_shared<BlockPlacementTool>(
+        backend->getDataUpdateEventManager(),
+        circuit.get(),
+        circuitView.get(),
+        circuitView->getViewportId()
+    );
 }
 
 CircuitViewWidget::CircuitViewWidget(
@@ -72,8 +95,8 @@ CircuitViewWidget::CircuitViewWidget(
 	document->AddEventListener(Rml::EventId::Keydown, &keybindHandler);
 	keybindHandler.addListener(
 		Rml::Input::KeyIdentifier::KI_B,
-		[this]() { circuitView->tutorial->t();}
-		//[this]() { logInfo("helpme");}
+		[this]() { createCTest();}
+		
 	);
 	keybindHandler.addListener(
 		"Keybinds/Editing/Undo",
