@@ -78,6 +78,26 @@ void CircuitViewWidget::createNewCircuitAndPlaceEachBlock() {
     logInfo("Successfully created a new circuit and placed one of each block type!", "CircuitViewWidget");
 }
 
+void CircuitViewWidget::testPlaceBlockArea(BlockType blockType) {
+    newCircuit();
+    Backend* backend = circuitView->getBackend();
+    if (!backend) {
+        logError("No backend available in testPlaceBlockArea", "CircuitViewWidget");
+        return;
+    }
+
+    SharedCircuit circuit = circuitView->getCircuit();
+    if (!circuit) {
+        logError("No circuit active after newCircuit()", "CircuitViewWidget");
+        return;
+    }
+    Position topLeft(0, 0);
+    Position bottomRight(2, 2);  // inclusive corner
+    Orientation orientation;     // default (no rotation)
+    circuit->tryInsertOverArea(topLeft, bottomRight, orientation, blockType);
+    logInfo(fmt::format("Placed block type {} in a 3x3 area", (int)blockType), "CircuitViewWidget");
+}
+
 CircuitViewWidget::CircuitViewWidget(
 	Environment* environment,
 	Rml::ElementDocument* document,
