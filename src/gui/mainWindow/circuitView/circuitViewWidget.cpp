@@ -38,40 +38,44 @@ void LoadCallback(void* userData, const char* const* filePaths, int filter) {
 		logInfo("File dialog canceled.");
 	}
 }
-void CircuitViewWidget::createNewCircuitAndPlaceAllBlocks() {
+void CircuitViewWidget::createNewCircuitAndPlaceEachBlock() {
+    //make circuit and place each block
+    //in location
     newCircuit();
+
     Backend* backend = circuitView->getBackend();
     if (!backend) {
-        logError("No backend available in CircuitViewWidget::createNewCircuitAndPlaceAllBlocks");
+        logError("No backend available in createNewCircuitAndPlaceEachBlock", "CircuitViewWidget");
         return;
     }
 
     SharedCircuit circuit = circuitView->getCircuit();
     if (!circuit) {
-        logError("No circuit active after newCircuit()");
+        logError("No circuit active after newCircuit()", "CircuitViewWidget");
         return;
     }
 
     auto& toolManager = circuitView->getToolManager();
 
-    auto blockTool = std::make_shared<BlockPlacementTool>(
-        backend->getDataUpdateEventManager(),
-        circuit.get(),
-        circuitView.get(),
-        circuitView->getViewportId()
-    );
+    auto blockTool = std::make_shared<BlockPlacementTool>();
+    toolManager.selectTool(blockTool);
 
-    const std::vector<std::string> blockTypes = backend->getBlockRegistry().getAllBlockNames();
+    const BlockDataManager* blockManager = circuit->getBlockContainer()->getBlockDataManager();
+    std::vector<BlockType> allBlockTypes = blockManager->getAllBlockTypes();
 
     Vec2 pos(0, 0);
-    for (const auto& type : blockTypes) {
-        blockTool->setBlockType(type);
-        blockTool->placeBlock(pos);
+    Orientation orientation;
+    for (BlockType type : allBlockTypes) {
+        if (type == BlockType::NONE) continue;
+        toolManager.selectBlock(type);
+
+        //Actually place it
+        circuit->tryInsertBlock(pos, orientation, type);
+
+        pos.x += 5;
     }
 
-    circuitView->getEventRegister().doEvent(Event("Confirm"));
-
-    logInfo("Placed one of each block type successfully!");
+    logInfo("Successfully created a new circuit and placed one of each block type!", "CircuitViewWidget");
 }
 
 CircuitViewWidget::CircuitViewWidget(
