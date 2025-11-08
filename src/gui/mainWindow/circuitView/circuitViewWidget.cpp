@@ -38,7 +38,7 @@ void LoadCallback(void* userData, const char* const* filePaths, int filter) {
 		logInfo("File dialog canceled.");
 	}
 }
-void CircuitViewWidget::createCTest(){
+void CircuitViewWidget::createNewCircuitAndPlaceAllBlocks() {
     newCircuit();
     Backend* backend = circuitView->getBackend();
     if (!backend) {
@@ -60,6 +60,18 @@ void CircuitViewWidget::createCTest(){
         circuitView.get(),
         circuitView->getViewportId()
     );
+
+    const std::vector<std::string> blockTypes = backend->getBlockRegistry().getAllBlockNames();
+
+    Vec2 pos(0, 0);
+    for (const auto& type : blockTypes) {
+        blockTool->setBlockType(type);
+        blockTool->placeBlock(pos);
+    }
+
+    circuitView->getEventRegister().doEvent(Event("Confirm"));
+
+    logInfo("Placed one of each block type successfully!");
 }
 
 CircuitViewWidget::CircuitViewWidget(
