@@ -7,9 +7,7 @@
 
 class ThreadPool {
 public:
-	explicit ThreadPool(size_t nthreads = 0)
-		: stop(false)
-	{
+	explicit ThreadPool(size_t nthreads = 0) : stop(false) {
 		workers.reserve(nthreads);
 		for (size_t i = 0; i < nthreads; ++i) spawnOne();
 	}
@@ -20,7 +18,8 @@ public:
 		stop.store(true, std::memory_order_relaxed);
 		for (auto& w : workers) w->retire.store(true, std::memory_order_relaxed);
 		cv.notify_all(); // wake any sleepers
-		for (auto& w : workers) if (w->th.joinable()) w->th.join();
+		for (auto& w : workers)
+			if (w->th.joinable()) w->th.join();
 	}
 
 	struct Job {
@@ -35,10 +34,21 @@ public:
 			jobsRef = &new_jobs;
 
 			threadsWaiting.store(0, std::memory_order_relaxed);
-			next.resize((*jobsRef).size());
+			next = std::vector<std::atomic<uint32_t>>((*jobsRef).size());
+			// for (auto& index : next) {
+			// 	if (!index) index = std::make_shared<std::atomic<unsigned int>>(0);
+			// 	else index->store(0, std::memory_order_relaxed);
+			// }
+			round.fetch_add(1, std::memory_order_release);
+		}
+		cv.notify_all();
+	}
+
+	void reset() {
+		{
+			threadsWaiting.store(0, std::memory_order_relaxed);
 			for (auto& index : next) {
-				if (!index) index = std::make_shared<std::atomic<unsigned int>>(0);
-				else index->store(0, std::memory_order_relaxed);
+				index.store(0, std::memory_order_relaxed);
 			}
 			round.fetch_add(1, std::memory_order_release);
 		}
@@ -50,12 +60,13 @@ public:
 #ifdef TRACY_PROFILER
 		ZoneScoped;
 #endif
-		if (helpCompute && jobsRef != nullptr && (*jobsRef).size() != 0)
-			runTillDone((*jobsRef).size()-1); // if your waiting might as well help do the compute
+		if (helpCompute && jobsRef != nullptr && (*jobsRef).size() != 0) runTillDone((*jobsRef).size() - 1); // if your waiting might as well help do the compute
 		uint32_t w = threadsWaiting.fetch_add(1, std::memory_order_acq_rel);
 		while (true) {
-			if (w >= workers.size()+1) break;
-			if (!sprintingNow) { std::this_thread::yield(); }
+			if (w >= workers.size() + 1) break;
+			if (!sprintingNow) {
+				std::this_thread::yield();
+			}
 			w = threadsWaiting.load(std::memory_order_acquire);
 		}
 	}
@@ -71,8 +82,7 @@ public:
 		if (new_count < cur) {
 			size_t kill = cur - new_count;
 			waitForCompletion();
-			for (size_t i = 0; i < kill; ++i)
-				workers[workers.size() - 1 - i]->retire.store(true, std::memory_order_relaxed);
+			for (size_t i = 0; i < kill; ++i) workers[workers.size() - 1 - i]->retire.store(true, std::memory_order_relaxed);
 			cv.notify_all(); // wake sleepers so they can retire
 			for (size_t i = 0; i < kill; ++i) {
 				auto idx = workers.size() - 1;
@@ -93,7 +103,7 @@ public:
 private:
 	struct Worker {
 		std::thread th;
-		std::atomic<bool> retire{false};
+		std::atomic<bool> retire{ false };
 		unsigned int threadIndex;
 	};
 
@@ -101,7 +111,7 @@ private:
 		auto w = std::make_unique<Worker>();
 		Worker* self = w.get();
 		w->threadIndex = workers.size();
-		w->th = std::thread([this, self]{ workerLoop(self); });
+		w->th = std::thread([this, self] { workerLoop(self); });
 		workers.emplace_back(std::move(w));
 	}
 
@@ -122,49 +132,47 @@ private:
 				}
 			} else {
 				std::unique_lock lk(mtx);
-				cv.wait(lk, [this, self, &local_round]{
-					return self->retire.load(std::memory_order_relaxed)
-					   || stop.load(std::memory_order_relaxed)
-					   || round.load(std::memory_order_acquire) != local_round;
+				cv.wait(lk, [this, self, &local_round] {
+					return self->retire.load(std::memory_order_relaxed) || stop.load(std::memory_order_relaxed) || round.load(std::memory_order_acquire) != local_round;
 				});
 				if (self->retire.load(std::memory_order_relaxed) || stop.load(std::memory_order_relaxed)) {
 					return;
 				}
 				local_round = round.load(std::memory_order_acquire);
 			}
-			runTillDone(self->threadIndex);
+			if (jobsRef) runTillDone(self->threadIndex);
 		}
 	}
 
 	inline void runTillDone(unsigned int threadIndex) {
 		unsigned int jobArrayIndex = threadIndex;
-		auto* ptr = next[jobArrayIndex].get();
-		uint32_t i = ptr->fetch_add(1, std::memory_order_acq_rel);
+		unsigned int stepDir = 1 - (threadIndex % 2) * 2;
+		uint32_t i = next[jobArrayIndex].fetch_add(1, std::memory_order_acq_rel);
 		while (true) {
 #ifdef TRACY_PROFILER
 			ZoneScoped;
 #endif
 			while (i >= (*jobsRef)[jobArrayIndex].size()) {
 				uint32_t w = threadsWaiting.load(std::memory_order_acquire);
-				if (w > 0 || (jobArrayIndex + 1)%(*jobsRef).size() == threadIndex) return;
-				jobArrayIndex = (jobArrayIndex + 1) % (*jobsRef).size();
-				i = next[jobArrayIndex]->fetch_add(1, std::memory_order_acq_rel);
+				jobArrayIndex = (jobArrayIndex + stepDir) % (*jobsRef).size();
+				if (w > 0 || jobArrayIndex == threadIndex) return;
+				i = next[jobArrayIndex].fetch_add(1, std::memory_order_acq_rel);
 			}
 			// Safe because resetAndLoad keeps jobsRef stable for the duration of the round.
 
 			const Job j = (*jobsRef)[jobArrayIndex][i];
 			j.fn(j.arg);
-			i = next[jobArrayIndex]->fetch_add(1, std::memory_order_acq_rel);
+			i = next[jobArrayIndex].fetch_add(1, std::memory_order_acq_rel);
 		}
 	}
 
 	std::vector<std::unique_ptr<Worker>> workers;
-	const std::vector<std::vector<Job>>* jobsRef{nullptr}; // reference to current round’s jobs
-	std::vector<std::shared_ptr<std::atomic<uint32_t>>> next; // next index to claim
-	std::atomic<bool> stop{false}; // global shutdown (idle-only)
-	std::atomic<bool> sprinting{false}; // will make waiting for completion not yield
-	std::atomic<uint64_t> round{0}; // generation/epoch for cv wakeups
-	std::atomic<uint32_t> threadsWaiting{0}; // generation/epoch for cv wakeups
+	const std::vector<std::vector<Job>>* jobsRef{ nullptr }; // reference to current round’s jobs
+	std::vector<std::atomic<uint32_t>> next;				 // next index to claim
+	std::atomic<bool> stop{ false };						 // global shutdown (idle-only)
+	std::atomic<bool> sprinting{ false };					 // will make waiting for completion not yield
+	std::atomic<uint64_t> round{ 0 };						 // generation/epoch for cv wakeups
+	std::atomic<uint32_t> threadsWaiting{ 0 };				 // generation/epoch for cv wakeups
 
 	std::mutex mtx;
 	std::condition_variable cv;
