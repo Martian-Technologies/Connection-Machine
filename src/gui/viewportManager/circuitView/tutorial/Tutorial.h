@@ -1,3 +1,4 @@
+// Tutorial.h
 #pragma once
 
 #include <vector>
@@ -15,4 +16,14 @@ public:
     void nextState();       // move forward
     void previousState();   // move backward
 
+    const TutorialState* getCurrentState() const;
+
+private:
+    void applyState(const TutorialState& state);
+
+private:
+    CircuitView* circuitView;
+    std::vector<TutorialState> states;
+    int currentIndex = -1;
 };
+;
