@@ -40,65 +40,61 @@ void LoadCallback(void* userData, const char* const* filePaths, int filter) {
 		logInfo("File dialog canceled.");
 	}
 }
-void CircuitViewWidget::createNewCircuitAndPlaceEachBlock() {
-    //make circuit and place each block
-    //in location
-    newCircuit();
+// void CircuitViewWidget::createNewCircuitAndPlaceEachBlock() {
+//     //make circuit and place each block
+//     //in location
+//     newCircuit();
 
-    Backend* backend = circuitView->getBackend();
-    if (!backend) {
-        logError("No backend available in createNewCircuitAndPlaceEachBlock", "CircuitViewWidget");
-        return;
-    }
+//     Backend& backend = circuitView->getBackend();
 
-    SharedCircuit circuit = circuitView->getCircuit();
-    if (!circuit) {
-        logError("No circuit active after newCircuit()", "CircuitViewWidget");
-        return;
-    }
+//     Circuit * circuit = circuitView->getCircuit();
+//     if (!circuit) {
+//         logError("No circuit active after newCircuit()", "CircuitViewWidget");
+//         return;
+//     }
 
-    auto& toolManager = circuitView->getToolManager();
+//     auto& toolManager = circuitView->getToolManager();
 
-    auto blockTool = std::make_shared<BlockPlacementTool>();
-    toolManager.selectTool(blockTool);
+//     auto blockTool = std::make_shared<BlockPlacementTool>();
+//     toolManager.selectTool(blockTool);
 
-    const BlockDataManager* blockManager = circuit->getBlockContainer()->getBlockDataManager();
-    std::vector<BlockType> allBlockTypes = blockManager->getAllBlockTypes();
+//     const BlockDataManager& blockManager = circuit->getBlockContainer().getBlockDataManager();
+//     // std::vector<BlockType> allBlockTypes = blockManager.getAllBlockTypes();
 
-    Vec2 pos(0, 0);
-    Orientation orientation;
-    for (BlockType type : allBlockTypes) {
-        if (type == BlockType::NONE) continue;
-        toolManager.selectBlock(type);
+//     // Vec2 pos(0, 0);
+//     // Orientation orientation;
+//     // for (BlockType type : allBlockTypes) {
+//     //     if (type == BlockType::NONE) continue;
+//     //     toolManager.selectBlock(type);
 
-        //Actually place it
-        circuit->tryInsertBlock(pos, orientation, type);
+//     //     //Actually place it
+//     //     circuit->tryInsertBlock(pos, orientation, type);
 
-        pos.x += 5;
-    }
+//     //     pos.x += 5;
+//     // }
 
-    logInfo("Successfully created a new circuit and placed one of each block type!", "CircuitViewWidget");
-}
+//     logInfo("Successfully created a new circuit and placed one of each block type!", "CircuitViewWidget");
+// }
 
-void CircuitViewWidget::testPlaceBlockArea(BlockType blockType) {
-    newCircuit();
-    Backend* backend = circuitView->getBackend();
-    if (!backend) {
-        logError("No backend available in testPlaceBlockArea", "CircuitViewWidget");
-        return;
-    }
+// void CircuitViewWidget::testPlaceBlockArea(BlockType blockType) {
+//     newCircuit();
+//     Backend* backend = circuitView->getBackend();
+//     if (!backend) {
+//         logError("No backend available in testPlaceBlockArea", "CircuitViewWidget");
+//         return;
+//     }
 
-    SharedCircuit circuit = circuitView->getCircuit();
-    if (!circuit) {
-        logError("No circuit active after newCircuit()", "CircuitViewWidget");
-        return;
-    }
-    Position topLeft(0, 0);
-    Position bottomRight(2, 2);  // inclusive corner
-    Orientation orientation;     // default (no rotation)
-    circuit->tryInsertOverArea(topLeft, bottomRight, orientation, blockType);
-    logInfo(fmt::format("Placed block type {} in a 3x3 area", (int)blockType), "CircuitViewWidget");
-}
+//     SharedCircuit circuit = circuitView->getCircuit();
+//     if (!circuit) {
+//         logError("No circuit active after newCircuit()", "CircuitViewWidget");
+//         return;
+//     }
+//     Position topLeft(0, 0);
+//     Position bottomRight(2, 2);  // inclusive corner
+//     Orientation orientation;     // default (no rotation)
+//     circuit->tryInsertOverArea(topLeft, bottomRight, orientation, blockType);
+//     logInfo(fmt::format("Placed block type {} in a 3x3 area", (int)blockType), "CircuitViewWidget");
+// }
 
 CircuitViewWidget::CircuitViewWidget(Environment& environment, Rml::ElementDocument* document, MainWindow& mainWindow, WindowId windowId, Rml::Element* element) :
 	fileManager(&environment.getCircuitFileManager()), document(document), mainWindow(mainWindow), windowId(windowId), element(element) {
