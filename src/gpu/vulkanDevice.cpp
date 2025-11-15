@@ -1,7 +1,7 @@
 #include "vulkanDevice.h"
 
-#include "gpu/renderer/viewport/blockTextureManager.h"
 #include "gpu/mainRenderer.h"
+#include "gpu/renderer/viewport/blockTextureManager.h"
 
 VulkanDevice::VulkanDevice(VkSurfaceKHR surfaceForPresenting) {
 	logInfo("Creating Vulkan Device...", "Vulkan");
@@ -11,23 +11,37 @@ VulkanDevice::VulkanDevice(VkSurfaceKHR surfaceForPresenting) {
 	physicalDeviceSelector.set_surface(surfaceForPresenting);
 	physicalDeviceSelector.add_required_extension("VK_KHR_push_descriptor");
 	auto physicalDeviceRet = physicalDeviceSelector.select();
-	if (!physicalDeviceRet) { throwFatalError("Could not select Vulkan physical device. Error: " + physicalDeviceRet.error().message()); }
+	if (!physicalDeviceRet) {
+		throwFatalError("Could not select Vulkan physical device. Error: " + physicalDeviceRet.error().message());
+	}
 	physicalDevice = physicalDeviceRet.value().physical_device;
+
+	// get msaaSamples
+	VkPhysicalDeviceProperties physicalDeviceProperties;
+	vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+	VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+	if (counts & VK_SAMPLE_COUNT_64_BIT) msaaSamples = VK_SAMPLE_COUNT_64_BIT;
+	else if (counts & VK_SAMPLE_COUNT_32_BIT) msaaSamples = VK_SAMPLE_COUNT_32_BIT;
+	else if (counts & VK_SAMPLE_COUNT_16_BIT) msaaSamples = VK_SAMPLE_COUNT_16_BIT;
+	else if (counts & VK_SAMPLE_COUNT_8_BIT) msaaSamples = VK_SAMPLE_COUNT_8_BIT;
+	else if (counts & VK_SAMPLE_COUNT_4_BIT) msaaSamples = VK_SAMPLE_COUNT_4_BIT;
+	else if (counts & VK_SAMPLE_COUNT_2_BIT) msaaSamples = VK_SAMPLE_COUNT_2_BIT;
+	else msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	// Build device
 	vkb::DeviceBuilder deviceBuilder(physicalDeviceRet.value());
 	auto deviceRet = deviceBuilder.build();
-	if (!deviceRet) { throwFatalError("Could not create Vulkan device. Error: " + deviceRet.error().message()); }
+	if (!deviceRet) {
+		throwFatalError("Could not create Vulkan device. Error: " + deviceRet.error().message());
+	}
 	device = deviceRet.value();
 
 	// Load device functions
 	volkLoadDevice(device);
 
 	// Get queues
-	graphicsQueue = { device.get_queue(vkb::QueueType::graphics).value(),
-		device.get_queue_index(vkb::QueueType::graphics).value() };
-	presentQueue = { device.get_queue(vkb::QueueType::present).value(),
-		device.get_queue_index(vkb::QueueType::present).value() };
+	graphicsQueue = { device.get_queue(vkb::QueueType::graphics).value(), device.get_queue_index(vkb::QueueType::graphics).value() };
+	presentQueue = { device.get_queue(vkb::QueueType::present).value(), device.get_queue_index(vkb::QueueType::present).value() };
 
 	// Create vma allocator
 	createAllocator();
@@ -111,13 +125,15 @@ void VulkanDevice::createAllocator() {
 	};
 
 	VmaAllocatorCreateInfo allocatorInfo = {};
-    allocatorInfo.physicalDevice = physicalDevice;
-    allocatorInfo.device = device;
-    allocatorInfo.instance = MainRenderer::get().getVulkanInstance().getVkbInstance();
+	allocatorInfo.physicalDevice = physicalDevice;
+	allocatorInfo.device = device;
+	allocatorInfo.instance = MainRenderer::get().getVulkanInstance().getVkbInstance();
 	allocatorInfo.pVulkanFunctions = &vulkanFunctions;
 
 	VmaAllocator alloc;
-    if (vmaCreateAllocator(&allocatorInfo, &alloc) != VK_SUCCESS) { throwFatalError("Could not create Vulkan VMA allocator.");}
+	if (vmaCreateAllocator(&allocatorInfo, &alloc) != VK_SUCCESS) {
+		throwFatalError("Could not create Vulkan VMA allocator.");
+	}
 	vmaAllocator = alloc;
 }
 

@@ -17,10 +17,12 @@ WindowRenderer::WindowRenderer(SdlWindow* sdlWindow) : sdlWindow(sdlWindow) {
 	frames.init(device);
 
 	// set up swapchain and subrenderer
-	windowSize = sdlWindow->getSize();
+	std::pair<uint32_t, uint32_t> sdlWindowSize = sdlWindow->getSize();
+	windowSize ={max(sdlWindowSize.first, 1), max(sdlWindowSize.second, 1)}; // should stop vulkan validation error
 	swapchain.init(device, surface, windowSize);
 	createRenderPass();
-	swapchain.createFramebuffers(renderPass);
+	createColorResources();
+	swapchain.createFramebuffers(renderPass, colorImage);
 
 	// subrenderers
 	rmlRenderer.init(device, renderPass);
@@ -42,6 +44,8 @@ WindowRenderer::~WindowRenderer() {
 	swapchain.cleanup();
 	// now the frames are free!
 	frames.cleanup();
+	// clean up color image for multisampled
+	destroyImage(colorImage);
 
 	// delete rml renderer
 	rmlRenderer.cleanup();
@@ -52,7 +56,7 @@ WindowRenderer::~WindowRenderer() {
 void WindowRenderer::resize(std::pair<uint32_t, uint32_t> windowSize) {
 	std::lock_guard<std::mutex> lock(windowSizeMux);
 
-	this->windowSize = windowSize;
+	this->windowSize = {max(windowSize.first, 1), max(windowSize.second, 1)}; // should stop vulkan validation error
 
 	swapchainRecreationNeeded = true;
 }
@@ -115,7 +119,6 @@ void WindowRenderer::renderLoop() {
 		// submit to queue
 		if (device->submitGraphicsQueue(&submitInfo, frame.renderFence) != VK_SUCCESS){
 			logError("failed to submit draw command buffer!");
-
 		}
 
 		// start setting up present submission =====================================================
@@ -160,6 +163,9 @@ void WindowRenderer::renderToCommandBuffer(Frame& frame, uint32_t imageIndex) {
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
+	VkClearValue clearValues[1];
+	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+
 	// begin render pass
 	VkRenderPassBeginInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -167,7 +173,8 @@ void WindowRenderer::renderToCommandBuffer(Frame& frame, uint32_t imageIndex) {
 	renderPassInfo.framebuffer = swapchain.getFramebuffers()[imageIndex];
 	renderPassInfo.renderArea.offset = {0, 0};
 	renderPassInfo.renderArea.extent = swapchain.getSwapchain().extent;
-	renderPassInfo.clearValueCount = 0;
+	renderPassInfo.clearValueCount = 1;
+	renderPassInfo.pClearValues = clearValues;
 
 	vkCmdBeginRenderPass(frame.mainCommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -191,45 +198,84 @@ void WindowRenderer::renderToCommandBuffer(Frame& frame, uint32_t imageIndex) {
 }
 
 void WindowRenderer::createRenderPass() {
-	// render pass
-	VkAttachmentDescription colorAttachment{};
-	colorAttachment.format = swapchain.getSwapchain().image_format;
-	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	// subpass
-	VkAttachmentReference colorAttachmentRef{};
-	colorAttachmentRef.attachment = 0;
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	VkSubpassDescription subpass{};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentRef;
-	// subpass dependency
-	VkSubpassDependency dependency{};
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	// create pass
-	VkRenderPassCreateInfo renderPassInfo{};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = 1;
-	renderPassInfo.pAttachments = &colorAttachment;
-	renderPassInfo.subpassCount = 1;
-	renderPassInfo.pSubpasses = &subpass;
-	renderPassInfo.dependencyCount = 1;
-	renderPassInfo.pDependencies = &dependency;
+	VkSampleCountFlagBits msaaSamples = device->getMaxUsableSampleCount();
 
-	if (vkCreateRenderPass(device->getDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create render pass!");
-	}
+    // Multisampled color attachment (offscreen)
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = swapchain.getSwapchain().image_format;
+    colorAttachment.samples = msaaSamples;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    // Resolve attachment (the swapchain image)
+    VkAttachmentDescription colorAttachmentResolve{};
+    colorAttachmentResolve.format = swapchain.getSwapchain().image_format;
+    colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    // References
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference colorAttachmentResolveRef{};
+    colorAttachmentResolveRef.attachment = 1;
+    colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    // Subpass
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pResolveAttachments = &colorAttachmentResolveRef;
+
+    // Subpass dependency
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    // Create render pass
+    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, colorAttachmentResolve};
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    renderPassInfo.pAttachments = attachments.data();
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
+
+    if (vkCreateRenderPass(device->getDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create MSAA render pass!");
+    }
+}
+
+void WindowRenderer::createColorResources() {
+    VkExtent3D size = {swapchain.getSwapchain().extent.width, swapchain.getSwapchain().extent.height, 1};
+    VkFormat colorFormat = swapchain.getSwapchain().image_format;
+    VkSampleCountFlagBits msaaSamples = device->getMaxUsableSampleCount();
+
+    colorImage = createImage(
+        device,
+        size,
+        colorFormat,
+        VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        false,
+        msaaSamples
+    );
 }
 
 void WindowRenderer::recreateSwapchain() {
@@ -237,8 +283,10 @@ void WindowRenderer::recreateSwapchain() {
 
 	std::lock_guard<std::mutex> lock(windowSizeMux);
 
+	destroyImage(colorImage);
 	swapchain.recreate(surface, windowSize);
-	swapchain.createFramebuffers(renderPass);
+	createColorResources();
+	swapchain.createFramebuffers(renderPass, colorImage);
 
 	swapchainRecreationNeeded = false;
 }

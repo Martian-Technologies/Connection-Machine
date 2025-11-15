@@ -1,17 +1,13 @@
-<template name="popUpWindow" content="content">
-
+<rml>
 	<head>
+		<link type="text/rcss" href="../../helper/elementList.rcss"/>
+		<link type="text/rcss" href="../../helper/menuTree.rcss"/>
+		<link type="text/rcss" href="../../helper/base.rcss"/>
 		<link type="text/rcss" href="popUpWindow.rcss" />
+		<link type="text/rcss" href="popUpWindowNewWindow.rcss" />
 	</head>
 
 	<body>
-		<div id="pop-up-window" class="bordered bg-3">
-			<span id="pop-up-text"></span>
-			<div id="pop-up-actions">
-				<button class="pop-up-action" id="23">Close2</button>
-				<button class="pop-up-action" id="33">Close3</button>
-				<button class="pop-up-action" id="13">Close1</button>
-			</div>
-		</div>
+		<div class="pop-up-window pop-up-window-not-blocked bordered bg-3"></div>
 	</body>
-</template>
+</rml>

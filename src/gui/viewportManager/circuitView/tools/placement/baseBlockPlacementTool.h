@@ -6,6 +6,7 @@
 
 class BaseBlockPlacementTool : public CircuitToolHelper {
 public:
+	using CircuitToolHelper::CircuitToolHelper;
 	// This will also tell the tool to reset.
 	inline void selectBlock(BlockType selectedBlock) { this->selectedBlock = selectedBlock; updateElements(); }
 	inline void setRotation(Orientation orientation) { this->orientation = orientation; updateElements(); }

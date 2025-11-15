@@ -33,7 +33,6 @@ void ViewportRenderData::updateViewFrame(glm::vec2 origin, glm::vec2 size) {
 	viewData.viewport.height = size.y;
 	viewData.viewport.minDepth = 0.0f;
 	viewData.viewport.maxDepth = 1.0f;
-
 }
 
 void ViewportRenderData::updateView(FPosition topLeft, FPosition bottomRight) {
@@ -193,7 +192,9 @@ ElementId ViewportRenderData::addBlockPreview(BlockPreview&& blockPreview) {
 		if (!blockRenderData) continue;
 		Size size = block.orientation * blockRenderData->size;
 		newPreview.size = glm::vec2(size.w, size.h);
-		newPreview.textureIndex = blockRenderData->textureIndex;
+		newPreview.textureIndex = blockRenderData->blockTextureCords.textureLayer;
+		newPreview.texPos = blockRenderData->blockTextureCords.textureOriginUV;
+		newPreview.texSize = blockRenderData->blockTextureCords.textureSizeUV;
 
 		// insert new block preview into map
 		blockPreviews.emplace(newElement, newPreview);

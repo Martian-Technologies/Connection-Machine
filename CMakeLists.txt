@@ -1,9 +1,9 @@
 # ======================================== CMAKE SETUP ========================================
 cmake_minimum_required(VERSION 3.10)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/apple.cmake)
 
 if(APPLE)
+	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/apple.cmake)
 	PreProjectAppleSetup()
 endif()
 
@@ -20,7 +20,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # ======================================== PROJECT SETUP ========================================
 set(BUILD_SHARED_LIBS OFF) # Don't build shared libs
-project(Connection_Machine VERSION 0.11.0)
+project(Connection_Machine VERSION 0.12.0)
 if (APPLE)
 	set(APP_NAME "Connection Machine") # name of the bundle
 else()
@@ -32,16 +32,18 @@ set(SOURCE_DIR "${CMAKE_SOURCE_DIR}/src")
 set(EXTERNAL_DIR "${CMAKE_SOURCE_DIR}/external")
 set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/resources")
 
-# Find source files
-file(GLOB_RECURSE PROJECT_SOURCES
-	"${SOURCE_DIR}/*.cpp"
-)
-
 option(CONNECTION_MACHINE_BUILD_APP "Build Connection Machine App" ON)
+option(CONNECTION_MACHINE_BUILD_CLI_APP "Build Connection Machine CLI App" OFF)
 option(CONNECTION_MACHINE_DISTRIBUTE_APP "Distribute App" OFF)
 option(CONNECTION_MACHINE_BUILD_TESTS "Build Connection Machine Tests" OFF)
 option(CONNECTION_MACHINE_CODE_COVERAGE "Enable code coverage reporting" OFF)
+option(CONNECTION_MACHINE_TRY_CATCH "Enable try catch blocks around main loop" ON)
 option(RUN_TRACY_PROFILER "Enable runtime profiler" OFF)
+
+if(CONNECTION_MACHINE_BUILD_CLI_APP AND CONNECTION_MACHINE_BUILD_APP)
+	message("Do not build both cli and non cli app at once")
+	set(CONNECTION_MACHINE_BUILD_CLI_APP OFF)
+endif()
 
 if(MSVC)
 	add_compile_options(/W1)
@@ -49,9 +51,8 @@ endif()
 
 if (CONNECTION_MACHINE_BUILD_APP)
 	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/makeApp.cmake)
-endif()
-
-# ==================================== CREATE TESTING EXECUTABLE ============================================
-if (CONNECTION_MACHINE_BUILD_TESTS)
+elseif(CONNECTION_MACHINE_BUILD_CLI_APP)
+	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/makeCLI.cmake)
+elseif(CONNECTION_MACHINE_BUILD_TESTS)
 	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/makeTests.cmake)
 endif()

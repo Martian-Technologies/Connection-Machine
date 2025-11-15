@@ -1,0 +1,28 @@
+version_7
+Circuit: "D latch"
+UUID: f3bc9a76-dc59-41b5-95bd-aa2dd85cc77f
+size: 2x2
+ports:
+	(IN, 0, 1, <0, 0>, "D")
+	(IN, 1, 2, <0, 1>, "S")
+	(OUT, 2, 6, <1, 0>, "O")
+	(OUT, 3, 7, <1, 1>, "O'")
+blockId 1 SWITCH -4 -2 ZERO
+	(connId:0) (3 0) (5 0)
+blockId 2 SWITCH -4 -1 ZERO
+	(connId:0) (4 0) (5 0)
+blockId 3 NOT -3 -3 ZERO
+	(connId:0) (1 0)
+	(connId:1) (4 0)
+blockId 4 AND -2 -2 ZERO
+	(connId:0) (2 0) (3 1)
+	(connId:1) (6 0)
+blockId 5 AND -2 -1 ZERO
+	(connId:0) (2 0) (1 0)
+	(connId:1) (7 0)
+blockId 6 NOR -1 -2 ZERO
+	(connId:1) (7 0)
+	(connId:0) (7 1) (4 1)
+blockId 7 NOR -1 -1 ZERO
+	(connId:0) (6 1) (5 1)
+	(connId:1) (6 0)

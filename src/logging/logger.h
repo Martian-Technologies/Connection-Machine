@@ -1,7 +1,7 @@
 #ifndef logger_h
 #define logger_h
 
-enum LogType {
+enum class LogType {
 	Info = 1,
 	Warning = 2,
 	Error = 4,
@@ -21,7 +21,7 @@ public:
 private:
 	std::filesystem::path outputFile;
 	std::mutex loggingMutex;
-	
+
 	std::ofstream outputFileStream;
 };
 

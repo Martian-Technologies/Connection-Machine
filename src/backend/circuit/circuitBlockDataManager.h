@@ -5,7 +5,10 @@
 
 class CircuitBlockDataManager {
 public:
-	CircuitBlockDataManager(DataUpdateEventManager* dataUpdateEventManager) : dataUpdateEventManager(dataUpdateEventManager), dataUpdateEventReceiver(dataUpdateEventManager) {
+	CircuitBlockDataManager(const CircuitBlockDataManager&) = delete;
+    CircuitBlockDataManager& operator=(const CircuitBlockDataManager&) = delete;
+
+	CircuitBlockDataManager(DataUpdateEventManager& dataUpdateEventManager) : dataUpdateEventManager(dataUpdateEventManager), dataUpdateEventReceiver(dataUpdateEventManager) {
 		dataUpdateEventReceiver.linkFunction("blockDataRemoveConnection", [this](const DataUpdateEventManager::EventData* eventData) {
 			auto eventWithData = eventData->cast<std::pair<BlockType, connection_end_id_t>>();
 			if (!eventWithData) return;
@@ -82,9 +85,21 @@ public:
 		if (iter == blockTypeToCircuitId.end()) return 0; // there is never a circuit with id 0
 		return iter->second;
 	}
+	nlohmann::json dumpState() const {
+		nlohmann::json stateJson;
+		stateJson["blockTypeToCircuitId"] = nlohmann::json::object();
+		for (const auto& [blockType, circuitId] : blockTypeToCircuitId) {
+			stateJson["blockTypeToCircuitId"][blocktype_to_string(blockType)] = circuitId;
+		}
+		stateJson["circuitBlockData"] = nlohmann::json::object();
+		for (const auto& [circuitId, circuitBlockData] : circuitBlockData) {
+			stateJson["circuitBlockData"][std::to_string(circuitId)] = circuitBlockData.dumpState();
+		}
+		return stateJson;
+	}
 
 private:
-	DataUpdateEventManager* dataUpdateEventManager;
+	DataUpdateEventManager& dataUpdateEventManager;
 	DataUpdateEventManager::DataUpdateEventReceiver dataUpdateEventReceiver;
 	std::map<BlockType, circuit_id_t> blockTypeToCircuitId;
 	std::map<circuit_id_t, CircuitBlockData> circuitBlockData;

@@ -15,8 +15,8 @@ struct SelectionElement {
 	SelectionElement(Position topLeft, Position bottomRight, bool inverted = false)
 		: topLeft(topLeft), bottomRight(bottomRight), inverted(inverted) { }
 
-	SelectionElement(Position topLeft, bool inverted = false)
-		: topLeft(topLeft), bottomRight(topLeft), inverted(inverted) { }
+	SelectionElement(Position pos, bool inverted = false)
+		: topLeft(pos), bottomRight(pos), inverted(inverted) { }
 
 	Position topLeft;
 	Position bottomRight;

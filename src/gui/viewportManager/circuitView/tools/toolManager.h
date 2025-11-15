@@ -7,11 +7,11 @@ class CircuitView;
 
 class ToolManager {
 public:
-	inline ToolManager(Environment* environment, EventRegister* eventRegister, ViewportId viewportId, CircuitView* circuitView) :
+	inline ToolManager(Environment& environment, EventRegister* eventRegister, ViewportId viewportId, CircuitView* circuitView) :
 		toolStacks {
-			ToolStack(environment, eventRegister, viewportId, circuitView, this),
-			ToolStack(environment, eventRegister, viewportId, circuitView, this),
-			ToolStack(environment, eventRegister, viewportId, circuitView, this)
+			ToolStack(environment, eventRegister, viewportId, circuitView, *this),
+			ToolStack(environment, eventRegister, viewportId, circuitView, *this),
+			ToolStack(environment, eventRegister, viewportId, circuitView, *this)
 		} {
 		toolStacks[activeToolStack].activate();
 	}
@@ -21,7 +21,7 @@ public:
 	void selectBlock(BlockType blockType);
 	SharedCircuitTool selectTool(SharedCircuitTool tool);
 
-	void setMode(std::string mode);
+	void setMode(const std::string& mode);
 
 	inline void setCircuit(Circuit* circuit) {
 		this->circuit = circuit;
@@ -30,7 +30,7 @@ public:
 
 private:
 	int activeToolStack = 0;
-	Circuit* circuit;
+	Circuit* circuit = nullptr;
 	std::array<ToolStack, 3> toolStacks;
 	std::map<std::string, SharedCircuitTool> toolInstances;
 };

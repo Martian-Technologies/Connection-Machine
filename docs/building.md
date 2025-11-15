@@ -7,7 +7,7 @@ Connection Machine compiles on MacOS, Windows, and Linux. There are a few things
 Things will generally run smoothly on MacOS and Linux, there are a few more steps on Windows.
 
 ## Getting the source
-You can start by git cloning the repository. A git client or the command line should work.
+You can start by git cloning [the repository](https://github.com/Martian-Technologies/Connection-Machine). A git client or the command line should work.
 
 ## System dependencies
 This project requires [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/) and [Wasmtime](https://github.com/bytecodealliance/wasmtime) to build.

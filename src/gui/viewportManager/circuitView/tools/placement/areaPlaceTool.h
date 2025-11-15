@@ -5,6 +5,7 @@
 
 class AreaPlaceTool : public BaseBlockPlacementTool {
 public:
+	using BaseBlockPlacementTool::BaseBlockPlacementTool;
 	inline void reset() override final { click = 'n'; }
 
 	void activate() override final;

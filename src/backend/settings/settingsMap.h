@@ -3,7 +3,7 @@
 
 #include "keybind.h"
 
-enum SettingType {
+enum class SettingType {
 	VOID,
 	STRING,
 	INT,
@@ -18,7 +18,7 @@ template<SettingType settingType>
 struct SettingTypeToType {
 	static_assert(
 		settingType == SettingType::VOID,
-		"Invalid SettingType. Must ."
+		"Invalid SettingType. Must be VOID."
 	);
 	using type = void;
 };
@@ -36,6 +36,8 @@ class SettingsMap {
 public:
 	template<SettingType settingType>
 	using ListenerFunction = std::function<void(const typename SettingTypeToType<settingType>::type&)>;
+	// using AllListenerFunction = std::function<void()>;
+	using AllListenerFunction = std::function<void(const std::string& key)>;
 
 	class SettingListenerBase {
 	public:
@@ -70,6 +72,9 @@ public:
 		} else {
 			changeType<settingType>(iter->second);
 		}
+		for (AllListenerFunction& func : allListenerFunctions){
+			func(key);
+		}
 	}
 	template<SettingType settingType>
 	void registerSetting(std::string key, const SettingTypeToType<settingType>::type& value) {
@@ -78,6 +83,9 @@ public:
 			mappings[key] = std::make_unique<SettingEntry<settingType>>(value);
 		} else {
 			changeType<settingType>(iter->second, value);
+		}
+		for (AllListenerFunction& func : allListenerFunctions){
+			func(key);
 		}
 	}
 	template<SettingType settingType>
@@ -88,6 +96,9 @@ public:
 		} else {
 			iter->second->addListener<settingType>(std::move(listener));
 		}
+	}
+	void registerListener(AllListenerFunction listener) {
+		allListenerFunctions.push_back(listener);
 	}
 
 	// -- Getters --
@@ -131,6 +142,9 @@ public:
 			return false;
 		}
 		settingEntry->setValue(value);
+		for (AllListenerFunction& func : allListenerFunctions){
+			func(key);
+		}
 		return true;
 	}
 
@@ -204,6 +218,7 @@ private:
 		SettingTypeToType<settingType>::type value;
 	};
 
+	std::vector<AllListenerFunction> allListenerFunctions;
 	std::unordered_map<std::string, std::unique_ptr<SettingEntryBase>> mappings;
 };
 

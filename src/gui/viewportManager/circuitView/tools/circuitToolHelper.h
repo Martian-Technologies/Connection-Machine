@@ -7,7 +7,7 @@ class ToolStackInterface;
 
 class CircuitToolHelper : public CircuitTool {
 public:
-	CircuitToolHelper() { helper = true; }
+	CircuitToolHelper(const Environment& environment) : CircuitTool(environment) { helper = true; }
 	inline void restart() { reset(); elementCreator.clear(); }
 };
 

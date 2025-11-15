@@ -5,6 +5,7 @@
 
 class AreaCreationTool : public SelectionHelperTool {
 public:
+	using SelectionHelperTool::SelectionHelperTool;
 	void reset() override final;
 	void activate() override final;
 	void updateElements() override final;

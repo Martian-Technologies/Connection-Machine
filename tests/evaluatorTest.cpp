@@ -1,11 +1,13 @@
 #include "evaluatorTest.h"
 
+#include "backend/evaluator/evaluator.h"
+
 // Note that logic simulator is tested separately
 void EvaluatorTest::SetUp() {
-	circuit_id_t circuitId = backend.createCircuit();
-	circuit = backend.getCircuit(circuitId);
-	auto id = backend.createEvaluator(circuitId);
-	evaluator = backend.getEvaluator(id.value());
+	circuit_id_t circuitId = environment.getBackend().createCircuit();
+	circuit = environment.getBackend().getCircuit(circuitId);
+	auto id = environment.getBackend().createEvaluator(circuitId);
+	evaluator = environment.getBackend().getEvaluator(id.value());
 	i = 0;
 }
 
@@ -47,7 +49,6 @@ TEST_F(EvaluatorTest, TickrateTest) {
 	evaluator->setPause(true);
 }
 
-
 TEST_F(EvaluatorTest, BasicStateManagement) {
 	Position pos(i, i); ++i;
 	Rotation rot = Rotation::ZERO;
@@ -70,17 +71,17 @@ TEST_F(EvaluatorTest, BasicStateManagement) {
 // 		Position(i + 2, i)
 // 	};
 // 	i += 3;
-
+//
 // 	// place switches
 // 	for (const Position& pos : positions) {
 // 		circuit->tryInsertBlock(pos, Rotation::ZERO, BlockType::SWITCH);
 // 	}
-
+//
 // 	std::vector<Address> addresses;
 // 	for (const Position& pos : positions) {
 // 		addresses.push_back(Address(pos));
 // 	}
-
+//
 // 	std::vector<logic_state_t> states = evaluator->getBulkStates(addresses);
 // 	ASSERT_EQ(states.size(), addresses.size());
 // 	for (logic_state_t state : states) {
@@ -138,7 +139,7 @@ TEST_F(EvaluatorTest, EvaluatingCircuitModifications) {
 	// block movement
 	evaluator->setState(pos2, true);
 	Position newPos(i, i); ++i;
-	circuit->tryMoveBlock(pos2, newPos);
+	circuit->tryMoveBlock(pos2, newPos, Orientation());
 
 	// reaccess addresses
 	//ASSERT_EQ(evaluator->getState(Address(pos2)), false); // This old address will cause an error as it is not found in address tree
@@ -290,6 +291,140 @@ TEST_F(EvaluatorTest, JunctionRemovalGate) {
 	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
 }
 
+TEST_F(EvaluatorTest, TristateBufferEnableControlsOutput) {
+	Position dataPos { 0, 0 };
+	Position enablePos { 0, 2 };
+	Position tristatePos { 2, 0 };
+	Position lightPos { 4, 0 };
+	Position tristateDataPortPos { tristatePos.x, tristatePos.y + 1 };
+	Position tristateEnablePortPos { tristatePos };
+	Position tristateOutputPortPos { tristatePos.x, tristatePos.y + 1 };
+
+	circuit->tryInsertBlock(dataPos, Rotation::ZERO, BlockType::SWITCH);
+	circuit->tryInsertBlock(enablePos, Rotation::ZERO, BlockType::SWITCH);
+	circuit->tryInsertBlock(tristatePos, Rotation::ZERO, BlockType::TRISTATE_BUFFER);
+	circuit->tryInsertBlock(lightPos, Rotation::ZERO, BlockType::LIGHT);
+
+	ASSERT_TRUE(circuit->tryCreateConnection(dataPos, tristateDataPortPos));
+	ASSERT_TRUE(circuit->tryCreateConnection(enablePos, tristateEnablePortPos));
+	ASSERT_TRUE(circuit->tryCreateConnection(tristateOutputPortPos, lightPos));
+
+	evaluator->setState(Address(dataPos), logic_state_t::LOW);
+	evaluator->setState(Address(enablePos), logic_state_t::LOW);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+
+	evaluator->setState(Address(dataPos), logic_state_t::HIGH);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+
+	evaluator->setState(Address(enablePos), logic_state_t::HIGH);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPos)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::HIGH);
+
+	evaluator->setState(Address(dataPos), logic_state_t::LOW);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPos)), logic_state_t::LOW);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::LOW);
+
+	evaluator->setState(Address(enablePos), logic_state_t::LOW);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+}
+
+TEST_F(EvaluatorTest, TristateBuffersResolveContentionOnJunction) {
+	Position dataPosA { 0, 0 };
+	Position enablePosA { 0, 2 };
+	Position tristatePosA { 2, 0 };
+	Position dataPosB { 0, 4 };
+	Position enablePosB { 0, 6 };
+	Position tristatePosB { 2, 4 };
+	Position junctionPos { 4, 2 };
+	Position lightPos { 6, 2 };
+	Position tristateDataPortPosA { tristatePosA.x, tristatePosA.y + 1 };
+	Position tristateEnablePortPosA { tristatePosA };
+	Position tristateOutputPortPosA { tristatePosA.x, tristatePosA.y + 1 };
+	Position tristateDataPortPosB { tristatePosB.x, tristatePosB.y + 1 };
+	Position tristateEnablePortPosB { tristatePosB };
+	Position tristateOutputPortPosB { tristatePosB.x, tristatePosB.y + 1 };
+
+	circuit->tryInsertBlock(dataPosA, Rotation::ZERO, BlockType::SWITCH);
+	circuit->tryInsertBlock(enablePosA, Rotation::ZERO, BlockType::SWITCH);
+	circuit->tryInsertBlock(tristatePosA, Rotation::ZERO, BlockType::TRISTATE_BUFFER);
+	circuit->tryInsertBlock(dataPosB, Rotation::ZERO, BlockType::SWITCH);
+	circuit->tryInsertBlock(enablePosB, Rotation::ZERO, BlockType::SWITCH);
+	circuit->tryInsertBlock(tristatePosB, Rotation::ZERO, BlockType::TRISTATE_BUFFER);
+	circuit->tryInsertBlock(junctionPos, Rotation::ZERO, BlockType::JUNCTION);
+	circuit->tryInsertBlock(lightPos, Rotation::ZERO, BlockType::LIGHT);
+
+	ASSERT_TRUE(circuit->tryCreateConnection(dataPosA, tristateDataPortPosA));
+	ASSERT_TRUE(circuit->tryCreateConnection(enablePosA, tristateEnablePortPosA));
+	ASSERT_TRUE(circuit->tryCreateConnection(dataPosB, tristateDataPortPosB));
+	ASSERT_TRUE(circuit->tryCreateConnection(enablePosB, tristateEnablePortPosB));
+	ASSERT_TRUE(circuit->tryCreateConnection(tristateOutputPortPosA, junctionPos));
+	ASSERT_TRUE(circuit->tryCreateConnection(tristateOutputPortPosB, junctionPos));
+	ASSERT_TRUE(circuit->tryCreateConnection(junctionPos, lightPos));
+
+	// baseline: everything low / disabled
+	evaluator->setState(Address(dataPosA), logic_state_t::LOW);
+	evaluator->setState(Address(enablePosA), logic_state_t::LOW);
+	evaluator->setState(Address(dataPosB), logic_state_t::LOW);
+	evaluator->setState(Address(enablePosB), logic_state_t::LOW);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPosA)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPosB)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+
+	// enable A: junction follows A's data
+	evaluator->setState(Address(dataPosA), logic_state_t::HIGH);
+	evaluator->setState(Address(enablePosA), logic_state_t::HIGH);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPosA)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::HIGH);
+
+	// disable A, bus should float again
+	evaluator->setState(Address(enablePosA), logic_state_t::LOW);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPosA)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+
+	// enable B: junction follows B
+	evaluator->setState(Address(dataPosB), logic_state_t::HIGH);
+	evaluator->setState(Address(enablePosB), logic_state_t::HIGH);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPosB)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::HIGH);
+
+	// contention: A drives LOW, B drives HIGH
+	evaluator->setState(Address(dataPosA), logic_state_t::LOW);
+	evaluator->setState(Address(enablePosA), logic_state_t::HIGH);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPosA)), logic_state_t::LOW);
+	EXPECT_EQ(evaluator->getState(Address(tristateOutputPortPosB)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::UNDEFINED);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::UNDEFINED);
+
+	// remove tri-state A while replacement mappings exist
+	ASSERT_TRUE(circuit->tryRemoveBlock(tristatePosA));
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::HIGH);
+
+	// disable remaining driver -> bus floats
+	evaluator->setState(Address(enablePosB), logic_state_t::LOW);
+	evaluator->tickStep(2);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+}
+
 logic_state_t naiveButCorrectGateImplementation(BlockType blockType, std::vector<logic_state_t> inputs) {
 	int numLow = 0;
 	int numHigh = 0;
@@ -310,6 +445,12 @@ logic_state_t naiveButCorrectGateImplementation(BlockType blockType, std::vector
 	if (total == 0) {
 		if (blockType == BlockType::JUNCTION) {
 			return logic_state_t::FLOATING;
+		}
+		if (blockType == BlockType::JUNCTION_H) {
+			return logic_state_t::HIGH;
+		}
+		if (blockType == BlockType::JUNCTION_X || blockType == BlockType::BUFFER || blockType == BlockType::NOT) {
+			return logic_state_t::UNDEFINED;
 		}
 		return logic_state_t::LOW;
 	}
@@ -381,7 +522,12 @@ logic_state_t naiveButCorrectGateImplementation(BlockType blockType, std::vector
 			return logic_state_t::HIGH;
 		}
 		return logic_state_t::LOW;
-	} else if (blockType == BlockType::JUNCTION) {
+	} else if (blockType == BlockType::JUNCTION ||
+			   blockType == BlockType::JUNCTION_L ||
+			   blockType == BlockType::JUNCTION_H ||
+			   blockType == BlockType::JUNCTION_X ||
+			   blockType == BlockType::BUFFER ||
+			   blockType == BlockType::NOT) {
 		if (numUndefined != 0) {
 			return logic_state_t::UNDEFINED;
 		}
@@ -390,9 +536,22 @@ logic_state_t naiveButCorrectGateImplementation(BlockType blockType, std::vector
 		if (hasHigh && hasLow) {
 			return logic_state_t::UNDEFINED;
 		} else if (hasHigh) {
+			if (blockType == BlockType::NOT) {
+				return logic_state_t::LOW;
+			}
 			return logic_state_t::HIGH;
 		} else if (hasLow) {
+			if (blockType == BlockType::NOT) {
+				return logic_state_t::HIGH;
+			}
 			return logic_state_t::LOW;
+		}
+		if (blockType == BlockType::JUNCTION_L) {
+			return logic_state_t::LOW;
+		} else if (blockType == BlockType::JUNCTION_H) {
+			return logic_state_t::HIGH;
+		} else if (blockType == BlockType::JUNCTION_X || blockType == BlockType::BUFFER || blockType == BlockType::NOT) {
+			return logic_state_t::UNDEFINED;
 		}
 		return logic_state_t::FLOATING;
 	}
@@ -403,6 +562,7 @@ TEST_F(EvaluatorTest, AllBasicGatesBehavior) {
 	struct Testcase {
 		BlockType blockType;
 		std::vector<logic_state_t> inputStates;
+		Vector placeOffset;
 	};
 	std::vector<Testcase> testcases = {};
 	std::vector<logic_state_t> allStates = {
@@ -418,16 +578,36 @@ TEST_F(EvaluatorTest, AllBasicGatesBehavior) {
 		BlockType::NAND,
 		BlockType::NOR,
 		BlockType::XNOR,
-		BlockType::JUNCTION
+		BlockType::BUFFER,
+		BlockType::NOT,
+		BlockType::JUNCTION,
+		BlockType::JUNCTION_L,
+		BlockType::JUNCTION_H,
+		BlockType::JUNCTION_X
 	};
-	for (BlockType blockType : allTypes) {
-		testcases.push_back({ blockType, {} });
+	std::vector<Vector> placeOffsets = {
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, 0 },
+		{ 0, -2 },
+		{ 0, -2 },
+		{ 0, -2 }
+	};
+	for (unsigned int i = 0; i < allTypes.size(); ++i) {
+		BlockType blockType = allTypes[i];
+		testcases.push_back({ blockType, {}, placeOffsets[i] });
 		for (logic_state_t state1 : allStates) {
-			testcases.push_back({ blockType, {state1} });
+			testcases.push_back({ blockType, {state1}, placeOffsets[i] });
 			for (logic_state_t state2 : allStates) {
-				testcases.push_back({ blockType, {state1, state2} });
+				testcases.push_back({ blockType, {state1, state2}, placeOffsets[i] });
 				for (logic_state_t state3 : allStates) {
-					testcases.push_back({ blockType, {state1, state2, state3} });
+					testcases.push_back({ blockType, {state1, state2, state3}, placeOffsets[i] });
 				}
 			}
 		}
@@ -438,25 +618,68 @@ TEST_F(EvaluatorTest, AllBasicGatesBehavior) {
 		maxNumInputs = std::max(maxNumInputs, (int)(testcase.inputStates.size()));
 	}
 	for (int i = 0; i < maxNumInputs; ++i) {
-		circuit->tryInsertBlock(Position { i, 0 }, Rotation::ZERO, BlockType::SWITCH);
+		circuit->tryInsertBlock(Position(0, i), Rotation::ZERO, BlockType::SWITCH);
 	}
-	circuit->tryInsertBlock(Position { 0, 1 }, Rotation::ZERO, BlockType::AND);
+	circuit->tryInsertBlock(Position(1, 0), Rotation::ZERO, BlockType::AND);
 	for (Testcase testcase : testcases) {
 		if (currentType != testcase.blockType) {
-			circuit->tryRemoveBlock(Position { 0, 1 });
-			circuit->tryInsertBlock(Position { 0, 1 }, Rotation::ZERO, testcase.blockType);
+			circuit->tryRemoveBlock(Position(1, 0));
+			circuit->tryInsertBlock(Position(1, 0) + testcase.placeOffset, Rotation::ZERO, testcase.blockType);
 			currentType = testcase.blockType;
 		}
 		for (int i = 0; i < testcase.inputStates.size(); ++i) {
-			circuit->tryCreateConnection(Position { i, 0 }, Position { 0, 1 });
-			evaluator->setState(Address({ i, 0 }), testcase.inputStates[i]);
+			circuit->tryCreateConnection(Position(0, i), Position(1, 0));
+			evaluator->setState(Address({ 0, i }), testcase.inputStates[i]);
 		}
 		evaluator->tickStep(1);
 		logic_state_t expectedState = naiveButCorrectGateImplementation(testcase.blockType, testcase.inputStates);
-		logic_state_t computedState = evaluator->getState(Address({ 0, 1 }));
+		logic_state_t computedState = evaluator->getState(Address({ 1, 0 }));
 		ASSERT_EQ(expectedState, computedState);
 		for (int i = 0; i < testcase.inputStates.size(); ++i) {
-			circuit->tryRemoveConnection(Position { i, 0 }, Position { 0, 1 });
+			circuit->tryRemoveConnection(Position(0, i), Position(1, 0));
 		}
 	}
+}
+
+TEST_F(EvaluatorTest, LargeEvaluatorTest) {
+	int LARGE_NUMBER = 10;
+	// 10 is about 20 ms
+	// 100 is 200 ms
+	// 1000 = EvaluatorTest.LargeEvaluatorTest (10790 ms) this seems like a
+	// long time for relatively not a lot of stuff but idk
+	std::vector<BlockType> allTypes = {
+		BlockType::AND,
+		BlockType::OR,
+		BlockType::XOR,
+		BlockType::NAND,
+		BlockType::NOR,
+		BlockType::XNOR
+	};
+
+	for (i = 0; i < LARGE_NUMBER; i++) {
+		circuit->tryInsertBlock(Position(i, 0), Rotation::ZERO, BlockType::SWITCH);
+		evaluator->setState(Address( {i, 0} ), logic_state_t::HIGH);
+	}
+	int j = 0;
+	for (BlockType type : allTypes) {
+		++j;
+		for (i = 0; i < LARGE_NUMBER; i++) {
+			circuit->tryInsertBlock(Position(i, j), Rotation::ZERO, type);
+			circuit->tryCreateConnection(Position(i, 0), Position(i, j));
+		}
+	}
+	evaluator->tickStep(1);
+	Position andGate(rand() % LARGE_NUMBER, 1);
+	// and on should be true
+	ASSERT_TRUE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 1})));
+	// or on should be true
+	ASSERT_TRUE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 2})));
+	// xor on should be true
+	ASSERT_TRUE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 3})));
+	// nand on should be false
+	ASSERT_FALSE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 4})));
+	// nor on should be false
+	ASSERT_FALSE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 5})));
+	// xnor on should be false
+	ASSERT_FALSE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 6})));
 }

@@ -1,3 +1,10 @@
+# Find source files
+file(GLOB_RECURSE PROJECT_SOURCES
+	"${SOURCE_DIR}/*.cpp"
+)
+string(REGEX REPLACE "([][+.*^$(){}|\\\\])" "\\\\\\1" SOURCE_DIR_REGEX "${SOURCE_DIR}")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX "${SOURCE_DIR_REGEX}/cli/main.cpp$")
+
 # ===================================== CREATE APP EXECUTABLE ========================================
 
 # Platform specific business before add_executable
@@ -17,7 +24,6 @@ endif()
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
 add_main_dependencies()
-add_app_dependencies()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCE_DIR} PUBLIC ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LINKS})
@@ -29,7 +35,11 @@ if (RUN_TRACY_PROFILER)
 else()
 	target_compile_definitions(${PROJECT_NAME} PRIVATE VK_NO_PROTOTYPES)
 endif()
-
+if (CONNECTION_MACHINE_TRY_CATCH)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE "MAIN_TRY_CATCH")
+endif()
+target_compile_definitions(${PROJECT_NAME} PRIVATE "BUILDING_APP")
+target_compile_definitions(${PROJECT_NAME} PRIVATE "PROJECT_VERSION=\"${PROJECT_VERSION}\"")
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${APP_NAME}")
 
 # Platform specific business after add_executable
@@ -37,7 +47,7 @@ if(APPLE) # MacOS
 	# set(CMAKE_MACOSX_BUNDLE YES)
 
 	set_target_properties(${PROJECT_NAME} PROPERTIES MACOSX_BUNDLE TRUE)
-	# Bundle Properties 
+	# Bundle Properties
 	set_target_properties(${PROJECT_NAME} PROPERTIES
 		MACOSX_BUNDLE TRUE
 		# indentification
@@ -88,6 +98,7 @@ foreach(resource_path_relative IN LISTS RESOURCE_FILES)
 		COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${original_resource}" "${copied_resource}"
 		DEPENDS "${original_resource}"
 		COMMENT "Copying resource: ${resource_path_relative}"
+		VERBATIM
 	)
 
 	list(APPEND RESOURCE_FILES_COPIED "${copied_resource}")
@@ -119,6 +130,7 @@ foreach(shader_source IN LISTS SHADER_SOURCE_FILES)
 		COMMAND Vulkan::glslc "${shader_source}" "-o" "${compiled_shader}"
 		DEPENDS "${shader_source}"
 		COMMENT "Compiling shader: ${shader_source}"
+		VERBATIM
 	)
 
 	list(APPEND SHADER_PRODUCTS "${compiled_shader}")
@@ -155,7 +167,7 @@ if (APPLE AND CONNECTION_MACHINE_DISTRIBUTE_APP)
 		)
 
 		set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR})
-		
+
 		install(TARGETS ${PROJECT_NAME} BUNDLE DESTINATION ".")
 
 		set(CPACK_PACKAGE_FILE_NAME "Connection-Machine-${PROJECT_VERSION}-Mac-universal")

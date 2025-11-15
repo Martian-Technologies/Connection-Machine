@@ -47,7 +47,7 @@ std::string ProceduralCircuitParameters::toString() const {
 	return str + ")";
 }
 
-ProceduralCircuit::ProceduralCircuit(CircuitManager* circuitManager, DataUpdateEventManager* dataUpdateEventManager, const std::string& name, const std::string& uuid) :
+ProceduralCircuit::ProceduralCircuit(CircuitManager& circuitManager, DataUpdateEventManager& dataUpdateEventManager, const std::string& name, const std::string& uuid) :
 	circuitManager(circuitManager), dataUpdateEventManager(dataUpdateEventManager), dataUpdateEventReceiver(dataUpdateEventManager), proceduralCircuitName(name),
 	proceduralCircuitUUID(uuid) { }
 
@@ -64,10 +64,10 @@ void ProceduralCircuit::setProceduralCircuitName(const std::string& name) {
 	if (this->proceduralCircuitName == name) return;
 	this->proceduralCircuitName = name;
 	for (const auto& iter : generatedCircuits) {
-		SharedCircuit circuit = circuitManager->getCircuit(iter.second);
+		SharedCircuit circuit = circuitManager.getCircuit(iter.second);
 		if (circuit) circuit->setCircuitName(name + iter.first.toString());
 	}
-	dataUpdateEventManager->sendEvent<std::string>("proceduralCircuitPathUpdate", getUUID());
+	dataUpdateEventManager.sendEvent<std::string>("proceduralCircuitPathUpdate", getUUID());
 }
 
 const ProceduralCircuitParameters* ProceduralCircuit::getProceduralCircuitParameters(circuit_id_t circuitId) const {
@@ -98,24 +98,24 @@ circuit_id_t ProceduralCircuit::getCircuitId(const ProceduralCircuitParameters& 
 	GeneratedCircuit generatedCircuit;
 	this->makeCircuit(realParameters, generatedCircuit);
 	generatedCircuit.markAsCustom();
-	GeneratedCircuitValidator validator(generatedCircuit, circuitManager->getBlockDataManager());
+	GeneratedCircuitValidator validator(generatedCircuit, circuitManager.getBlockDataManager());
 
 	if (!(generatedCircuit.isValid())) return 0;
 
 	// Create the circuit if it has not been generated
-	circuit_id_t id = circuitManager->createNewCircuit(generatedCircuit, false);
+	circuit_id_t id = circuitManager.createNewCircuit(generatedCircuit, false);
 
 	// Add the circuit id to the generated circuits
 	generatedCircuits[realParameters] = id;
 	circuitIdToProceduralCircuitParameters[id] = realParameters;
 
 	// Setup the block to be a IC
-	BlockType type = circuitManager->setupBlockData(id, proceduralCircuitUUID);
+	BlockType type = circuitManager.setupBlockData(id, proceduralCircuitUUID);
 	if (type == BlockType::NONE) return 0;
 
 	// Get useful objects
-	SharedCircuit circuit = circuitManager->getCircuit(id);
-	BlockData* blockData = circuitManager->getBlockDataManager()->getBlockData(type);
+	SharedCircuit circuit = circuitManager.getCircuit(id);
+	BlockData* blockData = circuitManager.getBlockDataManager().getBlockData(type);
 
 	// Settings
 	blockData->setIsPlaceable(false);
@@ -128,7 +128,7 @@ circuit_id_t ProceduralCircuit::getCircuitId(const ProceduralCircuitParameters& 
 
 BlockType ProceduralCircuit::getBlockType(const ProceduralCircuitParameters& parameters) {
 	circuit_id_t circuitId = getCircuitId(parameters);
-	SharedCircuit circuit = circuitManager->getCircuit(circuitId);
+	SharedCircuit circuit = circuitManager.getCircuit(circuitId);
 	return circuit ? circuit->getBlockType() : BlockType::NONE;
 }
 
@@ -144,10 +144,32 @@ void ProceduralCircuit::regenerateAll() {
 		GeneratedCircuit generatedCircuit;
 		this->makeCircuit(realParameters, generatedCircuit);
 		generatedCircuit.markAsCustom();
-		GeneratedCircuitValidator validator(generatedCircuit, circuitManager->getBlockDataManager());
-		circuitManager->updateExistingCircuit(pair.second, &generatedCircuit);
+		GeneratedCircuitValidator validator(generatedCircuit, circuitManager.getBlockDataManager());
+		circuitManager.updateExistingCircuit(pair.second, &generatedCircuit);
 		circuitIdToProceduralCircuitParameters[pair.second] = realParameters;
-		SharedCircuit circuit = circuitManager->getCircuit(pair.second);
+		SharedCircuit circuit = circuitManager.getCircuit(pair.second);
 		circuit->setCircuitName(getProceduralCircuitName() + " (" + realParameters.toString() + ")");
 	}
+}
+
+nlohmann::json ProceduralCircuitParameters::dumpState() const {
+	nlohmann::json stateJson = parameters;
+	return stateJson;
+}
+
+nlohmann::json ProceduralCircuit::dumpState() const {
+	nlohmann::json stateJson;
+	stateJson["proceduralCircuitName"] = proceduralCircuitName;
+	stateJson["proceduralCircuitUUID"] = proceduralCircuitUUID;
+	stateJson["parameterDefaults"] = parameterDefaults.dumpState();
+	stateJson["generatedCircuits"] = nlohmann::json::object();
+	for (const auto& pair : generatedCircuits) {
+		stateJson["generatedCircuits"][pair.first.toString()] = pair.second;
+	}
+	stateJson["circuitIdToProceduralCircuitParameters"] = nlohmann::json::object();
+	for (const auto& pair : circuitIdToProceduralCircuitParameters) {
+		stateJson["circuitIdToProceduralCircuitParameters"][std::to_string(pair.first)] = pair.second.dumpState();
+	}
+	stateJson["inherited"] = dumpStateInherited();
+	return stateJson;
 }

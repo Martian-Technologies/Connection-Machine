@@ -5,9 +5,9 @@
 void TensorConnectTool::reset() {
 	CircuitTool::reset();
 	placingOutout = true;
-	if (!activeOutputSelectionHelper) activeOutputSelectionHelper = std::make_shared<TensorCreationTool>();
+	if (!activeOutputSelectionHelper) activeOutputSelectionHelper = std::make_shared<TensorCreationTool>(environment);
 	activeOutputSelectionHelper->restart();
-	if (!activeInputSelectionHelper) activeInputSelectionHelper = std::make_shared<TensorCreationTool>();
+	if (!activeInputSelectionHelper) activeInputSelectionHelper = std::make_shared<TensorCreationTool>(environment);
 	activeInputSelectionHelper->restart();
 	updateElements();
 }

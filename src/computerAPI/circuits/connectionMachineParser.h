@@ -8,7 +8,7 @@
 
 class ConnectionMachineParser: public ParsedCircuitLoader {
 public:
-    ConnectionMachineParser(CircuitFileManager* circuitFileManager, CircuitManager* circuitManager) : ParsedCircuitLoader(circuitFileManager, circuitManager) {}
+    ConnectionMachineParser(CircuitFileManager& circuitFileManager, CircuitManager& circuitManager) : ParsedCircuitLoader(circuitFileManager, circuitManager) {}
     std::vector<circuit_id_t> load(const std::string& path) override;
     std::vector<circuit_id_t> loadCompressed(const std::string& path, std::ifstream& input);
     bool save(const CircuitFileManager::FileData& fileData, bool compress);

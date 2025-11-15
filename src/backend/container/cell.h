@@ -11,6 +11,10 @@ public:
 
 	inline void setBlockId(block_id_t blockId) { this->blockId = blockId; }
 
+	nlohmann::json dumpState() const {
+		return blockId;
+	}
+
 private:
 	block_id_t blockId;
 };

@@ -89,3 +89,5 @@ build_error.txt
 # third-party libs
 /external
 /lib-binary
+/CircuitLib/procedural/rust/target
+CircuitLib/procedural/rust/Cargo.lock

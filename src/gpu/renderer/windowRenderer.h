@@ -33,6 +33,8 @@ public:
 	inline VulkanDevice* getDevice() { return device; }
 
 private:
+	void createColorResources();
+	void cleanupColorResources();
 	void renderToCommandBuffer(Frame& frame, uint32_t imageIndex);
 	void createRenderPass();
 	void recreateSwapchain();
@@ -65,6 +67,9 @@ private:
 	// handles
 	SdlWindow* sdlWindow;
 	VulkanDevice* device;
+
+
+	AllocatedImage colorImage;
 };
 
 #endif /* windowRenderer_h */

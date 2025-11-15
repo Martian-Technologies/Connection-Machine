@@ -14,7 +14,6 @@ void ToolStack::activate() {
 			PositionEvent event("Stack Updating Position", lastPointerFPosition);
 			toolStack.back()->exitBlockView(&event);
 		}
-		toolStack.back()->setEnvironment(environment);
 		toolStack.back()->activate();
 	}
 }
@@ -53,7 +52,7 @@ SharedCircuitTool ToolStack::getCurrentTool() const {
 	return nullptr;
 }
 
-void ToolStack::setMode(std::string mode) {
+void ToolStack::setMode(const std::string& mode) {
 	if (!toolStack.empty()) getCurrentNonHelperTool()->setMode(mode);
 }
 
@@ -61,7 +60,7 @@ void ToolStack::reset() {
 	if (!toolStack.size()) return;
 	SharedCircuitTool tool = getCurrentNonHelperTool_();
 	clearTools();
-	pushTool(tool);
+	pushTool(std::move(tool));
 }
 
 void ToolStack::pushTool(SharedCircuitTool newTool, bool resetTool) {
@@ -86,7 +85,6 @@ void ToolStack::pushTool(SharedCircuitTool newTool, bool resetTool) {
 		toolStack.back()->exitBlockView(&event);
 	}
 	if (isActive) {
-		toolStack.back()->setEnvironment(environment);
 		toolStack.back()->activate();
 	}
 }
@@ -105,7 +103,6 @@ void ToolStack::popTool() {
 		toolStack.back()->exitBlockView(&event);
 	}
 	if (isActive) {
-		toolStack.back()->setEnvironment(environment);
 		toolStack.back()->activate();
 	}
 }
@@ -131,13 +128,12 @@ void ToolStack::popAbove(CircuitTool* toolNotToPop) {
 		toolStack.back()->exitBlockView(&event);
 	}
 	if (isActive) {
-		toolStack.back()->setEnvironment(environment);
 		toolStack.back()->activate();
 	}
 }
 
 void ToolStack::switchToStack(int stack) {
-	toolManager->selectStack(stack);
+	toolManager.selectStack(stack);
 }
 
 void ToolStack::setCircuit(Circuit* circuit) {

@@ -1,22 +1,22 @@
-version_6
+version_7
 import "../procedural/edgeDetector.wasm"
 import "../JK_Flip-Flop_CLR.cir"
 Circuit: "7473 (2 JK FF)"
 UUID: 118f0706-5ab9-42aa-acf7-dd881fdf6533
-size: <7, 2>
+size: 7x2
 ports:
-	(OUT, 10, 12, <2, 0>, "!Q1")
-	(OUT, 9, 14, <1, 0>, "Q1")
-	(OUT, 8, 4, <5, 0>, "Q2")
-	(OUT, 7, 16, <6, 0>, "!Q2")
-	(IN, 2, 1, <0, 0>, "J1")
-	(IN, 4, 8, <2, 1>, "K1")
-	(IN, 6, 2, <5, 1>, "CLR2")
-	(IN, 12, 3, <4, 0>, "K2")
-	(IN, 1, 6, <1, 1>, "CLR1")
-	(IN, 5, 9, <4, 1>, "CLK2")
-	(IN, 11, 11, <6, 1>, "J2")
 	(IN, 0, 5, <0, 1>, "CLK1")
+	(IN, 11, 11, <6, 1>, "J2")
+	(IN, 5, 9, <4, 1>, "CLK2")
+	(IN, 1, 6, <1, 1>, "CLR1")
+	(IN, 12, 3, <4, 0>, "K2")
+	(IN, 6, 2, <5, 1>, "CLR2")
+	(IN, 4, 8, <2, 1>, "K1")
+	(IN, 2, 1, <0, 0>, "J1")
+	(OUT, 7, 16, <6, 0>, "!Q2")
+	(OUT, 8, 4, <5, 0>, "Q2")
+	(OUT, 9, 14, <1, 0>, "Q1")
+	(OUT, 10, 12, <2, 0>, "!Q1")
 blockId 16 LIGHT 6 0 TWO_SEVENTY
 	(connId:0) (7 4)
 blockId 15 "abd7f5c1-2e89-4630-bf12-d596c812dde8" ("pulse width": 3, "{1:R,2:F,3:B}": 2) 4 5 TWO_SEVENTY
@@ -35,8 +35,8 @@ blockId 10 "3f62f08f-6f29-440b-a50c-d19d14b68ed2" 0 2 TWO_SEVENTY
 	(connId:0) (1 0)
 	(connId:5) (6 0)
 	(connId:2) (8 0)
-	(connId:3) (12 0)
 	(connId:4) (14 0)
+	(connId:3) (12 0)
 	(connId:1) (13 1)
 blockId 9 SWITCH 4 6 TWO_SEVENTY
 	(connId:0) (15 0)
@@ -44,10 +44,10 @@ blockId 8 SWITCH 2 6 TWO_SEVENTY
 	(connId:0) (10 2)
 blockId 7 "3f62f08f-6f29-440b-a50c-d19d14b68ed2" 4 2 TWO_SEVENTY
 	(connId:5) (2 0)
-	(connId:0) (11 0)
-	(connId:4) (16 0)
-	(connId:3) (4 0)
 	(connId:2) (3 0)
+	(connId:3) (4 0)
+	(connId:4) (16 0)
+	(connId:0) (11 0)
 	(connId:1) (15 1)
 blockId 6 SWITCH 1 6 TWO_SEVENTY
 	(connId:0) (10 5)

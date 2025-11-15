@@ -6,6 +6,8 @@
 
 class SelectionHelperTool : public CircuitToolHelper {
 public:
+	using CircuitToolHelper::CircuitToolHelper;
+
 	inline bool canMakeEdits() const override final { return false; }
 
 	virtual void undoFinished() { createdSelection = nullptr; };

@@ -18,12 +18,42 @@
 				<label class="form-label" for="height">Height</label>
 				<input id="height-input" type="text" name="height" maxlength="3" class="number" />
 			</div>
+			<div id="block-texture-menu" class="surface-raised pad-sm">
+				<label class="form-label">Block Texture</label><br></br>
+				<div id="block-texture-menu-no-texture">
+					<button id="pick-texture" class="btn btn-outline btn-sm">Pick Texture</button>
+				</div>
+				<div id="block-texture-menu-has-texture" class="invisible">
+					<button id="pick-new-texture" class="btn btn-sm">Pick Texture</button>
+					<button id="reload-texture" class="btn btn-sm">Reload Texture</button>
+					<button id="remove-texture" class="btn btn-sm">Remove Texture</button>
+					<div class="form-row-2">
+						<input id="texture-uses-tilemap" type="checkbox" />
+						<label class="form-label" for="uses tilemap">Uses Tilemap</label>
+					</div>
+					<div id="block-texture-tile-menu" class="invisible">
+						<div class="form-row">
+							<label class="form-label">Tile Size</label>
+							<textarea id="block-texture-tile-size-x" rows="1" cols="7" maxlength="5"></textarea>
+							<textarea id="block-texture-tile-size-y" rows="1" cols="7" maxlength="5"></textarea>
+						</div>
+						<div class="form-row">
+							<label class="form-label">Top Right Tile</label>
+							<textarea id="block-texture-smallest-cord-tile-x" rows="1" cols="5" maxlength="4"></textarea>
+							<textarea id="block-texture-smallest-cord-tile-y" rows="1" cols="5" maxlength="4"></textarea>
+						</div>
+						<div class="form-row">
+							<label class="form-label">Block size</label>
+							<textarea id="block-texture-block-tile-size-x" rows="1" cols="5" maxlength="4"></textarea>
+							<textarea id="block-texture-block-tile-size-y" rows="1" cols="5" maxlength="4"></textarea>
+						</div>
+					</div>
+				</div>
+			</div>
 			<div id="connection-menu" class="surface-raised pad-sm">
 				<div class="section-header">Inputs <button id="connection-list-add-input" class="btn btn-outline btn-sm"><span>Add Input</span></button></div>
-				<div id="connection-list-input-headers" class="connection-list-headers">Name | Port X/Y | Block X/Y</div>
 				<div id="connection-list-input" class="connection-list scroll-y alt-rows"></div>
 				<div class="section-header">Outputs <button id="connection-list-add-output" class="btn btn-outline btn-sm"><span>Add Output</span></button></div>
-				<div id="connection-list-output-headers" class="connection-list-headers">Name | Port X/Y | Block X/Y</div>
 				<div id="connection-list-output" class="connection-list scroll-y alt-rows"></div>
 			</div>
 			<div class="form-actions">

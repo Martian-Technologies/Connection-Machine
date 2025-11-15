@@ -11,7 +11,7 @@ class CircuitViewWidget;
 
 class SimControlsManager {
 public:
-	SimControlsManager(Rml::ElementDocument* document, std::shared_ptr<CircuitViewWidget> circuitViewWidget, DataUpdateEventManager* dataUpdateEventManager);
+	SimControlsManager(Rml::ElementDocument* document, std::shared_ptr<CircuitViewWidget> circuitViewWidget, DataUpdateEventManager& dataUpdateEventManager);
 	void update();
 
 private:

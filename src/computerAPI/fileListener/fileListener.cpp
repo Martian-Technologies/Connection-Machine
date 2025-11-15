@@ -86,3 +86,27 @@ void FileListener::watcherThreadFunc() {
 		cv_.wait_for(lock, checkInterval_);
 	}
 }
+
+nlohmann::json FileListener::dumpState() const {
+	nlohmann::json stateJson;
+	try {
+		std::lock_guard<std::mutex> lock(watchedFilesMutex_);
+		for (const auto& [path, file] : watchedFiles_) {
+			try {
+				nlohmann::json fileJson;
+				fileJson["lastWriteTime"] = file.lastWriteTime.time_since_epoch().count();
+				nlohmann::json callbacksJson = nlohmann::json::array();
+				for (const auto& [handle, _] : file.callbacks) {
+					callbacksJson.push_back(handle);
+				}
+				fileJson["callbacks"] = callbacksJson;
+				stateJson[path] = fileJson;
+			} catch (std::exception& e) {
+				stateJson[path] = "Error dumping state: " + std::string(e.what());
+			}
+		}
+	} catch (std::exception& e) {
+		stateJson["error"] = e.what();
+	}
+	return stateJson;
+}

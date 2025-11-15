@@ -16,6 +16,7 @@ void Frame::init(VulkanDevice* device) {
 	commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	commandPoolInfo.queueFamilyIndex = device->getGraphicsQueueIndex();
 	vkCreateCommandPool(device->getDevice(), &commandPoolInfo, nullptr, &commandPool);
+	
 	// allocate the default command buffer that we will use for rendering
 	VkCommandBufferAllocateInfo commandBufferInfo = {};
 	commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;

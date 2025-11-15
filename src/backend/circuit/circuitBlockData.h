@@ -9,9 +9,11 @@
 
 class CircuitBlockData {
 public:
-	CircuitBlockData(circuit_id_t id, DataUpdateEventManager* dataUpdateEventManager) : id(id), dataUpdateEventManager(dataUpdateEventManager) { }
-	CircuitBlockData(circuit_id_t id, DataUpdateEventManager* dataUpdateEventManager, const std::string& proceduralCircuitUUID) :
+	CircuitBlockData(circuit_id_t id, DataUpdateEventManager& dataUpdateEventManager) : id(id), dataUpdateEventManager(dataUpdateEventManager) { }
+	CircuitBlockData(circuit_id_t id, DataUpdateEventManager& dataUpdateEventManager, const std::string& proceduralCircuitUUID) :
 		id(id), dataUpdateEventManager(dataUpdateEventManager), proceduralCircuitUUID(proceduralCircuitUUID) { }
+	CircuitBlockData(const CircuitBlockData&) = delete;
+    CircuitBlockData& operator=(const CircuitBlockData&) = delete;
 
 	inline void setProceduralCircuitUUID(const std::string& proceduralCircuitUUID) { this->proceduralCircuitUUID.emplace(proceduralCircuitUUID); }
 	inline const std::optional<std::string>& getProceduralCircuitUUID() const { return proceduralCircuitUUID; }
@@ -24,14 +26,14 @@ public:
 		if (!posPtr) return;
 		Position pos = *posPtr;
 		connectionIdPosition.remove(endId);
-		dataUpdateEventManager->sendEvent<std::tuple<BlockType, connection_end_id_t, Position>>(
+		dataUpdateEventManager.sendEvent<std::tuple<BlockType, connection_end_id_t, Position>>(
 			"circuitBlockDataConnectionPositionRemove",
 			{ blockType, endId, pos }
 		);
 	}
 	inline void setConnectionIdPosition(connection_end_id_t endId, Position position) {
 		connectionIdPosition.set(endId, position);
-		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>(
+		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>(
 			"circuitBlockDataConnectionPositionSet",
 			{ blockType, endId }
 		);
@@ -42,10 +44,26 @@ public:
 	inline const BidirectionalMultiSecondKeyMap<connection_end_id_t, Position>::constIteratorPairT2 getConnectionPositionToId(Position position) const {
 		return connectionIdPosition.get(position);
 	}
+	nlohmann::json dumpState() const {
+		nlohmann::json stateJson;
+		stateJson["circuitId"] = id;
+		stateJson["blockType"] = blocktype_to_string(blockType);
+		if (proceduralCircuitUUID.has_value()) {
+			stateJson["proceduralCircuitUUID"] = proceduralCircuitUUID.value();
+		} else {
+			stateJson["proceduralCircuitUUID"] = nullptr;
+		}
+		nlohmann::json connectionPositionsJson = nlohmann::json::object();
+		for (const auto& pair : connectionIdPosition.getT2Map()) {
+			connectionPositionsJson[std::to_string(pair.first.get())] = pair.second.toString();
+		}
+		stateJson["connectionPositions"] = connectionPositionsJson;
+		return stateJson;
+	}
 
 private:
 	BidirectionalMultiSecondKeyMap<connection_end_id_t, Position> connectionIdPosition;
-	DataUpdateEventManager* dataUpdateEventManager;
+	DataUpdateEventManager& dataUpdateEventManager;
 	BlockType blockType;
 	circuit_id_t id;
 	std::optional<std::string> proceduralCircuitUUID = std::nullopt;

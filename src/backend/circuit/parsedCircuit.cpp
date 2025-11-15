@@ -15,12 +15,24 @@ void ParsedCircuit::addConnectionPort(
 void ParsedCircuit::addConnectionPort(
 	bool isInput,
 	connection_end_id_t connectionEndId,
+	std::optional<Position> positionOfBlock,
 	Vector positionOnBlock,
-	const std::string& portName
+	FVector portOffset,
+	const std::string& portName,
+	unsigned int bitWidth
 ) {
-	ports.emplace_back(isInput, connectionEndId, positionOnBlock, portName);
+	ports.emplace_back(isInput, connectionEndId, positionOfBlock, positionOnBlock, portOffset, portName, bitWidth);
 	valid = false;
 }
+// void ParsedCircuit::addConnectionPort(
+// 	bool isInput,
+// 	connection_end_id_t connectionEndId,
+// 	Vector positionOnBlock,
+// 	const std::string& portName
+// ) {
+// 	ports.emplace_back(isInput, connectionEndId, positionOnBlock, portName);
+// 	valid = false;
+// }
 
 void ParsedCircuit::addBlock(block_id_t blockId, FPosition position, Orientation orientation, BlockType type) {
 	blocks.try_emplace(blockId, position, orientation, type);

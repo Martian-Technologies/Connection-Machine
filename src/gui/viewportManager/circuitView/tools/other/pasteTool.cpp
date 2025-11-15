@@ -26,7 +26,7 @@ bool PasteTool::rotateCCW(const Event* event) {
 }
 
 bool PasteTool::place(const Event* event) {
-	SharedCopiedBlocks copiedBlocks = circuitView->getBackend()->getClipboard();
+	SharedCopiedBlocks copiedBlocks = circuitView->getBackend().getClipboard();
 	if (copiedBlocks) circuit->tryInsertCopiedBlocks(copiedBlocks, lastPointerPosition, transformAmount);
 
 	return true;
@@ -41,20 +41,20 @@ void PasteTool::updateElements() {
 		return;
 	}
 
-	if (circuitView->getBackend()->getClipboardEditCounter() != lastClipboardEditCounter || !elementCreator.hasElement(elementId)) {
-		lastClipboardEditCounter = circuitView->getBackend()->getClipboardEditCounter();
+	if (circuitView->getBackend().getClipboardEditCounter() != lastClipboardEditCounter || !elementCreator.hasElement(elementId)) {
+		lastClipboardEditCounter = circuitView->getBackend().getClipboardEditCounter();
 		// reset and remake blocks
 		elementCreator.clear();
 
-		SharedCopiedBlocks copiedBlocks = circuitView->getBackend()->getClipboard();
+		SharedCopiedBlocks copiedBlocks = circuitView->getBackend().getClipboard();
 		if (!copiedBlocks) return;
 
 		std::vector<BlockPreview::Block> blocks;
 		blocks.reserve(copiedBlocks->getCopiedBlocks().size());
 		for (const CopiedBlocks::CopiedBlockData& block : copiedBlocks->getCopiedBlocks()) {
 			blocks.emplace_back(
-				environment->getBlockRenderDataFeeder().getBlockRenderDataId(block.blockType),
-				lastPointerPosition + transformAmount * (block.position - copiedBlocks->getMinPosition()) - transformAmount.transformVectorWithArea(Vector(0), circuit->getBlockContainer()->getBlockDataManager()->getBlockSize(block.blockType, block.orientation)),
+				environment.getBlockRenderDataFeeder().getBlockRenderDataId(block.blockType),
+				lastPointerPosition + transformAmount * (block.position - copiedBlocks->getMinPosition()) - transformAmount.transformVectorWithArea(Vector(0), circuit->getBlockContainer().getBlockDataManager().getBlockSize(block.blockType, block.orientation)),
 				transformAmount * block.orientation
 			);
 		}
@@ -69,14 +69,14 @@ void PasteTool::updateElements() {
 }
 
 bool PasteTool::validatePlacement() const {
-	SharedCopiedBlocks copiedBlocks = circuitView->getBackend()->getClipboard();
+	SharedCopiedBlocks copiedBlocks = circuitView->getBackend().getClipboard();
 	if (!copiedBlocks) return false;
 
 	Vector totalOffset = Vector(lastPointerPosition.x, lastPointerPosition.y) + (Position() - copiedBlocks->getMinPosition());
 
 	for (const CopiedBlocks::CopiedBlockData& block : copiedBlocks->getCopiedBlocks()) {
 		Position testPos = block.position + totalOffset;
-		if (circuit->getBlockContainer()->checkCollision(testPos)) {
+		if (circuit->getBlockContainer().checkCollision(testPos)) {
 			return false;
 		}
 	}

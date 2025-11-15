@@ -7,18 +7,18 @@
 
 class ParsedCircuitLoader {
 public:
-	ParsedCircuitLoader(CircuitFileManager* circuitFileManager, CircuitManager* circuitManager) : circuitFileManager(circuitFileManager), circuitManager(circuitManager) {}
+	ParsedCircuitLoader(CircuitFileManager& circuitFileManager, CircuitManager& circuitManager) : circuitFileManager(circuitFileManager), circuitManager(circuitManager) {}
 	virtual ~ParsedCircuitLoader() {}
 
 	virtual std::vector<circuit_id_t> load(const std::string& path) = 0;
 
 	circuit_id_t loadParsedCircuit(ParsedCircuit& parsedCircuit) {
-        return circuitFileManager->loadParsedCircuit(parsedCircuit);
+        return circuitFileManager.loadParsedCircuit(parsedCircuit);
     }
 
 protected:
-	CircuitManager* circuitManager;
-	CircuitFileManager* circuitFileManager;
+	CircuitManager& circuitManager;
+	CircuitFileManager& circuitFileManager;
 };
 
 #endif /* parsedCircuitLoader_h */

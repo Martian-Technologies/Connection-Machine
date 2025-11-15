@@ -48,4 +48,16 @@ private:
 	float deltaY;
 };
 
+class StateSetEvent : public Event {
+public:
+	inline StateSetEvent(const std::string& name, const Position& position, bool state) : Event(name), position(position), state(state) { }
+
+	inline Position getPosition() const { return position; }
+	inline bool getState() const { return state; }
+
+private:
+	bool state;
+	Position position;
+};
+
 #endif /* customEvents_h */

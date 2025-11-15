@@ -6,7 +6,7 @@
 
 class BlockPlacementTool : public CircuitTool {
 public:
-	BlockPlacementTool();
+	BlockPlacementTool(const Environment& environment);
 
 	void activate() override final;
 
@@ -14,7 +14,7 @@ public:
 	static inline std::string getPath_() { return "placement"; }
 	inline std::vector<std::string> getModes() const override final { return getModes_(); }
 	inline std::string getPath() const override final { return getPath_(); }
-	void setMode(std::string toolMode) override final;
+	void setMode(const std::string& mode) override final;
 
 	inline void selectBlock(BlockType selectedBlock) {
 		this->selectedBlock = selectedBlock;

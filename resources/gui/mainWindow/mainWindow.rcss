@@ -44,25 +44,32 @@ body {
 	z-index: 1000;
 }
 
-/* Pop Up Window */
-#pop-up-overlay {
+#all-pop-ups {
 	position: absolute;
-	display: flex;
-	flex-direction: row;
-	justify-content: center;
-	align-items: center;
 	width: 100%;
 	height: 100%;
+	z-index: 2000;
 }
-#pop-up-overlay-internal {
+
+#corner-log {
+	pointer-events: none;
+	position: absolute;
+	bottom: 0;
+	right: 0;
 	display: flex;
 	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	width: 100%;
+	justify-content: flex-end;
+	width: 40%;
 	height: 100%;
 }
 
-.invisible {
-	display: none;
+#corner-log p {
+	padding-left: 0.5em;
+	padding-right: 0.5em;
+	width: 100%;
+	background-color: #0000004e;
+}
+
+.corner-log .corner-log-error * {
+	color: rgb(125, 0, 0);
 }

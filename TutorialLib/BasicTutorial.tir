@@ -1,0 +1,41 @@
+version_0
+Tutorial: "Basic Tutorial"
+Step:
+	Condition:
+		Block: SWITCH (0, 0) ZERO
+		Block: SWITCH (0, 2) ZERO
+	Action:
+		Message: "Welcome to Connection Machine!"
+		Message: "Click the 'Switch' button on the left side menu, and click to place 2 switches where prompted."
+		Block Preview: SWITCH (0, 0) ZERO
+		Block Preview: SWITCH (0, 2) ZERO
+Step:
+	Condition:
+		Block: AND (2, 1)
+	Action:
+		Message: "Click the 'AND' button on the left side menu, and place an AND block where prompted."
+		Message: "The AND block outputs ON only when all inputs are ON."
+		Block Preview: AND (2, 1) ZERO
+Step:
+	Condition:
+		Connection: (0, 0) (2, 1) (2, 1)
+	Action:
+		Message: "Click the 'Connection' tool and connect both switches to the AND block."
+		Message: "Connect 2 blocks by clicking the one you want the output from, and then clicking the one you want the output to go to."
+		Connection Preview: (0, 0) (2, 1) (0, 2) (2, 1)
+Step:
+	Condition:
+		Block: LIGHT (4, 1) ZERO
+		Connection: (2, 1) (4, 1)
+	Action:
+		Message: "Place a LIGHT and connect the AND output to the LIGHT."
+		Block Preview: LIGHT (4, 1) ZERO
+		Connection Preview: (2, 1) (4, 1)
+Step:
+	Condition:
+		State: h (2, 1) 2
+	Action:
+Step:
+	Condition:
+	Action:
+		Message: "Tutorial Complete!"

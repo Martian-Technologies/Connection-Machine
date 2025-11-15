@@ -3,11 +3,16 @@
 std::optional<MainRenderer> mainRendererSingleton;
 
 MainRenderer& MainRenderer::get() {
-	if (!mainRendererSingleton) mainRendererSingleton.emplace();
+	if (!mainRendererSingleton) {
+		logInfo("Creating MainRenderer", "MainRenderer");
+		mainRendererSingleton.emplace();
+		logInfo("MainRenderer created", "MainRenderer");
+	};
 	return *mainRendererSingleton;
 }
 
 void MainRenderer::kill() {
+	logInfo("Killing MainRenderer", "MainRenderer");
 	mainRendererSingleton.reset();
 }
 
@@ -16,13 +21,13 @@ WindowId MainRenderer::registerWindow(SdlWindow* sdlWindow) {
 	return lastWindowId;
 }
 
-void MainRenderer::resizeWindow(WindowId windowId, glm::vec2 size) {
+void MainRenderer::resizeWindow(WindowId windowId, std::pair<uint32_t, uint32_t> size) {
 	auto iter = windowRenderers.find(windowId);
 	if (iter == windowRenderers.end()) {
 		logError("Failed to call resizeWindow on non existent window {}.", "MainRenderer", windowId);
 		return;
 	}
-	iter->second.resize({size.x, size.y});
+	iter->second.resize(size);
 }
 
 void MainRenderer::deregisterWindow(WindowId windowId) {
@@ -68,12 +73,6 @@ Rml::CompiledGeometryHandle MainRenderer::compileGeometry(WindowId windowId, Rml
 }
 
 void MainRenderer::releaseGeometry(WindowId windowId, Rml::CompiledGeometryHandle geometry) {
-	// auto iter = windowRenderers.find(windowId);
-	// if (iter == windowRenderers.end()) {
-	// 	logError("Failed to call ReleaseGeometry on non existent window {}", "MainRenderer", windowId);
-	// 	return;
-	// }
-	// iter->second.getRmlRenderer().releaseGeometry(geometry);
 	VulkanDevice* device = vulkanInstance.getDevice();
 	if (!device) {
 		logError("Failed to call CompileGeometry. No Vulkan device found", "MainRenderer");
@@ -83,12 +82,6 @@ void MainRenderer::releaseGeometry(WindowId windowId, Rml::CompiledGeometryHandl
 }
 
 Rml::TextureHandle MainRenderer::loadTexture(WindowId windowId, Rml::Vector2i& texture_dimensions, const Rml::String& source) {
-	// auto iter = windowRenderers.find(windowId);
-	// if (iter == windowRenderers.end()) {
-	// 	logError("Failed to call loadTexture on non existent window {}", "MainRenderer", windowId);
-	// 	return (Rml::TextureHandle)0;
-	// }
-	// return iter->second.getRmlRenderer().loadTexture(texture_dimensions, source);
 	VulkanDevice* device = vulkanInstance.getDevice();
 	if (!device) {
 		logError("Failed to call CompileGeometry. No Vulkan device found", "MainRenderer");
@@ -98,12 +91,6 @@ Rml::TextureHandle MainRenderer::loadTexture(WindowId windowId, Rml::Vector2i& t
 }
 
 Rml::TextureHandle MainRenderer::generateTexture(WindowId windowId, Rml::Span<const Rml::byte> source, Rml::Vector2i source_dimensions) {
-	// auto iter = windowRenderers.find(windowId);
-	// if (iter == windowRenderers.end()) {
-	// 	logError("Failed to call generateTexture on non existent window {}", "MainRenderer", windowId);
-	// 	return (Rml::TextureHandle)0;
-	// }
-	// return iter->second.getRmlRenderer().generateTexture(source, source_dimensions);
 	VulkanDevice* device = vulkanInstance.getDevice();
 	if (!device) {
 		logError("Failed to call CompileGeometry. No Vulkan device found", "MainRenderer");
@@ -113,12 +100,6 @@ Rml::TextureHandle MainRenderer::generateTexture(WindowId windowId, Rml::Span<co
 }
 
 void MainRenderer::releaseTexture(WindowId windowId, Rml::TextureHandle texture_handle) {
-	// auto iter = windowRenderers.find(windowId);
-	// if (iter == windowRenderers.end()) {
-	// 	logError("Failed to call releaseTexture on non existent window {}", "MainRenderer", windowId);
-	// 	return;
-	// }
-	// iter->second.getRmlRenderer().releaseTexture(texture_handle);
 	VulkanDevice* device = vulkanInstance.getDevice();
 	if (!device) {
 		logError("Failed to call CompileGeometry. No Vulkan device found", "MainRenderer");
@@ -170,8 +151,44 @@ void MainRenderer::setBlockSize(BlockRenderDataId blockRenderDataId, Size size) 
 	blockRenderDataManager.setBlockSize(blockRenderDataId, size);
 }
 
-void MainRenderer::setBlockTextureIndex(BlockRenderDataId blockRenderDataId, unsigned int textureIndex) {
-	blockRenderDataManager.setBlockTextureIndex(blockRenderDataId, textureIndex);
+BlockTextureId MainRenderer::addBlockTexture(const std::string& path) {
+	return vulkanInstance.getDevice()->getBlockTextureManager().addTexture(path);
+}
+
+BlockTextureId MainRenderer::addBlockTexture(const std::filesystem::path& path) {
+	return vulkanInstance.getDevice()->getBlockTextureManager().addTexture(path.string());
+}
+
+void MainRenderer::refreshBlockTexture(const std::string& path) {
+	vulkanInstance.getDevice()->getBlockTextureManager().refreshBlockTexture(path);
+}
+
+BlockTextureId MainRenderer::addBlockTexture(const unsigned char* pixels, int textureWidth, int textureHeight) {
+	return vulkanInstance.getDevice()->getBlockTextureManager().addTexture(pixels, textureWidth, textureHeight);
+}
+
+void MainRenderer::updateBlockTexture(const unsigned char* pixels, BlockTextureId blockTextureId) {
+	vulkanInstance.getDevice()->getBlockTextureManager().updateBlockTexture(pixels, blockTextureId);
+}
+
+void MainRenderer::removeBlockTexture(const std::string& path) {
+	vulkanInstance.getDevice()->getBlockTextureManager().removeBlockTexture(path);
+}
+
+void MainRenderer::removeBlockTexture(BlockTextureId blockTextureId) {
+	vulkanInstance.getDevice()->getBlockTextureManager().removeBlockTexture(blockTextureId);
+}
+
+void MainRenderer::setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId) {
+	blockRenderDataManager.setBlockTexture(blockRenderDataId, blockTextureId);
+}
+
+void MainRenderer::setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize) {
+	blockRenderDataManager.setBlockTexture(blockRenderDataId, blockTextureId, tileSize, smallestCordTile, blockSize);
+}
+
+void MainRenderer::setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize, Vec2Int textureStepSize) {
+	blockRenderDataManager.setBlockTexture(blockRenderDataId, blockTextureId, tileSize, smallestCordTile, blockSize, textureStepSize);
 }
 
 BlockPortRenderDataId MainRenderer::addBlockPort(BlockRenderDataId blockRenderDataId, bool isInput, FVector positionOnBlock) {
@@ -188,6 +205,12 @@ void MainRenderer::moveBlockPort(BlockRenderDataId blockRenderDataId, BlockPortR
 
 void MainRenderer::setBlockPortName(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId, const std::string& newPortName) {
 	blockRenderDataManager.setBlockPortName(blockRenderDataId, blockPortRenderDataId, newPortName);
+}
+
+void MainRenderer::regenerateAllChunksWithBlock(BlockRenderDataId blockRenderDataId) {
+	for (std::pair<const unsigned int, ViewportRenderData>& pair : viewportRenderers) {
+		pair.second.getChunker().regenerateAllChunksWithBlock(blockRenderDataId);
+	}
 }
 
 ViewportId MainRenderer::registerViewport(WindowId windowId, glm::vec2 origin, glm::vec2 size) {
@@ -216,7 +239,7 @@ void MainRenderer::moveViewport(ViewportId viewportId, WindowId windowId, glm::v
 		logError("moving viewport to other window not supported yet");
 		return;
 	}
-	viewportIter->second.updateViewFrame(origin, size);
+	viewportIter->second.updateViewFrame(origin, {std::max(size.x, 1.f), std::max(size.y, 1.f)});
 }
 
 void MainRenderer::moveViewportView(ViewportId viewportId, FPosition topLeft, FPosition bottomRight) {
@@ -235,6 +258,16 @@ void MainRenderer::setViewportEvaluator(ViewportId viewportId, Evaluator* evalua
 		return;
 	}
 	iter->second.setEvaluator(evaluator, address);
+}
+
+void MainRenderer::resetViewport(ViewportId viewportId) {
+	auto iter = viewportRenderers.find(viewportId);
+	if (iter == viewportRenderers.end()) {
+		logError("Failed to call setViewportEvaluator on non existent viewport {}", "MainRenderer", viewportId);
+		return;
+	}
+	iter->second.getChunker().reset();
+	iter->second.setEvaluator(nullptr, Address());
 }
 
 void MainRenderer::deregisterViewport(ViewportId viewport) { }
@@ -257,13 +290,13 @@ void MainRenderer::stopMakingEdits(ViewportId viewportId) {
 	iter->second.getChunker().stopMakingEdits();
 }
 
-void MainRenderer::addBlock(ViewportId viewportId, BlockRenderDataId blockRenderDataId, Position position, Orientation orientation, Position statePosition) {
+void MainRenderer::addBlock(ViewportId viewportId, BlockRenderDataId blockRenderDataId, Position position, Orientation orientation) {
 	auto iter = viewportRenderers.find(viewportId);
 	if (iter == viewportRenderers.end()) {
 		logError("Failed to call startMakingEdits on non existent viewport {}", "MainRenderer", viewportId);
 		return;
 	}
-	iter->second.getChunker().addBlock(blockRenderDataId, position, orientation, statePosition);
+	iter->second.getChunker().addBlock(blockRenderDataId, position, orientation);
 }
 
 void MainRenderer::removeBlock(ViewportId viewportId, Position position) {

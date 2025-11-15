@@ -44,6 +44,8 @@ public:
 			func(pos, value);
 		}
 	}
+	nlohmann::json dumpState() const;
+	nlohmann::json dumpStateAndInner() const;
 
 private:
 	phmap::parallel_flat_hash_map<Position, T> data;
@@ -92,6 +94,24 @@ void Sparse2dArray<T>::remove(Position position) {
 template <class T>
 void Sparse2dArray<T>::clear() {
 	data.clear();
+}
+
+template <class T>
+nlohmann::json Sparse2dArray<T>::dumpState() const {
+	nlohmann::json stateJson;
+	for (const auto& [pos, value] : data) {
+		stateJson[to_string(pos.x) + "," + to_string(pos.y)] = value;
+	}
+	return stateJson;
+}
+
+template <class T>
+nlohmann::json Sparse2dArray<T>::dumpStateAndInner() const {
+	nlohmann::json stateJson;
+	for (const auto& [pos, value] : data) {
+		stateJson[std::to_string(pos.x) + "," + std::to_string(pos.y)] = value.dumpState();
+	}
+	return stateJson;
 }
 
 #endif /* sparse2d_h */

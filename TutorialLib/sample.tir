@@ -1,0 +1,42 @@
+# not runnable just a sample
+version_7
+Tutorial: "Sample" 
+Step:
+	Condition:
+	Action:
+		# <message>
+		Message: welcome to connection machine
+		Message: second message
+		Message: "2THUS"
+		Message: "3THUS"
+		# <blocktype> <position> <orientation>
+		Block Preview: OR (1, 5) TWO_SEVENTY
+		Block Preview: LIGHT (6, 1) NINETY 
+		Block Preview: SWITCH (0, 1) ONE_EIGHTY
+		Block Preview: AND (2, 5) TWO_SEVENTY
+		# <position1_output> <position2_input>
+		Connection Preview: (0, 1) (1, 5)
+		Connection Preview: (1, 5) (6, 1)
+
+Step:
+	Condition:
+		# <blocktype> <position> <orientation>
+		Block: OR (1, 5) TWO_SEVENTY
+		Block: LIGHT (6, 1) NINETY 
+		Block: SWITCH (0, 1) ONE_EIGHTY
+		Block: AND (2, 5) TWO_SEVENTY
+		# <position1_output> <position2_input>
+		Connection: (0, 1) (1, 5)
+		Connection: (1, 5) (6, 1)
+		# <positon> <state> <num_steps>
+		State: (6, 1) l 0
+		State: (6, 1) h 5
+		State: (1, 2) z 92
+		State: (1, 2) x 92
+	Action:
+		Message: "1THUS"
+		Message: "5THUS"
+		Block Preview: LIGHT (6, 1) ZERO
+		Connection Preview: (1, 2) (4, 5)
+		Message: "2THUS"
+		Message: "3THUS"

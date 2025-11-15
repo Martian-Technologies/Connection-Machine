@@ -1,11 +1,12 @@
 #ifndef circuitView_h
 #define circuitView_h
 
-#include "renderer/circuitRenderManager.h"
-#include "viewManager/viewManager.h"
 #include "events/eventRegister.h"
+#include "renderer/circuitRenderManager.h"
 #include "tools/toolManager.h"
 //#include "tutorial/Tutorial.h"
+#include "tutorialManager.h"
+#include "viewManager/viewManager.h"
 
 #include "gpu/mainRendererDefs.h"
 
@@ -16,35 +17,40 @@ class Backend;
 class CircuitView {
 	friend class Backend;
 public:
-	CircuitView(Environment* environment, ViewportId viewportId);
+	CircuitView(Environment& environment, ViewportId viewportId);
 
 	// --------------- Gettters ---------------
 
-	inline Circuit* getCircuit() { return circuit.get(); }
-	inline const Circuit* getCircuit() const { return circuit.get(); }
+	Circuit* getCircuit();
+	const Circuit* getCircuit() const;
 
-	inline Evaluator* getEvaluator() { return evaluator.get(); }
-	inline const Evaluator* getEvaluator() const { return evaluator.get(); }
+	Evaluator* getEvaluator();
+	const Evaluator* getEvaluator() const;
 
-	inline EventRegister& getEventRegister() { return eventRegister; }
-	inline const EventRegister& getEventRegister() const { return eventRegister; }
+	EventRegister& getEventRegister() { return eventRegister; }
+	const EventRegister& getEventRegister() const { return eventRegister; }
 
-	inline ToolManager& getToolManager() { return toolManager; }
-	inline const ToolManager& getToolManager() const { return toolManager; }
+	ToolManager& getToolManager() { return toolManager; }
+	const ToolManager& getToolManager() const { return toolManager; }
 
-	inline ViewManager& getViewManager() { return viewManager; }
-	inline const ViewManager& getViewManager() const { return viewManager; }
+	TutorialManager& getTutorialManager() { return tutorialManager; }
+	const TutorialManager& getTutorialManager() const { return tutorialManager; }
 
-	inline Backend* getBackend() { return backend; }
-	inline const Backend* getBackend() const { return backend; }
+	ViewManager& getViewManager() { return viewManager; }
+	const ViewManager& getViewManager() const { return viewManager; }
 
-	inline const Address& getAddress() const { return address; }
+	ViewportId getViewportId() const { return viewportId; }
 
-	void setBackend(Backend* backend);
-	void setEvaluator(Backend* backend, evaluator_id_t evaluatorId, const Address& address = Address());
-	void setEvaluator(Backend* backend, std::shared_ptr<Evaluator> evaluator, const Address& address = Address());
-	void setCircuit(Backend* backend, std::shared_ptr<Circuit> circuit);
-	void setCircuit(Backend* backend, circuit_id_t circuitId);
+	Backend& getBackend() { return backend; }
+	const Backend& getBackend() const { return backend; }
+
+	const Address& getAddress() const { return address; }
+
+	// void setBackend(Backend* backend);
+	void setEvaluator(evaluator_id_t evaluatorId, const Address& address = Address());
+	void setEvaluator(std::shared_ptr<Evaluator> evaluator, const Address& address = Address());
+	void setCircuit(std::shared_ptr<Circuit> circuit);
+	void setCircuit(circuit_id_t circuitId);
 
 	void viewChanged();
     //TODO: make private and public getter
@@ -56,19 +62,20 @@ public:
     }
 
 private:
-	Backend* backend;
+	Backend& backend;
 
-	Address address;
-	std::shared_ptr<Circuit> circuit;
 	ViewportId viewportId;
-	std::shared_ptr<Evaluator> evaluator;
+	circuit_id_t circuitId;
+	evaluator_id_t evaluatorId;
+	Address address;
 
-	DataUpdateEventManager* dataUpdateEventManager = nullptr;
+	DataUpdateEventManager& dataUpdateEventManager;
 
 	std::optional<CircuitRenderManager> circuitRenderManager;
 	EventRegister eventRegister;
 	ViewManager viewManager;
 	ToolManager toolManager;
+	TutorialManager tutorialManager;
 };
 
 #endif /* circuitView_h */

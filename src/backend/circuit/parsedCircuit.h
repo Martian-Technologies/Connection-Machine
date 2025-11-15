@@ -46,15 +46,27 @@ public:
 		ConnectionPort(
 			bool isInput,
 			connection_end_id_t connectionEndId,
+			std::optional<Position> positionOfBlock,
 			Vector positionOnBlock,
-			const std::string& portName = ""
-		) : isInput(isInput), connectionEndId(connectionEndId), positionOnBlock(positionOnBlock), portName(portName) { }
+			FVector portOffset,
+			const std::string& portName = "",
+			unsigned int bitWidth = 1
+		) : isInput(isInput), connectionEndId(connectionEndId), positionOfBlock(positionOfBlock), positionOnBlock(positionOnBlock), portOffset(portOffset), portName(portName), bitWidth(bitWidth) { }
+		// ConnectionPort(
+		// 	bool isInput,
+		// 	connection_end_id_t connectionEndId,
+		// 	Vector positionOnBlock,
+		// 	const std::string& portName = ""
+		// ) : isInput(isInput), connectionEndId(connectionEndId), positionOnBlock(positionOnBlock), portName(portName) { }
 		bool isInput;
 		connection_end_id_t connectionEndId;
 		Vector positionOnBlock;
+		FVector portOffset = FVector(0.5f, 0.5f);
 		block_id_t internalBlockId = 0;
-		connection_end_id_t internalBlockConnectionEndId = 0;
+		std::optional<Position> positionOfBlock = std::nullopt;
+		connection_end_id_t internalBlockConnectionEndId = connection_end_id_t(0);
 		std::string portName = "";
+		unsigned int bitWidth = 1;
 	};
 
 	void addConnectionPort(
@@ -68,9 +80,18 @@ public:
 	void addConnectionPort(
 		bool isInput,
 		connection_end_id_t connectionEndId,
+		std::optional<Position> positionOfBlock,
 		Vector positionOnBlock,
-		const std::string& portName = ""
+		FVector portOffset,
+		const std::string& portName = "",
+		unsigned int bitWidth = 1
 	);
+	// void addConnectionPort(
+	// 	bool isInput,
+	// 	connection_end_id_t connectionEndId,
+	// 	Vector positionOnBlock,
+	// 	const std::string& portName = ""
+	// );
 	const std::vector<ConnectionPort>& getConnectionPorts() const { return ports; }
 
 	void addBlock(block_id_t id, FPosition pos, Orientation orientation, BlockType type);
@@ -94,8 +115,26 @@ public:
 	void setUUID(const std::string& uuid) { this->uuid = uuid; }
 	const std::string& getUUID() const { return uuid; }
 
+	void setTexturePath(const std::string& texturePath) { this->texturePath = texturePath; }
+	const std::string& getTexturePath() const { return texturePath; }
+
+	void setUsesTileMapTexture(bool usesTileMapTexture) { this->usesTileMapTexture = usesTileMapTexture; }
+	bool getUsesTileMapTexture() const { return usesTileMapTexture; }
+
+	void setTextureTileSize(Vec2Int textureTileSize) { this->textureTileSize = textureTileSize; }
+	Vec2Int getTextureTileSize() const { return textureTileSize; }
+
+	void setTextureSmallestCordTile(Vec2Int textureSmallestCordTile) { this->textureSmallestCordTile = textureSmallestCordTile; }
+	Vec2Int getTextureSmallestCordTile() const { return textureSmallestCordTile; }
+
+	void setTextureBlockTileSize(Vec2Int textureBlockTileSize) { this->textureBlockTileSize = textureBlockTileSize; }
+	Vec2Int getTextureBlockTileSize() const { return textureBlockTileSize; }
+
 	Size getSize() const { return size; }
 	void setSize(Size size) { this->size = size; valid = false; }
+
+	bool isOldFileVersion() const { return oldFileVersion; }
+	void setOldFileVersion(bool oldFileVersion) { this->oldFileVersion = oldFileVersion; }
 
 	void markAsCustom() { isCustomBlock = true; }
 	bool isCustom() const { return isCustomBlock; }
@@ -105,6 +144,11 @@ private:
 	std::string absoluteFilePath;
 	std::string uuid;
 	std::string name;
+	std::string texturePath = "";
+	bool usesTileMapTexture = false;
+	Vec2Int textureTileSize = {0, 0}; // mean that the whole texture is 1 tile.
+	Vec2Int textureSmallestCordTile = {0, 0};
+	Vec2Int textureBlockTileSize = {1, 1};
 
 	// If this represents a custom block:
 	bool isCustomBlock;
@@ -115,6 +159,8 @@ private:
 	std::unordered_map<block_id_t, BlockData> blocks;
 	std::vector<ConnectionData> connections;
 
+	bool oldFileVersion = false;
+
 	bool valid = true;
 };
 
@@ -122,12 +168,14 @@ typedef std::shared_ptr<ParsedCircuit> SharedParsedCircuit;
 
 class CircuitValidator {
 public:
-	CircuitValidator(ParsedCircuit& parsedCircuit, BlockDataManager* blockDataManager) : parsedCircuit(parsedCircuit), blockDataManager(blockDataManager) { validate(); }
+	CircuitValidator(ParsedCircuit& parsedCircuit, BlockDataManager& blockDataManager) : parsedCircuit(parsedCircuit), blockDataManager(blockDataManager) { validate(); }
 private:
 	struct ConnectionHash {
 		size_t operator()(const ParsedCircuit::ConnectionData& p) const {
-			return std::hash<block_id_t>()(p.outputEndId) ^ std::hash<block_id_t>()(p.outputEndId) ^
-				std::hash<connection_end_id_t>()(p.outputBlockId) ^ std::hash<connection_end_id_t>()(p.inputBlockId);
+			return std::hash<block_id_t>()(p.outputBlockId) ^
+				std::hash<connection_end_id_t>()(p.outputEndId) ^
+				std::hash<block_id_t>()(p.inputBlockId) ^
+				std::hash<connection_end_id_t>()(p.inputEndId);
 		}
 	};
 
@@ -152,7 +200,7 @@ private:
 		return id;
 	}
 
-	BlockDataManager* blockDataManager;
+	BlockDataManager& blockDataManager;
 	ParsedCircuit& parsedCircuit;
 	std::unordered_set<Position> occupiedPositions;
 };

@@ -3,8 +3,8 @@
 #include "singlePlaceTool.h"
 #include "areaPlaceTool.h"
 
-BlockPlacementTool::BlockPlacementTool() {
-	activePlacementTool = std::make_shared<SinglePlaceTool>();
+BlockPlacementTool::BlockPlacementTool(const Environment& environment) : CircuitTool(environment) {
+	activePlacementTool = std::make_shared<SinglePlaceTool>(environment);
 }
 
 void BlockPlacementTool::activate() {
@@ -16,15 +16,17 @@ void BlockPlacementTool::activate() {
 	}
 }
 
-void BlockPlacementTool::setMode(std::string toolMode) {
-	if (mode != toolMode) {
+void BlockPlacementTool::setMode(const std::string& mode) {
+	if (this->mode != mode) {
 		SharedBaseBlockPlacementTool newActivePlacementTool;
-		if (toolMode == "Single") {
-			newActivePlacementTool = std::make_shared<SinglePlaceTool>();
-		} else if (toolMode == "Area") {
-			newActivePlacementTool = std::make_shared<AreaPlaceTool>();
+		if (mode == "Single") {
+			newActivePlacementTool = std::make_shared<SinglePlaceTool>(environment);
+			this->mode = mode;
+		} else if (mode == "Area") {
+			newActivePlacementTool = std::make_shared<AreaPlaceTool>(environment);
+			this->mode = mode;
 		} else {
-			logError("Tool mode \"{}\" could not be found", "", toolMode);
+			logError("Tool mode \"{}\" could not be found", "", mode);
 			return;
 		}
 		activePlacementTool = newActivePlacementTool;

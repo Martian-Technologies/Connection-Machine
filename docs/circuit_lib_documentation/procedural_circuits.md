@@ -62,11 +62,11 @@ Available imports (from `functions.h`)
   - `BlockType getProceduralCircuitType(const char* UUID, const char* parameters)`: get a procedural circuit type; parameters use the same string-encoding as defaults, e.g. `("size": 2)`.
 - Building blocks and wiring
   - `block_id_t createBlock(BlockType type)`
-  - `block_id_t createBlockAtPosition(cord_t x, cord_t y, Rotation r, BlockType type)`
+  - `block_id_t createBlockAtPosition(coord_t x, coord_t y, Rotation r, BlockType type)`
   - `void createConnection(block_id_t outBlock, int outPort, block_id_t inBlock, int inPort)`
-  - `void addConnectionInput(cord_t portX, cord_t portY, block_id_t internalBlock, connection_end_id_t internalPort)`
-  - `void addConnectionOutput(cord_t portX, cord_t portY, block_id_t internalBlock, connection_end_id_t internalPort)`
-  - `void setSize(cord_t width, cord_t height)`
+  - `void addConnectionInput(coord_t portX, coord_t portY, block_id_t internalBlock, connection_end_id_t internalPort)`
+  - `void addConnectionOutput(coord_t portX, coord_t portY, block_id_t internalBlock, connection_end_id_t internalPort)`
+  - `void setSize(coord_t width, coord_t height)`
 - File composition
   - `unsigned int importFile(const char* filePath)`: load other modules (e.g., a sibling `.wasm`) before calling `getProceduralCircuitType` or `getNonPrimitiveType`. Used to specify dependencies between circuits.
 

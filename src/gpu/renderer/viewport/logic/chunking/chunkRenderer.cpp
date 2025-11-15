@@ -3,12 +3,9 @@
 #include "gpu/renderer/viewport/blockTextureManager.h"
 #include "gpu/abstractions/vulkanShader.h"
 
-#include "backend/evaluator/logicState.h"
+#include "backend/evaluator/simulator/logicState.h"
 #include "computerAPI/fileLoader.h"
 #include "computerAPI/directoryManager.h"
-
-#include "util/vec2.h"
-
 
 #ifdef TRACY_PROFILER
 	#include <tracy/Tracy.hpp>
@@ -40,6 +37,7 @@ void ChunkRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	blockPipelineInfo.pushConstants.push_back({VK_SHADER_STAGE_VERTEX_BIT, sizeof(ChunkPushConstants)});
 	blockPipelineInfo.descriptorSets.push_back(stateBufferDescriptorSetLayout);
 	blockPipelineInfo.descriptorSets.push_back(device->getBlockTextureManager().getDescriptorLayout());
+	blockPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
 	blockPipeline.init(device, blockPipelineInfo);
 
 	PipelineInformation wirePipelineInfo{};
@@ -50,6 +48,7 @@ void ChunkRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	wirePipelineInfo.vertexAttributeDescriptions = WireInstance::getAttributeDescriptions();
 	wirePipelineInfo.pushConstants.push_back({VK_SHADER_STAGE_VERTEX_BIT, sizeof(ChunkPushConstants)});
 	wirePipelineInfo.descriptorSets.push_back(stateBufferDescriptorSetLayout);
+	wirePipelineInfo.sampleCount = device->getMaxUsableSampleCount();
 	wirePipeline.init(device, wirePipelineInfo);
 
 	// destroy shader modules since we won't be recreating pipelines
@@ -73,7 +72,6 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, Evaluator*
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
-
 	// save chunk data to frame
 	for (auto& chunk : chunks) {
 		frame.lifetime.push(chunk);
@@ -82,9 +80,6 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, Evaluator*
 	// shared push constants
 	ChunkPushConstants pushConstants{};
 	pushConstants.mvp = viewMatrix;
-	Vec2 uvCellSize = device->getBlockTextureManager().getTileset().getCellUVSize();
-	pushConstants.uvCellSizeX = uvCellSize.x;
-	pushConstants.uvCellSizeY = uvCellSize.y;
 
 	// fill state buffers
 	for (std::shared_ptr<VulkanChunkAllocation> chunk : chunks) {
@@ -112,7 +107,7 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, Evaluator*
 		blockPipeline.cmdPushConstants(frame.mainCommandBuffer, &pushConstants);
 
 		// bind texture descriptor
-		std::shared_ptr<BlockTexture> blockTexture = device->getBlockTextureManager().getTexture();
+		std::shared_ptr<BlockTextureArray> blockTexture = device->getBlockTextureManager().getTextureArray();
 		frame.lifetime.push(blockTexture);
 		vkCmdBindDescriptorSets(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPipeline.getLayout(), 1, 1, &blockTexture->descriptor, 0, nullptr);
 

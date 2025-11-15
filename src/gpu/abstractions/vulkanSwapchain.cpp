@@ -2,7 +2,7 @@
 
 void Swapchain::init(VulkanDevice* device, VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size) {
 	this->device = device;
-	
+
 	createSwapchain(surface, size, false);
 
 	// create image semaphores
@@ -40,12 +40,12 @@ void Swapchain::createSwapchain(VkSurfaceKHR surface, std::pair<uint32_t, uint32
 	else swapchainBuilder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
 	swapchainBuilder.set_desired_format({VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR});
 	if (useOld) swapchainBuilder.set_old_swapchain(swapchain);
-	
+
 	auto swapchainRet = swapchainBuilder.build();
 	if (!swapchainRet)
 		throwFatalError("Could not create vulkan swapchain. Error: " + swapchainRet.error().message());
 	if (useOld)
-		vkb::destroy_swapchain(swapchain); 
+		vkb::destroy_swapchain(swapchain);
 	swapchain = swapchainRet.value();
 
 	// Get image views
@@ -64,19 +64,20 @@ void Swapchain::destroyFramebuffers() {
 }
 
 // Create and initialize framebuffers for use with the swapchain
-void Swapchain::createFramebuffers(const VkRenderPass renderPass) {
+void Swapchain::createFramebuffers(const VkRenderPass renderPass, const AllocatedImage& colorImage) {
 	framebuffers.resize(swapchain.image_count);
 
 	for (size_t i = 0; i < swapchain.image_count; i++) {
-		const VkImageView attachments[] = {
-			imageViews[i]
-		};
+		std::array<VkImageView, 2> attachments = {
+            colorImage.imageView,   // multisampled color buffer
+            imageViews[i]      // resolve (swapchain) image
+        };
 
 		VkFramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebufferInfo.renderPass = renderPass;
-		framebufferInfo.attachmentCount = 1;
-		framebufferInfo.pAttachments = attachments;
+		framebufferInfo.attachmentCount = attachments.size();
+		framebufferInfo.pAttachments = attachments.data();
 		framebufferInfo.width = swapchain.extent.width;
 		framebufferInfo.height = swapchain.extent.height;
 		framebufferInfo.layers = 1;

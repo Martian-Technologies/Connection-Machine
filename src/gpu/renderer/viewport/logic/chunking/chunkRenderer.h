@@ -8,8 +8,6 @@
 
 struct ChunkPushConstants {
 	glm::mat4 mvp;
-	float uvCellSizeX;
-	float uvCellSizeY;
 };
 
 class ChunkRenderer {
@@ -27,7 +25,7 @@ private:
 	VkDescriptorSetLayout stateBufferDescriptorSetLayout;
 
 	// refs
-	VulkanDevice* device;
+	VulkanDevice* device = nullptr;
 };
 
 #endif

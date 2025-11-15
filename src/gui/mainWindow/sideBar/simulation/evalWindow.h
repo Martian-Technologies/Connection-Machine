@@ -1,7 +1,7 @@
 #ifndef evalWindow_h
 #define evalWindow_h
 
-#include "backend/evaluator/evalAddressTree.h"
+#include "backend/evaluator/util/evalAddressTree.h"
 #include "gui/helper/menuTree.h"
 
 class EvaluatorManager;
@@ -11,10 +11,10 @@ class MainWindow;
 class EvalWindow {
 public:
 	EvalWindow(
-		const EvaluatorManager* evaluatorManager,
-		const CircuitManager* circuitManager,
-		MainWindow* mainWindow,
-		DataUpdateEventManager* dataUpdateEventManager,
+		const EvaluatorManager& evaluatorManager,
+		const CircuitManager& circuitManager,
+		MainWindow& mainWindow,
+		DataUpdateEventManager& dataUpdateEventManager,
 		Rml::ElementDocument* document,
 		Rml::Element* parent
 	);
@@ -30,10 +30,9 @@ private:
 
 	MenuTree menuTree;
 	DataUpdateEventManager::DataUpdateEventReceiver dataUpdateEventReceiver;
-	MainWindow* mainWindow;
-	const EvaluatorManager* evaluatorManager;
-	const CircuitManager* circuitManager;
-
+	MainWindow& mainWindow;
+	const EvaluatorManager& evaluatorManager;
+	const CircuitManager& circuitManager;
 };
 
 #endif /* evalWindow_h */

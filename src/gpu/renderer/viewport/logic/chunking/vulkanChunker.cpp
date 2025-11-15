@@ -8,23 +8,53 @@
 #include "backend/position/position.h"
 #include "logging/logging.h"
 
-#include "gpu/renderer/viewport/blockTextureManager.h"
 #include "gpu/mainRenderer.h"
+#include "gpu/renderer/viewport/blockTextureManager.h"
 
 const int CHUNK_SIZE = 64;
-coordinate_t getChunk(coordinate_t in) {
-	return std::floor((float)in / (float)CHUNK_SIZE) * (int)CHUNK_SIZE;
-}
+coordinate_t getChunk(coordinate_t in) { return std::floor((float)in / (float)CHUNK_SIZE) * (int)CHUNK_SIZE; }
 Position getChunk(Position in) {
 	in.x = getChunk(in.x);
 	in.y = getChunk(in.y);
 	return in;
 }
 
+const unsigned int maxLaneCountBeforeWireShrink = 8;
+constexpr float WIRE_LINE_WIDTH = 0.07f;
+
+namespace {
+	// Match wireConstants.glsl::LINE_WIDTH to keep CPU/GPU visuals aligned.
+	constexpr float DIRECTION_EPSILON = 1e-5f;
+
+	glm::vec2 computeBusOffset(const glm::vec2& pointA, const glm::vec2& pointB, uint32_t laneCount, uint32_t laneIndex) {
+		// TODO: should handle cases like the colored light where we want the offset to be tangent to the side of the block
+		if (laneCount <= 1) return glm::vec2(0.0f);
+
+		glm::vec2 direction = pointB - pointA;
+		float length = glm::length(direction);
+		if (length < DIRECTION_EPSILON) {
+			return glm::vec2(0.0f);
+		}
+
+		glm::vec2 normal = glm::vec2(-direction.y, direction.x) / length;
+		if (normal.y < 0.f || (normal.y == 0.f && normal.x > 0.f)) {
+			normal *= -1.f;
+		}
+		float centeredIndex = static_cast<float>(laneIndex) - (static_cast<float>(laneCount - 1) * 0.5f);
+		return normal * (centeredIndex * WIRE_LINE_WIDTH * std::min((float)maxLaneCountBeforeWireShrink / (float)laneCount, 1.f));
+	}
+}
+
 // VulkanChunkAllocation
 // =========================================================================================================
 
-VulkanChunkAllocation::VulkanChunkAllocation(VulkanDevice* device,const RenderedBlocks& blocks,const RenderedWires& wires, const Evaluator* evaluator, const Address& address) {
+VulkanChunkAllocation::VulkanChunkAllocation(
+	VulkanDevice* device,
+	const RenderedBlocks& blocks,
+	const RenderedWires& wires,
+	const Evaluator* evaluator,
+	const Address& address
+) {
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
@@ -32,7 +62,7 @@ VulkanChunkAllocation::VulkanChunkAllocation(VulkanDevice* device,const Rendered
 	// TODO - maybe should use smaller size coordinates with one big offset
 
 	std::vector<Position> positions;
-	std::vector<size_t> indexes;
+	std::vector<size_t> indices;
 
 	// Generate block instances
 	if (blocks.size() > 0) {
@@ -40,33 +70,35 @@ VulkanChunkAllocation::VulkanChunkAllocation(VulkanDevice* device,const Rendered
 		blockInstances.reserve(blocks.size());
 		for (const auto& block : blocks) {
 			Position blockPosition = block.first;
-			Vec2 uvOrigin = device->getBlockTextureManager().getTileset().getTopLeftUV(block.second.textureIndex, 0);
 
 			BlockInstance instance;
 			instance.pos = glm::vec2(blockPosition.x, blockPosition.y);
 			instance.sizeX = block.second.size.w;
 			instance.sizeY = block.second.size.h;
 			instance.orientation = block.second.orientation.rotation + 4 * block.second.orientation.flipped;
-			instance.texX = uvOrigin.x;
+			instance.texLayer = block.second.textureIndex;
+			instance.texPos = block.second.textureOrigin;
+			instance.texSize = block.second.textureSize;
+			instance.stateStep = block.second.textureStateStep;
 
 			blockInstances.push_back(instance);
 
 			// blocks are added to state array
-			blockStateIndex[block.second.statePosition] = simulatorIds.size();
-			positions.push_back(block.second.statePosition);
-			indexes.push_back(simulatorIds.size());
-			simulatorIds.push_back(0);
+			blockStateIndex[block.first] = simulatorIds.size();
+			positions.push_back(block.first);
+			indices.push_back(simulatorIds.size());
+			simulatorIds.push_back(simulator_id_t(0));
 		}
 
 		if (evaluator) {
 			std::vector<simulator_id_t> simIds = evaluator->getBlockSimulatorIds(address, positions);
 			for (size_t i = 0; i < simIds.size(); i++) {
-				simulatorIds[indexes[i]] = simIds[i];
+				simulatorIds[indices[i]] = simIds[i];
 			}
 		}
 
 		positions.clear();
-		indexes.clear();
+		indices.clear();
 
 		// upload block vertices
 		numBlockInstances = blockInstances.size();
@@ -77,37 +109,113 @@ VulkanChunkAllocation::VulkanChunkAllocation(VulkanDevice* device,const Rendered
 
 	// Generate wire vertices
 	if (wires.size() > 0) {
-		std::vector<WireInstance> wireInstances;
-		wireInstances.reserve(wires.size());
-		for (const auto& wire : wires) {
+		struct WireSegment {
+			glm::vec2 pointA;
+			glm::vec2 pointB;
+			Position portPosition;
+		};
 
-			// get wire's index in state buffer
-			size_t stateIdx;
-			auto itr = portStateIndex.find(wire.first.first);
-			// check if wire state position is already in the state array
-			if (itr != portStateIndex.end()) {
-				stateIdx = itr->second;
-			} else {
-				// add address to state buffer
-				stateIdx = simulatorIds.size();
-				portStateIndex[wire.first.first] = stateIdx;
-				positions.push_back(wire.first.first);
-				indexes.push_back(stateIdx);
-				simulatorIds.push_back(0);
+		std::vector<WireSegment> wireSegments;
+		wireSegments.reserve(wires.size());
+
+		positions.clear();
+		indices.clear();
+		std::vector<uint32_t> laneCounts;
+		laneCounts.reserve(wires.size());
+
+		phmap::flat_hash_map<Position, size_t> portRequestLookup;
+
+		for (const auto& wire : wires) {
+			Position portPosition = wire.first.first;
+			wireSegments.push_back({
+				glm::vec2(wire.second.start.x, wire.second.start.y),
+				glm::vec2(wire.second.end.x, wire.second.end.y),
+				portPosition
+			});
+
+			auto [itr, inserted] = portRequestLookup.emplace(portPosition, positions.size());
+			if (inserted) {
+				positions.push_back(portPosition);
+			}
+		}
+
+		std::vector<std::variant<simulator_id_t, std::vector<simulator_id_t>>> pinSimIds;
+		if (evaluator) {
+			pinSimIds = evaluator->getPinSimulatorIds(address, positions);
+		}
+
+		laneCounts.resize(positions.size(), 1);
+		indices.resize(positions.size());
+
+		for (size_t i = 0; i < positions.size(); i++) {
+			uint32_t laneCount = 1;
+			if (pinSimIds.size() != 0 && std::holds_alternative<std::vector<simulator_id_t>>(pinSimIds[i])) {
+				const std::vector<simulator_id_t>& wireSimIds = std::get<std::vector<simulator_id_t>>(pinSimIds[i]);
+				if (wireSimIds.empty()) {
+					logError("pin simulator ids vector should not be empty. Pin: {}", "VulkanChunkAllocation", positions[i]);
+				} else {
+					laneCount = static_cast<uint32_t>(wireSimIds.size());
+				}
 			}
 
-			WireInstance instance;
-			instance.pointA = glm::vec2(wire.second.start.x, wire.second.start.y);
-			instance.pointB = glm::vec2(wire.second.end.x, wire.second.end.y);
-			instance.stateIndex = stateIdx;
+			size_t baseIndex = simulatorIds.size();
+			laneCounts[i] = laneCount;
+			indices[i] = baseIndex;
+			portStateIndex[positions[i]] = PortStateRange(baseIndex, laneCount);
 
-			wireInstances.push_back(instance);
+			for (uint32_t lane = 0; lane < laneCount; lane++) {
+				simulatorIds.push_back(simulator_id_t(0));
+			}
 		}
 
 		if (evaluator) {
-			std::vector<simulator_id_t> simIds = evaluator->getPinSimulatorIds(address, positions);
-			for (size_t i = 0; i < simIds.size(); i++) {
-				simulatorIds[indexes[i]] = simIds[i];
+			for (size_t i = 0; i < pinSimIds.size() && i < positions.size(); i++) {
+				size_t baseIndex = indices[i];
+				uint32_t laneCount = laneCounts[i];
+				if (std::holds_alternative<std::vector<simulator_id_t>>(pinSimIds[i])) {
+					const auto& vec = std::get<std::vector<simulator_id_t>>(pinSimIds[i]);
+					for (uint32_t lane = 0; lane < laneCount && lane < vec.size(); lane++) {
+						simulatorIds[baseIndex + lane] = vec[lane];
+					}
+				} else {
+					simulatorIds[baseIndex] = std::get<simulator_id_t>(pinSimIds[i]);
+				}
+			}
+		}
+
+		size_t totalWireInstances = 0;
+		for (const WireSegment& segment : wireSegments) {
+			auto lookup = portRequestLookup.find(segment.portPosition);
+			uint32_t laneCount = 1;
+			if (lookup != portRequestLookup.end()) {
+				laneCount = laneCounts[lookup->second];
+			}
+			totalWireInstances += laneCount;
+		}
+
+		std::vector<WireInstance> wireInstances;
+		wireInstances.reserve(totalWireInstances);
+
+		for (const WireSegment& segment : wireSegments) {
+			auto lookup = portRequestLookup.find(segment.portPosition);
+			uint32_t laneCount = 1;
+			size_t baseIndex = 0;
+			if (lookup != portRequestLookup.end()) {
+				laneCount = laneCounts[lookup->second];
+				baseIndex = indices[lookup->second];
+			}
+			if (laneCount == 0) laneCount = 1;
+
+			for (uint32_t lane = 0; lane < laneCount; lane++) {
+				glm::vec2 offset = computeBusOffset(segment.pointA, segment.pointB, laneCount, lane);
+
+				WireInstance instance;
+				instance.pointA = segment.pointA + offset;
+				instance.pointB = segment.pointB + offset;
+				instance.wireWidth = WIRE_LINE_WIDTH * std::min((float)maxLaneCountBeforeWireShrink / (float)laneCount, 1.f);
+				instance.stateIndex = static_cast<uint32_t>(baseIndex + lane);
+
+				wireInstances.push_back(instance);
 			}
 		}
 
@@ -156,8 +264,6 @@ void Chunk::rebuildAllocation(VulkanDevice* device, const Evaluator* evaluator, 
 		// drop newest allocation
 		newestAllocation.reset();
 	}
-
-	allocationDirty = false;
 }
 
 std::optional<std::shared_ptr<VulkanChunkAllocation>> Chunk::getAllocation() {
@@ -186,20 +292,16 @@ void Chunk::annihilateOrphanGBs() {
 // VulkanChunker
 // =========================================================================================================
 
-VulkanChunker::VulkanChunker(VulkanDevice* device)
-	: device(device) {
+VulkanChunker::VulkanChunker(VulkanDevice* device) : device(device) { }
 
-}
+VulkanChunker::~VulkanChunker() { std::lock_guard<std::mutex> lock(mux); }
 
-VulkanChunker::~VulkanChunker() {
-	std::lock_guard<std::mutex> lock(mux);
-}
-
-void VulkanChunker::startMakingEdits() {
-	mux.lock();
-}
+void VulkanChunker::startMakingEdits() { mux.lock(); }
 
 void VulkanChunker::stopMakingEdits() {
+	if (chunkToAlwaysRenderNeedUpdate) {
+		chunkToAlwaysRender.rebuildAllocation(device, evaluator, address);
+	}
 	for (const Position& chunkPos : chunksToUpdate) {
 		auto iter = chunks.find(chunkPos);
 		if (iter != chunks.end()) iter->second.rebuildAllocation(device, evaluator, address);
@@ -209,51 +311,99 @@ void VulkanChunker::stopMakingEdits() {
 	mux.unlock();
 }
 
-void VulkanChunker::addBlock(BlockRenderDataId blockRenderDataId, Position position, Orientation orientation, Position statePosition) {
-	Position chunkPos = getChunk(position);
-	auto iter = chunks.find(chunkPos);
+void VulkanChunker::addBlock(BlockRenderDataId blockRenderDataId, Position position, Orientation orientation) {
 	const BlockRenderDataManager::BlockRenderData* blockRenderData = MainRenderer::get().getBlockRenderDataManager().getBlockRenderData(blockRenderDataId);
-	chunks[chunkPos].getRenderedBlocks().emplace(position, RenderedBlock(blockRenderData->textureIndex, orientation, (orientation * blockRenderData->size).free(), statePosition));
-	chunksToUpdate.insert(chunkPos);
+	if (blockRenderData->size.w > CHUNK_SIZE || blockRenderData->size.h > CHUNK_SIZE) {
+		chunkToAlwaysRender.getRenderedBlocks().emplace(
+			position,
+			RenderedBlock(
+				blockRenderDataId,
+				blockRenderData->blockTextureCords.textureLayer,
+				blockRenderData->blockTextureCords.textureOriginUV,
+				blockRenderData->blockTextureCords.textureSizeUV,
+				blockRenderData->blockTextureCords.textureUVStateStep,
+				orientation,
+				(orientation * blockRenderData->size).free()
+			)
+		);
+		chunkToAlwaysRenderNeedUpdate = true;
+	} else {
+		Position chunkPos = getChunk(position);
+		auto iter = chunks.find(chunkPos);
+		chunks[chunkPos].getRenderedBlocks().emplace(
+			position,
+			RenderedBlock(
+				blockRenderDataId,
+				blockRenderData->blockTextureCords.textureLayer,
+				blockRenderData->blockTextureCords.textureOriginUV,
+				blockRenderData->blockTextureCords.textureSizeUV,
+				blockRenderData->blockTextureCords.textureUVStateStep,
+				orientation,
+				(orientation * blockRenderData->size).free()
+			)
+		);
+		chunksToUpdate.insert(chunkPos);
+	}
+	blockTypesCount[blockRenderDataId] = 1; // for now just make it dirty. Should keep it from remaking everything.
 }
 
 void VulkanChunker::removeBlock(Position position) {
+	auto blockIter = chunkToAlwaysRender.getRenderedBlocks().find(position);
+	if (blockIter != chunkToAlwaysRender.getRenderedBlocks().end()) {
+		chunkToAlwaysRender.getRenderedBlocks().erase(blockIter);
+		chunkToAlwaysRenderNeedUpdate = true;
+		return;
+	}
 	Position chunkPos = getChunk(position);
 	auto iter = chunks.find(chunkPos);
-	if (iter != chunks.end()) {
-		iter->second.getRenderedBlocks().erase(position);
-		chunksToUpdate.insert(chunkPos);
+	if (iter == chunks.end()) {
+		logError("Could not remove block {} because it's chunk {} could not be found", "Vulkan", position, chunkPos);
+		return;
 	}
+	blockIter = iter->second.getRenderedBlocks().find(position);
+	if (blockIter == iter->second.getRenderedBlocks().end()) {
+		logError("Could not remove block {} because it could not be found", "Vulkan", position);
+		return;
+	}
+	iter->second.getRenderedBlocks().erase(blockIter);
+	chunksToUpdate.insert(chunkPos);
 }
 
 void VulkanChunker::moveBlock(Position curPos, Position newPos, Orientation newOrientation) {
+	auto blockIter = chunkToAlwaysRender.getRenderedBlocks().find(curPos);
+	if (blockIter != chunkToAlwaysRender.getRenderedBlocks().end()) {
+		RenderedBlock block = blockIter->second;
+		block.orientation = newOrientation;
+		block.size = newOrientation.relativeTo(blockIter->second.orientation) * block.size;
+		chunkToAlwaysRender.getRenderedBlocks().erase(blockIter);
+		chunkToAlwaysRender.getRenderedBlocks().emplace(newPos, block);
+		chunkToAlwaysRenderNeedUpdate = true;
+	}
+
 	Position curChunkPos = getChunk(curPos);
 	Position newChunkPos = getChunk(newPos);
-
 
 	auto curChunkIter = chunks.find(curChunkPos);
 	if (curChunkIter == chunks.end()) {
 		logError("Cound not find chunk {} to move block at {}", "VulkanChunker", curChunkPos, curPos);
 		return;
 	}
-	auto blockIter = curChunkIter->second.getRenderedBlocks().find(curPos);
-	if (blockIter != curChunkIter->second.getRenderedBlocks().end()) {
-		RenderedBlock block = blockIter->second;
-		Orientation transformAmount = newOrientation.relativeTo(block.orientation);
-		block.statePosition = newPos + transformAmount.transformVectorWithArea(block.statePosition - curPos, block.size.snap());
-		block.orientation = newOrientation;
-		block.size = transformAmount * block.size;
-		curChunkIter->second.getRenderedBlocks().erase(blockIter);
-		chunksToUpdate.insert(curChunkPos);
+	blockIter = curChunkIter->second.getRenderedBlocks().find(curPos);
+	if (blockIter == curChunkIter->second.getRenderedBlocks().end()) {
+		logError("Could not move block from {} to {} because it could not be found", "VulkanChunker", curPos, newPos);
+		return;
+	}
+	RenderedBlock block = blockIter->second;
+	block.orientation = newOrientation;
+	block.size = newOrientation.relativeTo(blockIter->second.orientation) * block.size;
+	curChunkIter->second.getRenderedBlocks().erase(blockIter);
+	chunksToUpdate.insert(curChunkPos);
 
-		if (newChunkPos != curChunkPos) {
-			chunks[newChunkPos].getRenderedBlocks().emplace(newPos, block);
-			chunksToUpdate.insert(newChunkPos);
-		} else {
-			curChunkIter->second.getRenderedBlocks().emplace(newPos, block);
-		}
+	if (newChunkPos != curChunkPos) {
+		chunks[newChunkPos].getRenderedBlocks().emplace(newPos, block);
+		chunksToUpdate.insert(newChunkPos);
 	} else {
-		logError("Could not move block from {} to {} because it could not be found", "Vulkan", curPos, newPos);
+		curChunkIter->second.getRenderedBlocks().emplace(newPos, block);
 	}
 }
 
@@ -264,6 +414,7 @@ void VulkanChunker::addWire(std::pair<Position, Position> points, std::pair<FVec
 	std::vector<Position>& chunksUnderThisWire = chunksUnderWire[points];
 	chunksUnderThisWire.reserve(intersections.size());
 	for (const ChunkIntersection& intersection : intersections) {
+		portStatePosToChunks[points.first][intersection.chunk]++;
 		chunks[intersection.chunk].getRenderedWires()[points] = { intersection.start, intersection.end };
 		chunksUnderThisWire.push_back(intersection.chunk);
 		chunksToUpdate.insert(intersection.chunk);
@@ -273,8 +424,29 @@ void VulkanChunker::addWire(std::pair<Position, Position> points, std::pair<FVec
 void VulkanChunker::removeWire(std::pair<Position, Position> points) {
 	auto itr = chunksUnderWire.find(points);
 	if (itr == chunksUnderWire.end()) {
-		logError("Could not find wire ({}, {}) to remove", "VulkanChunker", points.first, points.second);
-		return;
+		std::swap(points.first, points.second);
+		itr = chunksUnderWire.find(points);
+		if (itr == chunksUnderWire.end()) {
+			logError("Could not find wire ({}, {}) to remove", "VulkanChunker", points.first, points.second);
+			return;
+		}
+	}
+	auto portStateChunksIter = portStatePosToChunks.find(points.first);
+	if (portStateChunksIter != portStatePosToChunks.end()) {
+		if (portStateChunksIter->second.size() <= itr->second.size()) {
+			portStatePosToChunks.erase(portStateChunksIter);
+		} else {
+			for (Position chunkPos : itr->second) {
+				auto portStateChunkIter = portStateChunksIter->second.find(chunkPos);
+				if (portStateChunkIter != portStateChunksIter->second.end()) {
+					if (portStateChunkIter->second <= 1) {
+						portStateChunksIter->second.erase(portStateChunkIter);
+					} else {
+						portStateChunkIter->second--;
+					}
+				}
+			}
+		}
 	}
 	for (Position chunkPos : itr->second) {
 		auto iter = chunks.find(chunkPos);
@@ -283,6 +455,7 @@ void VulkanChunker::removeWire(std::pair<Position, Position> points) {
 			chunksToUpdate.insert(chunkPos);
 		}
 	}
+
 	chunksUnderWire.erase(itr);
 }
 
@@ -291,26 +464,108 @@ void VulkanChunker::reset() {
 
 	chunks.clear();
 	chunksUnderWire.clear();
+	blockTypesCount.clear();
+}
+
+void VulkanChunker::regenerateAllChunksWithBlock(BlockRenderDataId blockRenderDataId) {
+	std::lock_guard<std::mutex> lock(mux);
+	auto iter = blockTypesCount.find(blockRenderDataId);
+	if (iter == blockTypesCount.end()) return;
+	if (iter->second == 0) return;
+
+	const BlockRenderDataManager::BlockRenderData* blockRenderData = MainRenderer::get().getBlockRenderDataManager().getBlockRenderData(blockRenderDataId);
+
+	for (std::pair<const Position, Chunk>& chunk : chunks) {
+		bool foundType = false;
+		for (std::pair<const Position, RenderedBlock>& block : chunk.second.getRenderedBlocks()) {
+			if (block.second.blockRenderDataId == blockRenderDataId) {
+				foundType = true;
+				block.second.size = (block.second.orientation * blockRenderData->size).free();
+				block.second.textureIndex = blockRenderData->blockTextureCords.textureLayer;
+				block.second.textureOrigin = blockRenderData->blockTextureCords.textureOriginUV;
+				block.second.textureSize = blockRenderData->blockTextureCords.textureSizeUV;
+				block.second.textureStateStep = blockRenderData->blockTextureCords.textureUVStateStep;
+			}
+		}
+		if (foundType) chunk.second.rebuildAllocation(device, evaluator, address);
+	}
+	bool foundType = false;
+	for (std::pair<const Position, RenderedBlock>& block : chunkToAlwaysRender.getRenderedBlocks()) {
+		if (block.second.blockRenderDataId == blockRenderDataId) {
+			foundType = true;
+			block.second.size = (block.second.orientation * blockRenderData->size).free();
+			block.second.textureIndex = blockRenderData->blockTextureCords.textureLayer;
+			block.second.textureOrigin = blockRenderData->blockTextureCords.textureOriginUV;
+			block.second.textureSize = blockRenderData->blockTextureCords.textureSizeUV;
+			block.second.textureStateStep = blockRenderData->blockTextureCords.textureUVStateStep;
+		}
+	}
+	if (foundType) chunkToAlwaysRender.rebuildAllocation(device, evaluator, address);
 }
 
 void VulkanChunker::updateSimulatorIds(const std::vector<SimulatorMappingUpdate>& simulatorMappingUpdates) {
-	for (auto& pair : chunks) {
-		std::optional<std::shared_ptr<VulkanChunkAllocation>> allocation = pair.second.getAllocation();
-		std::shared_ptr<VulkanChunkAllocation> vulkanChunkAllocation = allocation.value_or(nullptr);
-		if (vulkanChunkAllocation) {
-			for (const SimulatorMappingUpdate& simulatorMappingUpdate : simulatorMappingUpdates) {
-				if (simulatorMappingUpdate.type == SimulatorMappingUpdateType::BLOCK) {
-					auto iter = vulkanChunkAllocation->getBlockStateIndex().find(simulatorMappingUpdate.portPosition);
-					if (iter != vulkanChunkAllocation->getBlockStateIndex().end()) {
-						vulkanChunkAllocation->getStateSimulatorIds()[iter->second] = simulatorMappingUpdate.simulatorId;
+	for (const SimulatorMappingUpdate& simulatorMappingUpdate : simulatorMappingUpdates) {
+		const std::variant<simulator_id_t, std::vector<simulator_id_t>>& simIds = simulatorMappingUpdate.simulatorIds;
+
+		if (simulatorMappingUpdate.type == SimulatorMappingUpdateType::BLOCK) {
+			simulator_id_t simulatorId = simulator_id_t(0);
+			if (std::holds_alternative<std::vector<simulator_id_t>>(simIds)) {
+				const std::vector<simulator_id_t>& vec = std::get<std::vector<simulator_id_t>>(simIds);
+				if (!vec.empty()) {
+					simulatorId = vec[0];
+				}
+			} else {
+				simulatorId = std::get<simulator_id_t>(simIds);
+			}
+
+			std::optional<std::shared_ptr<VulkanChunkAllocation>> vulkanChunkAllocation = chunkToAlwaysRender.getAllocation();
+			if (vulkanChunkAllocation) {
+				auto iter = vulkanChunkAllocation.value()->getBlockStateIndex().find(simulatorMappingUpdate.portPosition);
+				if (iter != vulkanChunkAllocation.value()->getBlockStateIndex().end()) {
+					vulkanChunkAllocation.value()->getStateSimulatorIds()[iter->second] = simulatorId;
+				}
+			}
+
+			Position chunkPos = getChunk(simulatorMappingUpdate.portPosition);
+			auto chunkIter = chunks.find(chunkPos);
+			if (chunkIter == chunks.end()) continue;
+			vulkanChunkAllocation = chunkIter->second.getAllocation();
+			if (!vulkanChunkAllocation) continue;
+			auto iter = vulkanChunkAllocation.value()->getBlockStateIndex().find(simulatorMappingUpdate.portPosition);
+			if (iter == vulkanChunkAllocation.value()->getBlockStateIndex().end()) continue;
+			vulkanChunkAllocation.value()->getStateSimulatorIds()[iter->second] = simulatorId;
+		} else {
+			auto iter = portStatePosToChunks.find(simulatorMappingUpdate.portPosition);
+			if (iter == portStatePosToChunks.end()) continue;
+			for (std::pair<Position, unsigned int> chunkPos : iter->second) {
+				auto chunkIter = chunks.find(chunkPos.first);
+				if (chunkIter == chunks.end()) continue;
+				std::optional<std::shared_ptr<VulkanChunkAllocation>> vulkanChunkAllocation = chunkIter->second.getAllocation();
+				if (!vulkanChunkAllocation) continue;
+				auto portStateIter = vulkanChunkAllocation.value()->getPortStateIndex().find(simulatorMappingUpdate.portPosition);
+				if (portStateIter == vulkanChunkAllocation.value()->getPortStateIndex().end()) continue;
+
+				const PortStateRange& range = portStateIter->second;
+				if (!range.isValid()) continue;
+
+				std::vector<simulator_id_t>& chunkStateSimulatorIds = vulkanChunkAllocation.value()->getStateSimulatorIds();
+				if (std::holds_alternative<std::vector<simulator_id_t>>(simIds)) {
+					const std::vector<simulator_id_t>& wireSimIds = std::get<std::vector<simulator_id_t>>(simIds);
+					uint32_t laneCount = wireSimIds.size();
+					if (laneCount != range.laneCount) {
+						chunksToUpdate.insert(chunkPos.first);
+					} else {
+						for (uint32_t lane = 0; lane < laneCount; lane++) {
+							chunkStateSimulatorIds[range.baseIndex + lane] = wireSimIds[lane];
+						}
 					}
 				} else {
-					auto iter = vulkanChunkAllocation->getPortStateIndex().find(simulatorMappingUpdate.portPosition);
-					if (iter != vulkanChunkAllocation->getPortStateIndex().end()) {
-						vulkanChunkAllocation->getStateSimulatorIds()[iter->second] = simulatorMappingUpdate.simulatorId;
+					if (1 != range.laneCount) {
+						chunksToUpdate.insert(chunkPos.first);
+					} else {
+						chunkStateSimulatorIds[range.baseIndex] = std::get<simulator_id_t>(simIds);
 					}
 				}
-
 			}
 		}
 	}
@@ -323,7 +578,6 @@ void VulkanChunker::setEvaluator(Evaluator* evaluator, const Address& address) {
 	this->address = address;
 	this->evaluator = evaluator;
 	if (evaluator) {
-		logInfo("setEvaluator > connectListener");
 		evaluator->connectListener(this, address, std::bind(&VulkanChunker::updateSimulatorIds, this, std::placeholders::_1));
 	}
 	for (auto& pair : chunks) {
@@ -350,6 +604,9 @@ std::vector<std::shared_ptr<VulkanChunkAllocation>> VulkanChunker::getAllocation
 		}
 	}
 
+	auto allocation = chunkToAlwaysRender.getAllocation();
+	if (allocation.has_value()) seen.push_back(allocation.value());
+
 	return seen;
 }
 
@@ -365,7 +622,7 @@ std::vector<ChunkIntersection> VulkanChunker::getChunkIntersections(FPosition st
 
 	Position chunk = getChunk(start.snap());
 
-	//length of ray from one x or y-side to next x or y-side
+	// length of ray from one x or y-side to next x or y-side
 	FVector rayUnitStepSize = FVector(sqrt(1 + (dir.dy / dir.dx) * (dir.dy / dir.dx)), sqrt(1 + (dir.dx / dir.dy) * (dir.dx / dir.dy))) * CHUNK_SIZE;
 
 	// starting conditions
@@ -435,7 +692,7 @@ std::vector<ChunkIntersection> VulkanChunker::getNeededChunkIntersections(FPosit
 
 	Position chunk = getChunk(start.snap());
 
-	//length of ray from one x or y-side to next x or y-side
+	// length of ray from one x or y-side to next x or y-side
 	FVector rayUnitStepSize = FVector(sqrt(1 + (dir.dy / dir.dx) * (dir.dy / dir.dx)), sqrt(1 + (dir.dx / dir.dy) * (dir.dx / dir.dy))) * CHUNK_SIZE;
 
 	// starting conditions
@@ -500,4 +757,3 @@ std::vector<ChunkIntersection> VulkanChunker::getNeededChunkIntersections(FPosit
 
 	return intersections;
 }
-

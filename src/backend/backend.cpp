@@ -1,12 +1,15 @@
 #include "backend.h"
 
+#include "backend/wasm/wasm.h"
 #include "backend/proceduralCircuits/wasmProceduralCircuit.h"
 
 class CircuitFileManager;
 
-Backend::Backend(CircuitFileManager* fileManager) : circuitManager(&dataUpdateEventManager, &evaluatorManager, fileManager), evaluatorManager(&dataUpdateEventManager) {
+Backend::Backend(CircuitFileManager& fileManager) : circuitManager(dataUpdateEventManager, evaluatorManager, fileManager), evaluatorManager(dataUpdateEventManager) {
+	logInfo("Initializing Backend", "Backend");
 	Wasm::initialize();
 	circuitManager.connectListener(&evaluatorManager, std::bind(&EvaluatorManager::applyDiff, &evaluatorManager, std::placeholders::_1, std::placeholders::_2), 0);
+	logInfo("Backend initialized", "Backend");
 }
 
 circuit_id_t Backend::createCircuit(const std::string& name, const std::string& uuid) {
@@ -27,4 +30,13 @@ SharedCircuit Backend::getCircuit(circuit_id_t circuitId) {
 
 SharedEvaluator Backend::getEvaluator(evaluator_id_t evaluatorId) {
 	return evaluatorManager.getEvaluator(evaluatorId);
+}
+
+nlohmann::json Backend::dumpState() const {
+	nlohmann::json stateJson;
+	stateJson["clipboardEditCounter"] = clipboardEditCounter;
+	stateJson["clipboard"] = clipboard ? clipboard->dumpState() : nullptr;
+	stateJson["circuitManager"] = circuitManager.dumpState();
+	stateJson["evaluatorManager"] = evaluatorManager.dumpState();
+	return stateJson;
 }

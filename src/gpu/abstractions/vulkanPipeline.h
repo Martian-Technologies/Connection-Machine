@@ -20,6 +20,8 @@ struct PipelineInformation {
 
 	std::vector<PushConstantDescription> pushConstants;
 	std::vector<VkDescriptorSetLayout> descriptorSets;
+
+	VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT;
 };
 
 class Pipeline {
@@ -31,13 +33,13 @@ public:
 
 	inline VkPipeline getHandle() { return handle; }
 	inline VkPipelineLayout getLayout() { return layout; }
-	
+
 private:
 	VkPipeline handle;
     VkPipelineLayout layout;
 
 	std::vector<VkPushConstantRange> pushConstants;
-	
+
 	VulkanDevice* device;
 };
 

@@ -1,11 +1,17 @@
 #ifndef logging_h
 #define logging_h
 
+using LogErrorCallback = std::function<void(const std::string& message, const std::string& subcategory)>;
+using LogWarningCallback = std::function<void(const std::string& message, const std::string& subcategory)>;
+
 // basic string logging
 void logInfo(const std::string& message, const std::string& subcategory = "");
 void logWarning(const std::string& message, const std::string& subcategory = "");
 void logError(const std::string& message, const std::string& subcategory = "");
 void logFatalError(const std::string& message, const std::string& subcategory = "");
+
+void setLogErrorCallback(LogErrorCallback callback);
+void setLogWarningCallback(LogWarningCallback callback);
 
 // fancy formatted logging overloads
 template<typename ...Args>

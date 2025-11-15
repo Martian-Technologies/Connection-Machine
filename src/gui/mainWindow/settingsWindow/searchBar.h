@@ -7,7 +7,9 @@
 
 class SearchBar {
 public:
-	SearchBar(Rml::Element* document);
+	SearchBar(Rml::Element* document);;
+
+	void reapplyFilter();
 
 	// inline void setActiveCategory(const ACTIVE_CATEGORIES category) { activeCategory = category; }
 

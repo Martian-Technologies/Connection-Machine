@@ -2,13 +2,14 @@
 #define circuitRenderManager_h
 
 #include "backend/container/difference.h"
+#include "backend/circuit/circuitDefs.h"
 #include "gpu/mainRendererDefs.h"
 
-class Circuit;
+class Backend;
 
 class CircuitRenderManager {
 public:
-	CircuitRenderManager(Circuit* circuit, ViewportId viewportId);
+	CircuitRenderManager(Backend& environment, circuit_id_t circuitId, ViewportId viewportId);
 	~CircuitRenderManager();
 	void addDifference(DifferenceSharedPtr diff);
 
@@ -20,8 +21,9 @@ private:
 		Orientation orientation;
 	};
 
-	Circuit* circuit;
+	circuit_id_t circuitId;
 	ViewportId viewportId;
+	Backend& backend;
 
 	std::unordered_map<Position, RenderedBlock> renderedBlocks;
 };

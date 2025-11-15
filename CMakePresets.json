@@ -13,7 +13,22 @@
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "OFF",
 				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
+				"CONNECTION_MACHINE_TRY_CATCH": "OFF",
+				"RUN_TRACY_PROFILER": "OFF"
+			}
+		},
+		{
+			"name": "debug_cli",
+			"displayName": "Debug CLI",
+			"binaryDir": "build-cli",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug",
+				"CONNECTION_MACHINE_BUILD_APP": "OFF",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "ON",
+				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
+				"CONNECTION_MACHINE_TRY_CATCH": "OFF",
 				"RUN_TRACY_PROFILER": "OFF"
 			}
 		},
@@ -24,7 +39,9 @@
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "OFF",
 				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
+				"CONNECTION_MACHINE_TRY_CATCH": "OFF",
 				"RUN_TRACY_PROFILER": "ON"
 			}
 		},
@@ -35,7 +52,22 @@
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "OFF",
 				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
+				"CONNECTION_MACHINE_TRY_CATCH": "ON",
+				"RUN_TRACY_PROFILER": "OFF"
+			}
+		},
+		{
+			"name": "release_cli",
+			"displayName": "Release CLI",
+			"binaryDir": "build-release-cli",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"CONNECTION_MACHINE_BUILD_APP": "OFF",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "ON",
+				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
+				"CONNECTION_MACHINE_TRY_CATCH": "ON",
 				"RUN_TRACY_PROFILER": "OFF"
 			}
 		},
@@ -46,7 +78,9 @@
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "OFF",
 				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
+				"CONNECTION_MACHINE_TRY_CATCH": "ON",
 				"RUN_TRACY_PROFILER": "ON"
 			}
 		},
@@ -57,7 +91,9 @@
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "OFF",
 				"CONNECTION_MACHINE_DISTRIBUTE_APP": "ON",
+				"CONNECTION_MACHINE_TRY_CATCH": "ON",
 				"RUN_TRACY_PROFILER": "OFF"
 			}
 		},
@@ -69,6 +105,7 @@
 			    "CMAKE_BUILD_TYPE": "Debug",
 			    "CONNECTION_MACHINE_BUILD_TESTS": "ON",
 				"CONNECTION_MACHINE_BUILD_APP": "OFF",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "OFF",
 				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
 				"CONNECTION_MACHINE_CODE_COVERAGE": "OFF",
 				"RUN_TRACY_PROFILER": "OFF"
@@ -82,6 +119,7 @@
 			    "CMAKE_BUILD_TYPE": "Debug",
 			    "CONNECTION_MACHINE_BUILD_TESTS": "ON",
 				"CONNECTION_MACHINE_BUILD_APP": "OFF",
+				"CONNECTION_MACHINE_BUILD_CLI_APP": "OFF",
 				"CONNECTION_MACHINE_DISTRIBUTE_APP": "OFF",
 				"CONNECTION_MACHINE_CODE_COVERAGE": "ON",
 				"RUN_TRACY_PROFILER": "OFF"
@@ -97,15 +135,30 @@
 			"jobs": 8
 		},
 		{
+			"name": "debug_cli",
+			"displayName": "Build Debug CLI",
+			"configurePreset": "debug_cli",
+			"configuration": "Debug",
+			"jobs": 8
+		},
+		{
 			"name": "debug&profiler",
 			"displayName": "Build Debug & Profiler",
 			"configurePreset": "debug&profiler",
-			"configuration": "Debug"
+			"configuration": "Debug",
+			"jobs": 8
 		},
 		{
 			"name": "release",
 			"displayName": "Build Release",
 			"configurePreset": "release",
+			"configuration": "Release",
+			"jobs": 8
+		},
+		{
+			"name": "release_cli",
+			"displayName": "Build Release CLI",
+			"configurePreset": "release_cli",
 			"configuration": "Release",
 			"jobs": 8
 		},

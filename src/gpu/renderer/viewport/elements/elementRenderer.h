@@ -12,16 +12,18 @@ struct BlockPreviewPushConstant {
     alignas(16) glm::mat4 mvp;
     alignas(8)  glm::vec2 position;
     alignas(8)  glm::vec2 size;
-    alignas(4)  float uvOffsetX;
 	alignas(4)  uint32_t orientation;
-	alignas(4)  float uvCellSizeX;
-	alignas(4)  float uvCellSizeY;
+	alignas(4)  uint32_t texLayer;
+	alignas(8)  glm::vec2 texPos;
+	alignas(8)  glm::vec2 texSize;
 };
 struct BlockPreviewRenderData {
 	glm::vec2 position;
 	glm::vec2 size;
 	Orientation orientation;
-	unsigned int textureIndex;
+	uint32_t textureIndex;
+	glm::vec2 texPos;
+	glm::vec2 texSize;
 };
 
 struct BoxSelectionPushConstant {

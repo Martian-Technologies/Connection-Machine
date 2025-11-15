@@ -36,6 +36,7 @@
 
 RmlSystemInterface::RmlSystemInterface()
 {
+	logInfo("Initializing RmlUI System Interface...");
 #if SDL_MAJOR_VERSION >= 3
 	cursor_default = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT);
 	cursor_move = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_MOVE);
@@ -167,6 +168,7 @@ bool RmlSDL::InputEventHandler(Rml::Context* context, SDL_Window* window, SDL_Ev
 #define RMLSDL_WINDOW_EVENTS_BEGIN
 #define RMLSDL_WINDOW_EVENTS_END
 	auto GetKey = [](const SDL_Event& event) { return event.key.key; };
+	auto GetScancode = [](const SDL_Event& event) { return event.key.scancode; };
 	constexpr auto event_mouse_motion = SDL_EVENT_MOUSE_MOTION;
 	constexpr auto event_mouse_down = SDL_EVENT_MOUSE_BUTTON_DOWN;
 	constexpr auto event_mouse_up = SDL_EVENT_MOUSE_BUTTON_UP;
@@ -176,6 +178,8 @@ bool RmlSDL::InputEventHandler(Rml::Context* context, SDL_Window* window, SDL_Ev
 	constexpr auto event_text_input = SDL_EVENT_TEXT_INPUT;
 	constexpr auto event_window_size_changed = SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED;
 	constexpr auto event_window_leave = SDL_EVENT_WINDOW_MOUSE_LEAVE;
+	constexpr auto event_drop_file = SDL_EVENT_DROP_FILE;
+	constexpr auto event_drop_file_mouse_motion = SDL_EVENT_DROP_POSITION;
 	// constexpr auto event_gesture = GESTURE_MULTIGESTURE;
 	constexpr auto rmlsdl_true = true;
 	constexpr auto rmlsdl_false = false;
@@ -191,6 +195,7 @@ bool RmlSDL::InputEventHandler(Rml::Context* context, SDL_Window* window, SDL_Ev
 		}                            \
 		break;
 	auto GetKey = [](const SDL_Event& event) { return event.key.keysym.sym; };
+	auto GetScancode = [](const SDL_Event& event) { return event.key.keysym.scancode; };
 	constexpr auto event_mouse_motion = SDL_MOUSEMOTION;
 	constexpr auto event_mouse_down = SDL_MOUSEBUTTONDOWN;
 	constexpr auto event_mouse_up = SDL_MOUSEBUTTONUP;
@@ -250,14 +255,14 @@ bool RmlSDL::InputEventHandler(Rml::Context* context, SDL_Window* window, SDL_Ev
 	break;
 	case event_key_down:
 	{
-		result = context->ProcessKeyDown(ConvertKey(GetKey(ev)), GetKeyModifierState());
-		if (GetKey(ev) == SDLK_RETURN || GetKey(ev) == SDLK_KP_ENTER)
-			result &= context->ProcessTextInput('\n');
+		result = context->ProcessKeyDown(ScancodeToKeyIdentifier(GetScancode(ev)), GetKeyModifierState());
+		if (GetScancode(ev) == SDL_SCANCODE_RETURN || GetScancode(ev) == SDL_SCANCODE_RETURN2 || GetScancode(ev) == SDL_SCANCODE_KP_ENTER)
+			result &= context->ProcessTextInput(Rml::String("\n"));
 	}
 	break;
 	case event_key_up:
 	{
-		result = context->ProcessKeyUp(ConvertKey(GetKey(ev)), GetKeyModifierState());
+		result = context->ProcessKeyUp(ScancodeToKeyIdentifier(GetScancode(ev)), GetKeyModifierState());
 	}
 	break;
 	case event_text_input:
@@ -287,7 +292,24 @@ bool RmlSDL::InputEventHandler(Rml::Context* context, SDL_Window* window, SDL_Ev
 		context->SetDensityIndependentPixelRatio(display_scale);
 	}
 	break;
-#endif
+	#endif
+	case event_drop_file:
+	{
+		Rml::Element* target = context->GetElementAtPoint(Rml::Vector2f(ev.drop.x * windowScalingSize, ev.drop.y * windowScalingSize));
+		if (!target) break;
+
+		const char* filePath = ev.drop.data;
+		Rml::Dictionary parameters;
+		parameters["file_path"] = filePath;
+
+		result = target->DispatchEvent(RmlSDL::getRmlDropFileEventId(), parameters);
+	}
+	break;
+	case event_drop_file_mouse_motion:
+	{
+		result = context->ProcessMouseMove(int(ev.drop.x * windowScalingSize), int(ev.drop.y * windowScalingSize), GetKeyModifierState());
+	}
+	break;
 
 	RMLSDL_WINDOW_EVENTS_END
 
@@ -295,189 +317,6 @@ bool RmlSDL::InputEventHandler(Rml::Context* context, SDL_Window* window, SDL_Ev
 	}
 
 	return result;
-}
-
-Rml::Input::KeyIdentifier RmlSDL::ConvertKey(int sdlkey) {
-#if SDL_MAJOR_VERSION >= 3
-	constexpr auto key_a = SDLK_A;
-	constexpr auto key_b = SDLK_B;
-	constexpr auto key_c = SDLK_C;
-	constexpr auto key_d = SDLK_D;
-	constexpr auto key_e = SDLK_E;
-	constexpr auto key_f = SDLK_F;
-	constexpr auto key_g = SDLK_G;
-	constexpr auto key_h = SDLK_H;
-	constexpr auto key_i = SDLK_I;
-	constexpr auto key_j = SDLK_J;
-	constexpr auto key_k = SDLK_K;
-	constexpr auto key_l = SDLK_L;
-	constexpr auto key_m = SDLK_M;
-	constexpr auto key_n = SDLK_N;
-	constexpr auto key_o = SDLK_O;
-	constexpr auto key_p = SDLK_P;
-	constexpr auto key_q = SDLK_Q;
-	constexpr auto key_r = SDLK_R;
-	constexpr auto key_s = SDLK_S;
-	constexpr auto key_t = SDLK_T;
-	constexpr auto key_u = SDLK_U;
-	constexpr auto key_v = SDLK_V;
-	constexpr auto key_w = SDLK_W;
-	constexpr auto key_x = SDLK_X;
-	constexpr auto key_y = SDLK_Y;
-	constexpr auto key_z = SDLK_Z;
-	constexpr auto key_grave = SDLK_GRAVE;
-	constexpr auto key_dblapostrophe = SDLK_DBLAPOSTROPHE;
-#else
-	constexpr auto key_a = SDLK_a;
-	constexpr auto key_b = SDLK_b;
-	constexpr auto key_c = SDLK_c;
-	constexpr auto key_d = SDLK_d;
-	constexpr auto key_e = SDLK_e;
-	constexpr auto key_f = SDLK_f;
-	constexpr auto key_g = SDLK_g;
-	constexpr auto key_h = SDLK_h;
-	constexpr auto key_i = SDLK_i;
-	constexpr auto key_j = SDLK_j;
-	constexpr auto key_k = SDLK_k;
-	constexpr auto key_l = SDLK_l;
-	constexpr auto key_m = SDLK_m;
-	constexpr auto key_n = SDLK_n;
-	constexpr auto key_o = SDLK_o;
-	constexpr auto key_p = SDLK_p;
-	constexpr auto key_q = SDLK_q;
-	constexpr auto key_r = SDLK_r;
-	constexpr auto key_s = SDLK_s;
-	constexpr auto key_t = SDLK_t;
-	constexpr auto key_u = SDLK_u;
-	constexpr auto key_v = SDLK_v;
-	constexpr auto key_w = SDLK_w;
-	constexpr auto key_x = SDLK_x;
-	constexpr auto key_y = SDLK_y;
-	constexpr auto key_z = SDLK_z;
-	constexpr auto key_grave = SDLK_BACKQUOTE;
-	constexpr auto key_dblapostrophe = SDLK_QUOTEDBL;
-#endif
-
-	// clang-format off
-	switch (sdlkey) {
-	case SDLK_UNKNOWN:      return Rml::Input::KI_UNKNOWN;
-	case SDLK_ESCAPE:       return Rml::Input::KI_ESCAPE;
-	case SDLK_SPACE:        return Rml::Input::KI_SPACE;
-	case SDLK_0:            return Rml::Input::KI_0;
-	case SDLK_1:            return Rml::Input::KI_1;
-	case SDLK_2:            return Rml::Input::KI_2;
-	case SDLK_3:            return Rml::Input::KI_3;
-	case SDLK_4:            return Rml::Input::KI_4;
-	case SDLK_5:            return Rml::Input::KI_5;
-	case SDLK_6:            return Rml::Input::KI_6;
-	case SDLK_7:            return Rml::Input::KI_7;
-	case SDLK_8:            return Rml::Input::KI_8;
-	case SDLK_9:            return Rml::Input::KI_9;
-	case key_a:             return Rml::Input::KI_A;
-	case key_b:             return Rml::Input::KI_B;
-	case key_c:             return Rml::Input::KI_C;
-	case key_d:             return Rml::Input::KI_D;
-	case key_e:             return Rml::Input::KI_E;
-	case key_f:             return Rml::Input::KI_F;
-	case key_g:             return Rml::Input::KI_G;
-	case key_h:             return Rml::Input::KI_H;
-	case key_i:             return Rml::Input::KI_I;
-	case key_j:             return Rml::Input::KI_J;
-	case key_k:             return Rml::Input::KI_K;
-	case key_l:             return Rml::Input::KI_L;
-	case key_m:             return Rml::Input::KI_M;
-	case key_n:             return Rml::Input::KI_N;
-	case key_o:             return Rml::Input::KI_O;
-	case key_p:             return Rml::Input::KI_P;
-	case key_q:             return Rml::Input::KI_Q;
-	case key_r:             return Rml::Input::KI_R;
-	case key_s:             return Rml::Input::KI_S;
-	case key_t:             return Rml::Input::KI_T;
-	case key_u:             return Rml::Input::KI_U;
-	case key_v:             return Rml::Input::KI_V;
-	case key_w:             return Rml::Input::KI_W;
-	case key_x:             return Rml::Input::KI_X;
-	case key_y:             return Rml::Input::KI_Y;
-	case key_z:             return Rml::Input::KI_Z;
-	case SDLK_SEMICOLON:    return Rml::Input::KI_OEM_1;
-	case SDLK_EQUALS:       return Rml::Input::KI_OEM_PLUS;
-	case SDLK_COMMA:        return Rml::Input::KI_OEM_COMMA;
-	case SDLK_MINUS:        return Rml::Input::KI_OEM_MINUS;
-	case SDLK_PERIOD:       return Rml::Input::KI_OEM_PERIOD;
-	case SDLK_SLASH:        return Rml::Input::KI_OEM_2;
-	case key_grave:         return Rml::Input::KI_OEM_3;
-	case SDLK_LEFTBRACKET:  return Rml::Input::KI_OEM_4;
-	case SDLK_BACKSLASH:    return Rml::Input::KI_OEM_5;
-	case SDLK_RIGHTBRACKET: return Rml::Input::KI_OEM_6;
-	case key_dblapostrophe: return Rml::Input::KI_OEM_7;
-	case SDLK_KP_0:         return Rml::Input::KI_NUMPAD0;
-	case SDLK_KP_1:         return Rml::Input::KI_NUMPAD1;
-	case SDLK_KP_2:         return Rml::Input::KI_NUMPAD2;
-	case SDLK_KP_3:         return Rml::Input::KI_NUMPAD3;
-	case SDLK_KP_4:         return Rml::Input::KI_NUMPAD4;
-	case SDLK_KP_5:         return Rml::Input::KI_NUMPAD5;
-	case SDLK_KP_6:         return Rml::Input::KI_NUMPAD6;
-	case SDLK_KP_7:         return Rml::Input::KI_NUMPAD7;
-	case SDLK_KP_8:         return Rml::Input::KI_NUMPAD8;
-	case SDLK_KP_9:         return Rml::Input::KI_NUMPAD9;
-	case SDLK_KP_ENTER:     return Rml::Input::KI_NUMPADENTER;
-	case SDLK_KP_MULTIPLY:  return Rml::Input::KI_MULTIPLY;
-	case SDLK_KP_PLUS:      return Rml::Input::KI_ADD;
-	case SDLK_KP_MINUS:     return Rml::Input::KI_SUBTRACT;
-	case SDLK_KP_PERIOD:    return Rml::Input::KI_DECIMAL;
-	case SDLK_KP_DIVIDE:    return Rml::Input::KI_DIVIDE;
-	case SDLK_KP_EQUALS:    return Rml::Input::KI_OEM_NEC_EQUAL;
-	case SDLK_BACKSPACE:    return Rml::Input::KI_BACK;
-	case SDLK_TAB:          return Rml::Input::KI_TAB;
-	case SDLK_CLEAR:        return Rml::Input::KI_CLEAR;
-	case SDLK_RETURN:       return Rml::Input::KI_RETURN;
-	case SDLK_PAUSE:        return Rml::Input::KI_PAUSE;
-	case SDLK_CAPSLOCK:     return Rml::Input::KI_CAPITAL;
-	case SDLK_PAGEUP:       return Rml::Input::KI_PRIOR;
-	case SDLK_PAGEDOWN:     return Rml::Input::KI_NEXT;
-	case SDLK_END:          return Rml::Input::KI_END;
-	case SDLK_HOME:         return Rml::Input::KI_HOME;
-	case SDLK_LEFT:         return Rml::Input::KI_LEFT;
-	case SDLK_UP:           return Rml::Input::KI_UP;
-	case SDLK_RIGHT:        return Rml::Input::KI_RIGHT;
-	case SDLK_DOWN:         return Rml::Input::KI_DOWN;
-	case SDLK_INSERT:       return Rml::Input::KI_INSERT;
-	case SDLK_DELETE:       return Rml::Input::KI_DELETE;
-	case SDLK_HELP:         return Rml::Input::KI_HELP;
-	case SDLK_F1:           return Rml::Input::KI_F1;
-	case SDLK_F2:           return Rml::Input::KI_F2;
-	case SDLK_F3:           return Rml::Input::KI_F3;
-	case SDLK_F4:           return Rml::Input::KI_F4;
-	case SDLK_F5:           return Rml::Input::KI_F5;
-	case SDLK_F6:           return Rml::Input::KI_F6;
-	case SDLK_F7:           return Rml::Input::KI_F7;
-	case SDLK_F8:           return Rml::Input::KI_F8;
-	case SDLK_F9:           return Rml::Input::KI_F9;
-	case SDLK_F10:          return Rml::Input::KI_F10;
-	case SDLK_F11:          return Rml::Input::KI_F11;
-	case SDLK_F12:          return Rml::Input::KI_F12;
-	case SDLK_F13:          return Rml::Input::KI_F13;
-	case SDLK_F14:          return Rml::Input::KI_F14;
-	case SDLK_F15:          return Rml::Input::KI_F15;
-	case SDLK_NUMLOCKCLEAR: return Rml::Input::KI_NUMLOCK;
-	case SDLK_SCROLLLOCK:   return Rml::Input::KI_SCROLL;
-	case SDLK_LSHIFT:       return Rml::Input::KI_LSHIFT;
-	case SDLK_RSHIFT:       return Rml::Input::KI_RSHIFT;
-	case SDLK_LCTRL:        return Rml::Input::KI_LCONTROL;
-	case SDLK_RCTRL:        return Rml::Input::KI_RCONTROL;
-	case SDLK_LALT:         return Rml::Input::KI_LMENU;
-	case SDLK_RALT:         return Rml::Input::KI_RMENU;
-	case SDLK_LGUI:         return Rml::Input::KI_LMETA;
-	case SDLK_RGUI:         return Rml::Input::KI_RMETA;
-		/*
-		case SDLK_LSUPER:       return Rml::Input::KI_LWIN;
-		case SDLK_RSUPER:       return Rml::Input::KI_RWIN;
-		*/
-	default: break;
-	}
-	// clang-format on
-
-	return Rml::Input::KI_UNKNOWN;
 }
 
 int RmlSDL::ConvertMouseButton(int button) {
@@ -529,4 +368,12 @@ int RmlSDL::GetKeyModifierState() {
 		retval |= Rml::Input::KM_CAPSLOCK;
 
 	return retval;
+}
+
+Rml::EventId rmlDropFileEventId = Rml::EventId::Invalid;
+
+Rml::EventId RmlSDL::getRmlDropFileEventId() {
+	if (rmlDropFileEventId == Rml::EventId::Invalid)
+		rmlDropFileEventId = Rml::RegisterEventType("dropFile", true, true);
+	return rmlDropFileEventId;
 }

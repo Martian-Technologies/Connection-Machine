@@ -1,12 +1,12 @@
-version_6
+version_8
 Circuit: "DFF"
 UUID: d76f150e-28ee-48a3-8703-92b89613a0ed
-size: <2, 2>
+size: 2x2
 ports:
-	(OUT, 3, 13, <1, 1>, "Q'")
-	(OUT, 2, 7, <1, 0>, "Q")
-	(IN, 1, 3, <0, 1>, "CLK")
-	(IN, 0, 5, <0, 0>, "D")
+	(IN, 0, (0, 0), <0, 0>, <0.100000, 0.500000>, "D", 1)
+	(IN, 1, (0, 1), <0, 1>, <0.100000, 0.500000>, "CLK", 1)
+	(OUT, 2, (6, 0), <1, 0>, <0.900000, 0.500000>, "Q", 1)
+	(OUT, 3, (6, 1), <1, 1>, <0.900000, 0.500000>, "Q'", 1)
 blockId 13 LIGHT 6 1 ZERO
 	(connId:0) (8 1)
 blockId 12 NOR 1 1 ZERO
@@ -17,28 +17,28 @@ blockId 11 NOR 4 1 ZERO
 	(connId:1) (8 0)
 blockId 10 NOR 5 0 ZERO
 	(connId:0) (8 1) (9 1)
-	(connId:1) (8 0) (7 0)
+	(connId:1) (7 0) (8 0)
 blockId 9 NOR 4 0 ZERO
 	(connId:0) (3 0) (6 1)
 	(connId:1) (10 0)
 blockId 8 NOR 5 1 ZERO
-	(connId:1) (10 0) (13 0)
 	(connId:0) (10 1) (11 1)
+	(connId:1) (10 0) (13 0)
 blockId 7 LIGHT 6 0 ZERO
 	(connId:0) (10 1)
 blockId 6 NAND 3 0 ZERO
 	(connId:0) (1 1) (4 1)
 	(connId:1) (4 0) (9 0)
 blockId 5 SWITCH 0 0 ZERO
-	(connId:0) (12 0) (1 0)
+	(connId:0) (1 0) (12 0)
 blockId 4 NAND 3 1 ZERO
-	(connId:1) (6 0) (11 0)
 	(connId:0) (2 1) (6 1)
+	(connId:1) (6 0) (11 0)
 blockId 3 SWITCH 0 1 ZERO
-	(connId:0) (2 0) (1 0) (11 0) (9 0)
+	(connId:0) (1 0) (2 0) (9 0) (11 0)
 blockId 2 NAND 2 1 ZERO
-	(connId:1) (4 0)
 	(connId:0) (3 0) (12 1)
+	(connId:1) (4 0)
 blockId 1 NAND 2 0 ZERO
-	(connId:1) (6 0)
 	(connId:0) (3 0) (5 0)
+	(connId:1) (6 0)

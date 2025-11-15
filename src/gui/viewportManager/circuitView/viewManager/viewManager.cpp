@@ -1,9 +1,8 @@
 #include "viewManager.h"
 
-#include "backend/circuit/circuit.h"
-#include "../events/customEvents.h"
-#include "../events/eventRegister.h"
 #include "backend/position/position.h"
+#include "../events/eventRegister.h"
+#include "../events/customEvents.h"
 
 void ViewManager::setUpEvents(EventRegister& eventRegister) {
 	this->eventRegister = &eventRegister;
@@ -17,28 +16,26 @@ void ViewManager::setUpEvents(EventRegister& eventRegister) {
 }
 
 void ViewManager::setCircuit(Circuit* circuit) {
-	if (currentCircuitId != 0) {
-		perCircuitViewData.insert_or_assign(currentCircuitId, ViewPositioningData(viewCenter, viewScale));
+	if (circuit == currentCircuit) return;
+
+	if (currentCircuit) {
+		perCircuitViewData.insert_or_assign(currentCircuit->getCircuitId(), ViewPositioningData(viewCenter, viewScale));
 	}
 
 	FPosition oldCenter = viewCenter;
 	float oldScale = viewScale;
 
 	if (circuit) {
-		circuit_id_t nextId = circuit->getCircuitId();
-		if (nextId != currentCircuitId) {
-			currentCircuitId = nextId;
-			auto iter = perCircuitViewData.find(currentCircuitId);
-			if (iter == perCircuitViewData.end()) {
-				viewCenter = FPosition();
-				viewScale = 8.0f;
-			} else {
-				viewCenter = iter->second.viewCenter;
-				viewScale = iter->second.viewScale;
-			}
+		currentCircuit = circuit;
+		auto iter = perCircuitViewData.find(circuit->getCircuitId());
+		if (iter == perCircuitViewData.end()) {
+			focus();
+		} else {
+			viewCenter = iter->second.viewCenter;
+			viewScale = iter->second.viewScale;
 		}
 	} else {
-	    currentCircuitId = 0;
+	    currentCircuit = nullptr;
 	}
 
 	applyLimits();
@@ -124,13 +121,52 @@ bool ViewManager::pointerExitView(const Event* event) {
 	return false;
 }
 
+void ViewManager::focus() {
+	if (!currentCircuit) {
+		viewCenter = FPosition();
+		viewScale = 8.0f;
+	} else {
+		bool first = true;
+		Position topLeft;
+		Size size;
+		for (auto& pair : currentCircuit->getBlockContainer()) {
+			if (!currentCircuit->isOnStack(pair.second.getPosition())) {
+				if (first) {
+					first = false;
+					topLeft = pair.second.getPosition();
+					size = pair.second.size();
+				} else {
+					if (pair.second.getPosition().x < topLeft.x) {
+						size.w += topLeft.x - pair.second.getPosition().x;
+						topLeft.x = pair.second.getPosition().x;
+					}
+					if (pair.second.getPosition().y < topLeft.y) {
+						size.h += topLeft.y - pair.second.getPosition().y;
+						topLeft.y = pair.second.getPosition().y;
+					}
+					size.extentToFitTartgetCell(pair.second.getLargestPosition() - topLeft);
+				}
+			}
+		}
+		if (first) {
+			viewCenter = FPosition();
+			viewScale = 8.0f;
+		} else {
+			viewScale = std::max(std::max((float)size.w, (float)size.h) + 0.5f, 8.f);
+			viewCenter = topLeft.free() + size.getLargestVectorInArea().free()/2 + FVector(0.5f);
+		}
+	}
+	applyLimits();
+	viewChanged();
+}
+
 void ViewManager::applyLimits() {
-	if (viewScale > 600.0f) viewScale = 600.0f;
+	if (viewScale > 1200.0f) viewScale = 1200.0f;
 	if (viewScale < 0.5f) viewScale = 0.5f;
-	if (viewCenter.x > 10000000) viewCenter.x = 10000000;
-	if (viewCenter.x < -10000000) viewCenter.x = -10000000;
-	if (viewCenter.y > 10000000) viewCenter.y = 10000000;
-	if (viewCenter.y < -10000000) viewCenter.y = -10000000;
+	if (viewCenter.x > 5000000) viewCenter.x = 5000000;
+	if (viewCenter.x < -5000000) viewCenter.x = -5000000;
+	if (viewCenter.y > 5000000) viewCenter.y = 5000000;
+	if (viewCenter.y < -5000000) viewCenter.y = -5000000;
 }
 
 Vec2 ViewManager::gridToView(FPosition position) const {

@@ -42,6 +42,7 @@
 #include <span>
 
 #include <fmt/core.h>
+#include <nlohmann/json.hpp> // using for app state dump + network
 
 #include "logging/logging.h"
 #include "util/fatal.h"

@@ -7,6 +7,7 @@ class Backend;
 
 class PasteTool : public CircuitTool {
 public:
+	using CircuitTool::CircuitTool;
 	void activate() override final;
 
 	static inline std::vector<std::string> getModes_() { return {}; }

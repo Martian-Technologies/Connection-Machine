@@ -2,6 +2,7 @@
 #define blockRenderDataManager_h
 
 #include "backend/position/position.h"
+#include "renderer/viewport/blockTextureManager.h"
 
 typedef uint32_t BlockRenderDataId;
 typedef uint32_t BlockPortRenderDataId;
@@ -17,7 +18,7 @@ public:
 		};
 		std::string blockName = "";
 		Size size = Size(1);
-		unsigned int textureIndex = 0;
+		BlockTextureCords blockTextureCords = BlockTextureCords({0, 0}, {1, 1}, 0, {0, 0});
 		std::map<BlockPortRenderDataId, BlockPortRenderData> blockPortRenderData;
 	};
 
@@ -27,7 +28,9 @@ public:
 	void removeBlockRenderData(BlockRenderDataId blockRenderDataId);
 	void setBlockName(BlockRenderDataId blockRenderDataId, const std::string& blockName);
 	void setBlockSize(BlockRenderDataId blockRenderDataId, Size size);
-	void setBlockTextureIndex(BlockRenderDataId blockRenderDataId, unsigned int textureIndex);
+	void setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId);
+	void setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize);
+	void setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize, Vec2Int textureStepSize);
 	BlockPortRenderDataId addBlockPort(BlockRenderDataId blockRenderDataId, bool isInput, FVector positionOnBlock);
 	void removeBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId);
 	void moveBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId, FVector newPositionOnBlock);

@@ -5,6 +5,16 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -59,7 +69,11 @@ jobs:
         # don't need to restrict these by OS or compiler as it's only source code that's being cached
         restore-keys: |
           ${{ env.cache-name }}-
-
+    - name: Install Linux dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential git make pkg-config cmake ninja-build gnome-desktop-testing libasound2-dev libpulse-dev libaudio-dev libfribidi-dev libjack-dev libsndio-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev
     - name: Cache CMake dependency build objects
       uses: actions/cache@v4
       env:
@@ -88,7 +102,7 @@ jobs:
         build-dir: ${{ github.workspace }}/build
         cc: ${{ matrix.c_compiler }}
         cxx: ${{ matrix.cpp_compiler }}
-        configure-options: "-DCONNECTION_MACHINE_BUILD_TESTS=ON -DCONNECTION_MACHINE_BUILD_APP=OFF"
+        configure-options: "-DCONNECTION_MACHINE_BUILD_TESTS=ON -DCONNECTION_MACHINE_CODE_COVERAGE=ON -DCONNECTION_MACHINE_BUILD_APP=OFF -DCONNECTION_MACHINE_BUILD_CLI_APP=OFF"
         target: Connection_Machine_tests
         build-type: ${{ matrix.build_type }}
 
@@ -103,6 +117,23 @@ jobs:
       run: ${{ matrix.runExecutable }}
       # run: Gatality_tests
 
+    - name: Coverage Report
+      if: success() && matrix.os == 'ubuntu-latest'
+      working-directory: ${{ github.workspace }}
+      run: |
+          sudo apt-get update
+          sudo apt-get install -y gcovr
+          bash gcov_coverage.sh
+          mv ./coverage/coverage.html ./coverage/index.html
+          ls ./coverage
+
+    # Publish the coverage folder as the Pages artifact (ubuntu job only)
+    - name: Upload Pages artifact (coverage/)
+      if: success() && matrix.os == 'ubuntu-latest'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: coverage
+        # optional: name: coverage-artifact
     - name: Notify Discord on test failure
       if: failure()
       uses: sarisia/actions-status-discord@v1
@@ -112,3 +143,16 @@ jobs:
         title: Tests failed on ${{ matrix.os }}
         description: Build type ${{ matrix.build_type }}
         color: 0xff0000
+
+  # Deploy only after the matrix completes; it will pick up the uploaded artifact
+  deploy:
+    needs: build
+    if: always() && needs.build.result == 'success' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -8,19 +8,20 @@
 #include "backend/selection.h"
 #include "undoSystem.h"
 
+#include "circuitDefs.h"
+
 class CircuitManager;
 class GeneratedCircuit;
 class ParsedCircuit;
-
-typedef unsigned int circuit_id_t;
-typedef unsigned int circuit_update_count;
 
 typedef std::function<void(DifferenceSharedPtr, circuit_id_t)> CircuitDiffListenerFunction;
 
 class Circuit {
 	friend class CircuitManager;
 public:
-	Circuit(circuit_id_t circuitId, CircuitManager* circuitManager, BlockDataManager* blockDataManager, DataUpdateEventManager* dataUpdateEventManager, const std::string& name, const std::string& uuid);
+	Circuit(circuit_id_t circuitId, CircuitManager& circuitManager, BlockDataManager& blockDataManager, DataUpdateEventManager& dataUpdateEventManager, const std::string& name, const std::string& uuid);
+	Circuit(const Circuit&) = delete;
+    Circuit& operator=(const Circuit&) = delete;
 
 	void clear(bool clearUndoTree = false);
 
@@ -44,21 +45,23 @@ public:
 	void disconnectListener(void* object);
 
 	// allows accese to BlockContainer getters (never null)
-	inline const BlockContainer* getBlockContainer() const { return &blockContainer; }
+	inline const BlockContainer& getBlockContainer() const { return blockContainer; }
 
 	/* ----------- blocks ----------- */
 	// Trys to insert a block. Returns if successful.
-	bool tryInsertBlock(Position position, Orientation transformAmount, BlockType blockType);
+	bool tryInsertBlock(Position position, Orientation orientation, BlockType blockType);
 	// Trys to remove a block. Returns if successful.
 	bool tryRemoveBlock(Position position);
 	// Trys to move a block. Returns if successful.
-	bool tryMoveBlock(Position positionOfBlock, Position position);
+	bool tryMoveBlock(Position positionOfBlock, Position position, Orientation transformAmount);
 	// Trys to move blocks. Wont move any if one cant move. Returns if successful.
 	bool tryMoveBlocks(const SharedSelection& selection, Vector movement, Orientation transformAmount);
 	// Sets the type of blocks. Will set as many of the blocks as possible.
 	void setType(const SharedSelection& selection, BlockType type);
+	// Sets the type of a block.
+	bool setType(Position positionOfBlock, BlockType type);
 
-	void tryInsertOverArea(Position cellA, Position cellB, Orientation transformAmount, BlockType blockType);
+	void tryInsertOverArea(Position cellA, Position cellB, Orientation orientation, BlockType blockType);
 	void tryRemoveOverArea(Position cellA, Position cellB);
 
 	bool checkCollision(const SharedSelection& selection);
@@ -85,6 +88,12 @@ public:
 	/* ----------- undo ----------- */
 	void undo();
 	void redo();
+
+	bool isOnStack(Position blockPosition) const {
+		return blockPosition.x == stackBottom.x;
+	}
+
+	nlohmann::json dumpState() const;
 
 private:
 	void pushOntoStack(Position blockPosition, Difference * difference, MoveType moveType = MoveType::MULTI_BEGIN);
@@ -117,7 +126,7 @@ private:
 	std::string circuitUUID;
 	circuit_id_t circuitId;
 	BlockContainer blockContainer;
-	DataUpdateEventManager* dataUpdateEventManager;
+	DataUpdateEventManager& dataUpdateEventManager;
 	DataUpdateEventManager::DataUpdateEventReceiver dataUpdateEventReceiver;
 
 	struct CircuitDiffListenerData {
@@ -134,7 +143,5 @@ private:
 
 	unsigned long long editCount = 0;
 };
-
-typedef std::shared_ptr<Circuit> SharedCircuit;
 
 #endif /* circuit_h */

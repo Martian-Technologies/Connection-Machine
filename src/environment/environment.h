@@ -4,14 +4,27 @@
 #include "backend/backend.h"
 #include "computerAPI/circuits/circuitFileManager.h"
 #include "computerAPI/fileListener/fileListener.h"
+#ifndef CLI
 #include "blockRenderDataFeeder.h"
+#endif
 
 class Environment {
 public:
-	Environment() : backend(&circuitFileManager), circuitFileManager(&backend.getCircuitManager()),
-					fileListener(std::chrono::milliseconds(200)), blockRenderDataFeeder(&backend) {
-		backend.getBlockDataManager()->initializeDefaults();
+	Environment(bool loadBlockRenderDataFeeder) :
+		backend(circuitFileManager),
+		circuitFileManager(backend.getCircuitManager()),
+		fileListener(std::chrono::milliseconds(200)) {
+#ifndef CLI
+		if (loadBlockRenderDataFeeder) {
+			blockRenderDataFeeder.emplace(backend);
+		}
+#endif // CLI
+		backend.getBlockDataManager().initializeDefaults();
+		logInfo("Environment initialized", "Environment");
 	}
+	Environment(const Environment&) = delete;
+	Environment& operator=(const Environment&) = delete;
+
 
 	const Backend& getBackend() const { return backend; }
 	Backend& getBackend() { return backend; }
@@ -21,15 +34,25 @@ public:
 
 	const FileListener& getFileListener() const { return fileListener; }
 	FileListener& getFileListener() { return fileListener; }
-	const BlockRenderDataFeeder& getBlockRenderDataFeeder() const { return blockRenderDataFeeder; }
-	BlockRenderDataFeeder& getBlockRenderDataFeeder() { return blockRenderDataFeeder; }
 
+	nlohmann::json dumpState() const {
+		nlohmann::json stateJson;
+		stateJson["backend"] = backend.dumpState();
+		stateJson["circuitFileManager"] = circuitFileManager.dumpState();
+		stateJson["fileListener"] = fileListener.dumpState();
+		return stateJson;
+	}
+#ifndef CLI
+	const BlockRenderDataFeeder& getBlockRenderDataFeeder() const { return blockRenderDataFeeder.value(); }
+	BlockRenderDataFeeder& getBlockRenderDataFeeder() { return blockRenderDataFeeder.value(); }
+#endif
 private:
 	Backend backend;
 	CircuitFileManager circuitFileManager;
 	FileListener fileListener;
-	BlockRenderDataFeeder blockRenderDataFeeder;
-
+#ifndef CLI
+	std::optional<BlockRenderDataFeeder> blockRenderDataFeeder;
+#endif
 };
 
 #endif /* environment_h */

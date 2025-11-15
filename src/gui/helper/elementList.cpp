@@ -20,7 +20,7 @@ void ElementList::setItems(const std::vector<std::string>& items, bool reuseItem
 		unsigned int i;
 		for (i = 0; i < listItems.size(); i++) {
 			if (items.size() <= i) { // if there are no more items to set remove the rest of the items
-				for (unsigned int j = 0; j < listItems.size() - items.size(); i++) {
+				for (unsigned int j = 0; j < listItems.size() - items.size(); j++) {
 					list->RemoveChild(list->GetLastChild());
 					listItems.pop_back();
 				}

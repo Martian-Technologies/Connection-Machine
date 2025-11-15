@@ -6,7 +6,8 @@
 
 layout(location = 0) in vec2 pointA;
 layout(location = 1) in vec2 pointB;
-layout(location = 2) in uint inStateIndex;
+layout(location = 2) in float lineWidth;
+layout(location = 3) in uint inStateIndex;
 
 layout(location = 0) out vec3 outColor;
 
@@ -24,8 +25,8 @@ void main() {
 	vec2 xBasis = pointB - pointA;
 	vec2 yBasis = normalize(vec2(-xBasis.y, xBasis.x));
 	vec2 sampledPosition = positions[gl_VertexIndex % 6];
-	vec2 position = pointA + xBasis * sampledPosition.x + yBasis * LINE_WIDTH * sampledPosition.y;
-	
+	vec2 position = pointA + xBasis * sampledPosition.x + yBasis * lineWidth * sampledPosition.y;
+
 	gl_Position = push.mvp * vec4(position, 0.0, 1.0);
 
 	outColor = vec3(0.0f);

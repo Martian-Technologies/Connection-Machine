@@ -16,9 +16,9 @@ AlignOperands: Align
 SpaceBeforeCtorInitializerColon: true
 IndentWidth: 4
 UseTab: Always
-BreakTemplateDeclarations: MultiLine
+BreakTemplateDeclarations: Yes
 AccessModifierOffset: -4
-ColumnLimit: 200
+ColumnLimit: 170
 ObjCBinPackProtocolList: Never
 BinPackParameters: OnePerLine
 AllowShortBlocksOnASingleLine: Empty
@@ -30,6 +30,7 @@ AllowShortEnumsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortLambdasOnASingleLine: All
+LambdaBodyIndentation: OuterScope
 AllowShortLoopsOnASingleLine: true
 DerivePointerAlignment: false
 PointerAlignment: Left

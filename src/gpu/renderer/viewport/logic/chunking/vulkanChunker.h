@@ -20,8 +20,11 @@ struct BlockInstance {
 	glm::vec2 pos;
 	uint32_t sizeX;
 	uint32_t sizeY;
-	float texX;
+	uint32_t texLayer;
+	glm::vec2 texPos;
+	glm::vec2 texSize;
 	uint32_t orientation;
+	glm::vec2 stateStep;
 
 	inline static std::vector<VkVertexInputBindingDescription> getBindingDescriptions() {
 		std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
@@ -33,7 +36,7 @@ struct BlockInstance {
     }
 
 	inline static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-		std::vector<VkVertexInputAttributeDescription> attributeDescriptions(4);
+		std::vector<VkVertexInputAttributeDescription> attributeDescriptions(7);
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
@@ -47,13 +50,28 @@ struct BlockInstance {
 
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;
-		attributeDescriptions[2].format = VK_FORMAT_R32_SFLOAT;
-		attributeDescriptions[2].offset = offsetof(BlockInstance, texX);
+		attributeDescriptions[2].format = VK_FORMAT_R32_UINT;
+		attributeDescriptions[2].offset = offsetof(BlockInstance, texLayer);
 
 		attributeDescriptions[3].binding = 0;
 		attributeDescriptions[3].location = 3;
-		attributeDescriptions[3].format = VK_FORMAT_R32_UINT;
-		attributeDescriptions[3].offset = offsetof(BlockInstance, orientation);
+		attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[3].offset = offsetof(BlockInstance, texPos);
+
+		attributeDescriptions[4].binding = 0;
+		attributeDescriptions[4].location = 4;
+		attributeDescriptions[4].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[4].offset = offsetof(BlockInstance, texSize);
+
+		attributeDescriptions[5].binding = 0;
+		attributeDescriptions[5].location = 5;
+		attributeDescriptions[5].format = VK_FORMAT_R32_UINT;
+		attributeDescriptions[5].offset = offsetof(BlockInstance, orientation);
+
+		attributeDescriptions[6].binding = 0;
+		attributeDescriptions[6].location = 6;
+		attributeDescriptions[6].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[6].offset = offsetof(BlockInstance, stateStep);
 
 		return attributeDescriptions;
 	}
@@ -62,6 +80,7 @@ struct BlockInstance {
 struct WireInstance {
 	glm::vec2 pointA;
 	glm::vec2 pointB;
+	float wireWidth;
 	uint32_t stateIndex;
 
 	inline static std::vector<VkVertexInputBindingDescription> getBindingDescriptions() {
@@ -74,7 +93,7 @@ struct WireInstance {
     }
 
 	inline static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-		std::vector<VkVertexInputAttributeDescription> attributeDescriptions(3);
+		std::vector<VkVertexInputAttributeDescription> attributeDescriptions(4);
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
@@ -88,8 +107,13 @@ struct WireInstance {
 
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;
-		attributeDescriptions[2].format = VK_FORMAT_R32_UINT;
-		attributeDescriptions[2].offset = offsetof(WireInstance, stateIndex);
+		attributeDescriptions[2].format = VK_FORMAT_R32_SFLOAT;
+		attributeDescriptions[2].offset = offsetof(WireInstance, wireWidth);
+
+		attributeDescriptions[3].binding = 0;
+		attributeDescriptions[3].location = 3;
+		attributeDescriptions[3].format = VK_FORMAT_R32_UINT;
+		attributeDescriptions[3].offset = offsetof(WireInstance, stateIndex);
 
 		return attributeDescriptions;
 	}
@@ -97,10 +121,13 @@ struct WireInstance {
 
 // ====================================================================================================================
 struct RenderedBlock {
+	BlockRenderDataId blockRenderDataId;
 	unsigned int textureIndex;
+	glm::vec2 textureOrigin;
+	glm::vec2 textureSize;
+	glm::vec2 textureStateStep;
 	Orientation orientation;
 	FSize size;
-	Position statePosition;
 };
 
 struct RenderedWire {
@@ -110,6 +137,15 @@ struct RenderedWire {
 
 typedef phmap::flat_hash_map<Position, RenderedBlock> RenderedBlocks;
 typedef phmap::flat_hash_map<std::pair<Position, Position>, RenderedWire> RenderedWires;
+
+struct PortStateRange {
+	size_t baseIndex = 0;
+	uint32_t laneCount = 0;
+
+	PortStateRange() = default;
+	PortStateRange(size_t baseIndex, uint32_t laneCount) : baseIndex(baseIndex), laneCount(laneCount) { }
+	inline bool isValid() const { return laneCount != 0; }
+};
 
 // TODO - maybe these should just be split into two different types
 class VulkanChunkAllocation {
@@ -127,31 +163,31 @@ public:
 
 	inline std::vector<simulator_id_t>& getStateSimulatorIds() { return simulatorIds; }
 	inline const phmap::flat_hash_map<Position, size_t>& getBlockStateIndex() const { return blockStateIndex; }
-	inline const phmap::flat_hash_map<Position, size_t>& getPortStateIndex() const { return portStateIndex; }
+	inline const phmap::flat_hash_map<Position, PortStateRange>& getPortStateIndex() const { return portStateIndex; }
 
 	inline bool isAllocationComplete() const { return true; }
 
 private:
 	std::optional<AllocatedBuffer> blockBuffer;
-	uint32_t numBlockInstances;
+	uint32_t numBlockInstances = 0;
 
 	std::optional<AllocatedBuffer> wireBuffer;
-	uint32_t numWireInstances;
+	uint32_t numWireInstances = 0;
 
 	std::optional<NBuffer> stateBuffer;
 	VkDescriptorBufferInfo stateDescriptorBufferInfo;
 
 	std::vector<simulator_id_t> simulatorIds;
 	phmap::flat_hash_map<Position, size_t> blockStateIndex;
-	phmap::flat_hash_map<Position, size_t> portStateIndex;
+	phmap::flat_hash_map<Position, PortStateRange> portStateIndex;
 };
 
 // ====================================================================================================================
 
 class Chunk {
 public:
-	inline RenderedBlocks& getRenderedBlocks() { allocationDirty = true; return blocks; }
-	inline RenderedWires& getRenderedWires() { allocationDirty = true; return wires; }
+	inline RenderedBlocks& getRenderedBlocks() { return blocks; }
+	inline RenderedWires& getRenderedWires() { return wires; }
 	void rebuildAllocation(VulkanDevice* device, const Evaluator* evaluator, const Address& address);
 
 	std::optional<std::shared_ptr<VulkanChunkAllocation>> getAllocation();
@@ -162,7 +198,6 @@ private:
 private:
 	RenderedBlocks blocks;
 	RenderedWires wires;
-	bool allocationDirty = false;
 
 	std::optional<std::shared_ptr<VulkanChunkAllocation>> newestAllocation;
 	std::optional<std::shared_ptr<VulkanChunkAllocation>> currentlyAllocating;
@@ -184,12 +219,13 @@ public:
 
 	void startMakingEdits();
 	void stopMakingEdits();
-	void addBlock(BlockRenderDataId blockRenderDataId, Position position, Orientation orientation, Position statePosition);
+	void addBlock(BlockRenderDataId blockRenderDataId, Position position, Orientation orientation);
 	void removeBlock(Position position);
 	void moveBlock(Position curPos, Position newPos, Orientation newOrientation);
 	void addWire(std::pair<Position, Position> points, std::pair<FVector, FVector> socketOffsets);
 	void removeWire(std::pair<Position, Position> points);
 	void reset();
+	void regenerateAllChunksWithBlock(BlockRenderDataId blockRenderDataId);
 
 	void updateSimulatorIds(const std::vector<SimulatorMappingUpdate>& simulatorMappingUpdates);
 	void setEvaluator(Evaluator* evaluator, const Address& address);
@@ -201,9 +237,16 @@ private:
 	std::vector<ChunkIntersection> getNeededChunkIntersections(FPosition start, FPosition end);
 
 private:
+	std::unordered_map<BlockRenderDataId, unsigned int> blockTypesCount; // Used to regenerateAllChunksWithBlock
+
+	Chunk chunkToAlwaysRender;
+	bool chunkToAlwaysRenderNeedUpdate = false;
 	phmap::flat_hash_map<Position, Chunk> chunks;
-	phmap::flat_hash_map<std::pair<Position, Position>, std::vector<Position>> chunksUnderWire;
+	std::unordered_map<std::pair<Position, Position>, std::vector<Position>> chunksUnderWire;
 	std::mutex mux; // sync can be relaxed in the future
+
+	std::unordered_map<Position, std::unordered_map<Position, unsigned int>> portStatePosToChunks;
+
 
 	// while edits are being made
 	std::unordered_set<Position> chunksToUpdate;

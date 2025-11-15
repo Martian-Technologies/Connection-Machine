@@ -3,10 +3,7 @@
 // ================================================================================================
 // Class UndoTree implementation
 
-UndoTree::UndoTree() :
-	mainBranch(new Branch(this)) {
-	branches.insert(mainBranch);
-}
+UndoTree::UndoTree() : mainBranch(new Branch(this)) { branches.insert(mainBranch); }
 UndoTree::~UndoTree() {
 	for (Branch* branch : branches) {
 		delete branch;
@@ -15,9 +12,7 @@ UndoTree::~UndoTree() {
 	mainBranch = nullptr;
 }
 
-size_t UndoTree::numBranches() const {
-	return branches.size();
-}
+size_t UndoTree::numBranches() const { return branches.size(); }
 
 UndoTree::iterator UndoTree::insert(const iterator& it, DifferenceSharedPtr diff) {
 	// Make sure the iterator is on this tree
@@ -71,15 +66,12 @@ UndoTree::iterator UndoTree::begin() {
 	} else return iterator(mainBranch, 0);
 }
 
-UndoTree::iterator UndoTree::end() {
-	return iterator(mainBranch, -1);
-}
+UndoTree::iterator UndoTree::end() { return iterator(mainBranch, -1); }
 
 // ================================================================================================
 // Class UndoTree::iterator implementation
 
-UndoTree::iterator::iterator(Branch* branch, int pos) :
-	branch(branch), pos(pos) { }
+UndoTree::iterator::iterator(Branch* branch, int pos) : branch(branch), pos(pos) { }
 
 UndoTree::iterator UndoTree::iterator::next(int whichBranch) const {
 	if (whichBranch == -1) {
@@ -131,15 +123,12 @@ bool UndoTree::iterator::operator==(const iterator& other) const {
 	} else return **this == *other;
 }
 
-bool UndoTree::iterator::operator!=(const iterator& other) const {
-	return !(*this == other);
-}
+bool UndoTree::iterator::operator!=(const iterator& other) const { return !(*this == other); }
 
 // ================================================================================================
 // Class UndoTree::Branch implementation
 
-UndoTree::Branch::Branch(UndoTree* tree) :
-	tree(tree), parentBranch(nullptr), parentNode(-1) { }
+UndoTree::Branch::Branch(UndoTree* tree) : tree(tree), parentBranch(nullptr), parentNode(-1) { }
 UndoTree::Branch::Branch(UndoTree* tree, Branch* parentBranch, int parentNode, DifferenceSharedPtr diff) :
 	tree(tree), parentBranch(parentBranch), parentNode(parentNode) {
 	nodes.emplace_back(Node(diff));
@@ -148,13 +137,8 @@ UndoTree::Branch::Branch(UndoTree* tree, Branch* parentBranch, int parentNode, D
 // ================================================================================================
 // Class UndoTree::Branch::Node implementation
 
-UndoTree::Branch::Node::Node(DifferenceSharedPtr diff) :
-	diff(diff), branches(nullptr) { }
+UndoTree::Branch::Node::Node(DifferenceSharedPtr diff) : diff(diff), branches(nullptr) { }
 
-UndoTree::Branch::Node::~Node() {
-	delete branches;
-}
+UndoTree::Branch::Node::~Node() { delete branches; }
 
-bool onSameBranch(const UndoTree::iterator& a, const UndoTree::iterator& b) {
-	return a.branch == b.branch;
-}
+bool onSameBranch(const UndoTree::iterator& a, const UndoTree::iterator& b) { return a.branch == b.branch; }

@@ -25,6 +25,8 @@ struct ProceduralCircuitParameters {
 	}
 
 	std::map<std::string, int> parameters;
+
+	nlohmann::json dumpState() const;
 };
 
 template<>
@@ -44,11 +46,13 @@ struct std::hash<ProceduralCircuitParameters> {
 class ProceduralCircuit {
 public:
 	ProceduralCircuit(
-		CircuitManager* circuitManager,
-		DataUpdateEventManager* dataUpdateEventManager,
+		CircuitManager& circuitManager,
+		DataUpdateEventManager& dataUpdateEventManager,
 		const std::string& name,
 		const std::string& uuid
 	);
+	ProceduralCircuit(const ProceduralCircuit&) = delete;
+    ProceduralCircuit& operator=(const ProceduralCircuit&) = delete;
 	ProceduralCircuit(ProceduralCircuit&& other);
 	virtual ~ProceduralCircuit();
 
@@ -64,10 +68,12 @@ public:
 	const ProceduralCircuitParameters* getProceduralCircuitParameters(circuit_id_t circuitId) const;
 	circuit_id_t getCircuitId(const ProceduralCircuitParameters& parameters);
 	BlockType getBlockType(const ProceduralCircuitParameters& parameters);
+	nlohmann::json dumpState() const;
 
 protected:
 	virtual void makeCircuit(const ProceduralCircuitParameters& parameters, GeneratedCircuit& generatedCircuit) = 0;
 	void regenerateAll();
+	virtual nlohmann::json dumpStateInherited() const = 0;
 
 private:
 	std::string proceduralCircuitName;
@@ -75,11 +81,11 @@ private:
 
 	ProceduralCircuitParameters	parameterDefaults;
 
-	CircuitManager* circuitManager;
+	CircuitManager& circuitManager;
 	std::unordered_map<ProceduralCircuitParameters, circuit_id_t> generatedCircuits;
 	std::unordered_map<circuit_id_t, ProceduralCircuitParameters> circuitIdToProceduralCircuitParameters;
 
-	DataUpdateEventManager* dataUpdateEventManager;
+	DataUpdateEventManager& dataUpdateEventManager;
 	DataUpdateEventManager::DataUpdateEventReceiver dataUpdateEventReceiver;
 };
 

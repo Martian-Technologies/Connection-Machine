@@ -1,11 +1,12 @@
 #include "wasmProceduralCircuit.h"
 
-#include "backend/circuit/circuitBlockData.h"
-#include "generatedCircuitValidator.h"
+#include "generatedCircuit.h"
+#include "backend/wasm/wasm.h"
 #include "../circuit/circuitManager.h"
 #include "computerAPI/circuits/circuitFileManager.h"
 
-WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, CircuitManager* circuitManager, CircuitFileManager* fileManager) : circuitManager(circuitManager), fileManager(fileManager), thisPtr(std::make_unique<WasmInstance*>(this)) {
+
+WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, CircuitManager& circuitManager, CircuitFileManager& fileManager) : circuitManager(&circuitManager), fileManager(&fileManager), thisPtr(std::make_unique<WasmInstance*>(this)) {
 	WasmInstance** thisPtrPtr = thisPtr.get();
 	wasmtime::Func importFileFunc = wasmtime::Func::wrap(*Wasm::getStore(),
 		[thisPtrPtr](int32_t fileStrOffset) -> int32_t {
@@ -33,12 +34,17 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 			else if (blockName == "NAND") return BlockType::NAND;
 			else if (blockName == "NOR") return BlockType::NOR;
 			else if (blockName == "XNOR") return BlockType::XNOR;
+			else if (blockName == "BUFFER") return BlockType::BUFFER;
+			else if (blockName == "NOT") return BlockType::NOT;
 			else if (blockName == "JUNCTION") return BlockType::JUNCTION;
 			else if (blockName == "TRISTATE_BUFFER") return BlockType::TRISTATE_BUFFER;
 			else if (blockName == "BUTTON") return BlockType::BUTTON;
 			else if (blockName == "TICK_BUTTON") return BlockType::TICK_BUTTON;
 			else if (blockName == "SWITCH") return BlockType::SWITCH;
-			else if (blockName == "CONSTANT") return BlockType::CONSTANT;
+			else if (blockName == "CONSTANT_OFF") return BlockType::CONSTANT_OFF;
+			else if (blockName == "CONSTANT_ON") return BlockType::CONSTANT_ON;
+			else if (blockName == "CONSTANT_Z") return BlockType::CONSTANT_Z;
+			else if (blockName == "CONSTANT_X") return BlockType::CONSTANT_X;
 			else if (blockName == "LIGHT") return BlockType::LIGHT;
 			return BlockType::NONE;
 		});
@@ -50,7 +56,7 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 			if (circuit) {
 				return circuit->getBlockType();
 			}
-			SharedProceduralCircuit proceduralCircuit = (*thisPtrPtr)->circuitManager->getProceduralCircuitManager()->getProceduralCircuit(UUID);
+			SharedProceduralCircuit proceduralCircuit = (*thisPtrPtr)->circuitManager->getProceduralCircuitManager().getProceduralCircuit(UUID);
 			if (proceduralCircuit) {
 				logError("To get the BlockType of a ProceduralCircuit you need to use \"getProceduralCircuitType\" not \"getNonPrimitiveType\"", "WasmProceduralCircuit::WasmInstance");
 			}
@@ -61,7 +67,7 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 	wasmtime::Func getProceduralCircuitTypeFunc = wasmtime::Func::wrap(*Wasm::getStore(),
 		[thisPtrPtr](int32_t UUIDStrOffset, int32_t parametersStrOffset) -> int32_t {
 			std::string UUID = (*thisPtrPtr)->wasmToString(UUIDStrOffset);
-			SharedProceduralCircuit proceduralCircuit = (*thisPtrPtr)->circuitManager->getProceduralCircuitManager()->getProceduralCircuit(UUID);
+			SharedProceduralCircuit proceduralCircuit = (*thisPtrPtr)->circuitManager->getProceduralCircuitManager().getProceduralCircuit(UUID);
 			if (proceduralCircuit) {
 				std::stringstream ss((*thisPtrPtr)->wasmToString(parametersStrOffset));
 				return proceduralCircuit->getBlockType(ProceduralCircuitParameters(ss));
@@ -72,6 +78,40 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 			}
 			logError("Failed to find ProceduralCircuit with UUID", "WasmInstance", UUID);
 			return BlockType::NONE;
+		});
+
+	wasmtime::Func getBusBlockFunc = wasmtime::Func::wrap(*Wasm::getStore(),
+		[thisPtrPtr](int32_t bitWidth) -> int32_t {
+			if (bitWidth <= 0) {
+				logError("getBusBlock expects a positive bit width but received {}", "WasmProceduralCircuit::WasmInstance", bitWidth);
+				return static_cast<int32_t>(BlockType::NONE);
+			}
+			BlockType blockType = (*thisPtrPtr)->circuitManager->getBlockDataManager().getBusBlock(static_cast<unsigned int>(bitWidth));
+			return static_cast<int32_t>(blockType);
+		});
+
+	wasmtime::Func getBusBlockAdvancedFunc = wasmtime::Func::wrap(*Wasm::getStore(),
+		[thisPtrPtr](
+			int32_t numInputs,
+			int32_t numOutputs,
+			int32_t inputLaneWidth,
+			int32_t outputLaneWidth
+		) -> int32_t {
+			if (numInputs <= 0 || numOutputs <= 0 || inputLaneWidth <= 0 || outputLaneWidth <= 0) {
+				logError(
+					"getBusBlockAdvanced expects positive values for all parameters but received: numInputs={}, numOutputs={}, inputLaneWidth={}, outputLaneWidth={}",
+					"WasmProceduralCircuit::WasmInstance",
+					numInputs, numOutputs, inputLaneWidth, outputLaneWidth
+				);
+				return static_cast<int32_t>(BlockType::NONE);
+			}
+			BlockType blockType = (*thisPtrPtr)->circuitManager->getBlockDataManager().getBusBlock(
+				static_cast<unsigned int>(numInputs),
+				static_cast<unsigned int>(numOutputs),
+				static_cast<unsigned int>(inputLaneWidth),
+				static_cast<unsigned int>(outputLaneWidth)
+			);
+			return static_cast<int32_t>(blockType);
 		});
 
 	wasmtime::Func createBlockFunc = wasmtime::Func::wrap(*Wasm::getStore(),
@@ -86,18 +126,18 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 
 	wasmtime::Func createConnectionFunc = wasmtime::Func::wrap(*Wasm::getStore(),
 		[thisPtrPtr](int32_t outputBlockId, int32_t outputPortId, int32_t inputBlockId, int32_t inputPortId) {
-			(*thisPtrPtr)->generatedCircuit->addConnection(outputBlockId, outputPortId, inputBlockId, inputPortId);
+			(*thisPtrPtr)->generatedCircuit->addConnection(outputBlockId, connection_end_id_t(outputPortId), inputBlockId, connection_end_id_t(inputPortId));
 		});
 
 	wasmtime::Func addConnectionInputFunc = wasmtime::Func::wrap(*Wasm::getStore(),
 		[thisPtrPtr](int32_t portX, int32_t portY, int32_t internalBlockId, int32_t internalBlockPortId) {
-			(*thisPtrPtr)->generatedCircuit->addConnectionPort(true, (*thisPtrPtr)->portId, Vector(portX, portY), internalBlockId, internalBlockPortId, "Port" + std::to_string((*thisPtrPtr)->portId));
+			(*thisPtrPtr)->generatedCircuit->addConnectionPort(true, connection_end_id_t((*thisPtrPtr)->portId), Vector(portX, portY), internalBlockId, connection_end_id_t(internalBlockPortId), "Port" + std::to_string((*thisPtrPtr)->portId));
 			++((*thisPtrPtr)->portId);
 		});
 
 	wasmtime::Func addConnectionOutputFunc = wasmtime::Func::wrap(*Wasm::getStore(),
 		[thisPtrPtr](int32_t portX, int32_t portY, int32_t internalBlockId, int32_t internalBlockPortId) {
-			(*thisPtrPtr)->generatedCircuit->addConnectionPort(false, (*thisPtrPtr)->portId, Vector(portX, portY), internalBlockId, internalBlockPortId, "Port" + std::to_string((*thisPtrPtr)->portId));
+			(*thisPtrPtr)->generatedCircuit->addConnectionPort(false, connection_end_id_t((*thisPtrPtr)->portId), Vector(portX, portY), internalBlockId, connection_end_id_t(internalBlockPortId), "Port" + std::to_string((*thisPtrPtr)->portId));
 			++((*thisPtrPtr)->portId);
 		});
 
@@ -142,6 +182,16 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 	linkerResult = linker.define(*Wasm::getStore(), "env", "getProceduralCircuitType", getProceduralCircuitTypeFunc);
 	if (!linkerResult) {
 		logError("could not create link to env.getProceduralCircuitType", "WasmProceduralCircuit::WasmInstance");
+		return;
+	}
+	linkerResult = linker.define(*Wasm::getStore(), "env", "getBusBlock", getBusBlockFunc);
+	if (!linkerResult) {
+		logError("could not create link to env.getBusBlock", "WasmProceduralCircuit::WasmInstance");
+		return;
+	}
+	linkerResult = linker.define(*Wasm::getStore(), "env", "getBusBlockAdvanced", getBusBlockAdvancedFunc);
+	if (!linkerResult) {
+		logError("could not create link to env.getBusBlockAdvanced", "WasmProceduralCircuit::WasmInstance");
 		return;
 	}
 	linkerResult = linker.define(*Wasm::getStore(), "env", "createBlock", createBlockFunc);
@@ -264,7 +314,7 @@ void WasmProceduralCircuit::WasmInstance::makeCircuit(const ProceduralCircuitPar
 	GeneratedCircuit* tmpCircuit = this->generatedCircuit;
 	unsigned int tmpPortId = portId;
 	unsigned int tmpBlockId = blockId;
-	
+
 	this->parameters = &parameters;
 	this->generatedCircuit = &generatedCircuit;
 	portId = 0;
@@ -287,8 +337,8 @@ std::string WasmProceduralCircuit::WasmInstance::wasmToString(int32_t wasmPtr) {
 }
 
 WasmProceduralCircuit::WasmProceduralCircuit(
-	CircuitManager* circuitManager,
-	DataUpdateEventManager* dataUpdateEventManager,
+	CircuitManager& circuitManager,
+	DataUpdateEventManager& dataUpdateEventManager,
 	WasmInstance&& wasmInstance
 ) : ProceduralCircuit(circuitManager, dataUpdateEventManager, wasmInstance.getName(), wasmInstance.getUUID()), wasmInstance(std::move(wasmInstance)) {
 	setParameterDefaults(this->wasmInstance.getDefaultParameters());
@@ -318,4 +368,19 @@ void WasmProceduralCircuit::setWasm(WasmInstance&& wasmInstance) {
 
 void WasmProceduralCircuit::makeCircuit(const ProceduralCircuitParameters& parameters, GeneratedCircuit& generatedCircuit) {
 	wasmInstance.makeCircuit(parameters, generatedCircuit);
+}
+
+nlohmann::json WasmProceduralCircuit::dumpStateInherited() const {
+	nlohmann::json stateJson;
+	stateJson["wasmInstance"] = wasmInstance.dumpState();
+	return stateJson;
+}
+
+nlohmann::json WasmProceduralCircuit::WasmInstance::dumpState() const {
+	nlohmann::json stateJson;
+	stateJson["valid"] = valid;
+	stateJson["name"] = name;
+	stateJson["UUID"] = UUID;
+	stateJson["defaultParameters"] = defaultParameters.dumpState();
+	return stateJson;
 }

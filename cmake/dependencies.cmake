@@ -2,6 +2,12 @@ include(cmake/CPM.cmake)
 include(ExternalProject)
 
 function(add_main_dependencies)
+	message("adding main dependencies")
+	if (APPLE)
+		find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)
+		list(APPEND EXTERNAL_LINKS ${COREFOUNDATION_FRAMEWORK})
+	endif()
+
 	# cfgpath
 	CPMAddPackage(
 		NAME cfgpath
@@ -31,6 +37,21 @@ function(add_main_dependencies)
 	)
 	list(APPEND EXTERNAL_LINKS nlohmann_json)
 
+	# brotli
+	CPMAddPackage(
+		NAME brotli
+		GITHUB_REPOSITORY google/brotli
+		GIT_TAG v1.2.0
+		EXCLUDE_FROM_ALL YES
+		SOURCE_DIR "${EXTERNAL_DIR}/brotli"
+	)
+	if (brotli_ADDED)
+		add_library(Brotli::common ALIAS brotlicommon)
+		add_library(Brotli::encoder ALIAS brotlienc)
+		add_library(Brotli::decoder ALIAS brotlidec)
+	endif()
+	list(APPEND EXTERNAL_LINKS brotlienc)
+
 	# fmt
 	CPMAddPackage(
 		NAME fmt
@@ -57,12 +78,15 @@ function(add_main_dependencies)
 	list(APPEND EXTERNAL_LINKS cpplocate::liblocate)
 
 	# wasmtime
+	if (APPLE)
+		set(ENV{MACOSX_DEPLOYMENT_TARGET} "15.0")
+	endif()
 	if (APPLE AND CONNECTION_MACHINE_DISTRIBUTE_APP)
 		add_library(wasmtime STATIC IMPORTED GLOBAL)
 		CPMAddPackage(
 			NAME wasmtime
 			GITHUB_REPOSITORY bytecodealliance/wasmtime
-			GIT_TAG v35.0.0
+			GIT_TAG v37.0.2
 			DOWNLOAD_ONLY YES
 			EXCLUDE_FROM_ALL YES
 			SOURCE_DIR "${EXTERNAL_DIR}/wasmtime"
@@ -75,7 +99,7 @@ function(add_main_dependencies)
 		CPMAddPackage(
 			NAME wasmtime
 			GITHUB_REPOSITORY bytecodealliance/wasmtime
-			GIT_TAG v35.0.0
+			GIT_TAG v37.0.2
 			EXCLUDE_FROM_ALL YES
 			SOURCE_DIR "${EXTERNAL_DIR}/wasmtime"
 		)
@@ -116,9 +140,9 @@ function(add_main_dependencies)
 	endif()
 
 	set(EXTERNAL_LINKS "${EXTERNAL_LINKS}" PARENT_SCOPE)
-endfunction()
 
-function(add_app_dependencies)
+	# adding all deps because code spltting became too complex
+
 	# Find vulkan (we don't actually use the headers, we just want shaderc compiler (won't be needed when we switch to slang hopefully))
 	find_package(Vulkan REQUIRED COMPONENTS glslc)
 
@@ -126,68 +150,11 @@ function(add_app_dependencies)
 	CPMAddPackage(
 		NAME volk
 		GITHUB_REPOSITORY zeux/volk
-		GIT_TAG 1.4.304
+		GIT_TAG 3f1e9f3549c6a0fe0c4901e0f6a2f66b6bb8de3f
 		EXCLUDE_FROM_ALL YES
 		SOURCE_DIR "${EXTERNAL_DIR}/volk"
 	)
 	list(APPEND EXTERNAL_LINKS volk)
-
-	# Freetype
-	CPMAddPackage(
-        NAME freetype
-        GITHUB_REPOSITORY libsdl-org/freetype
-        GIT_TAG VER-2-13-3
-        OPTIONS
-			"FT_DISABLE_HARFBUZZ ON"
-			"FT_WITH_HARFBUZZ OFF"
-		EXCLUDE_FROM_ALL YES
-		SOURCE_DIR "${EXTERNAL_DIR}/freetype"
-    )
-	add_library(Freetype::Freetype ALIAS freetype)
-	list(APPEND EXTERNAL_LINKS freetype)
-
-	# SDL
-	# if (CONNECTION_MACHINE_BUILD_TESTS) # hack to allow SDL to build without window system on linux
-		# set(SDL_UNIX_CONSOLE_BUILD ON)
-	# endif()
-	CPMAddPackage(
-		NAME SDL3
-		GITHUB_REPOSITORY libsdl-org/SDL
-		GIT_TAG release-3.2.20
-		OPTIONS
-			"SDL_STATIC ON"
-		EXCLUDE_FROM_ALL YES
-		SOURCE_DIR "${EXTERNAL_DIR}/SDL"
-	)
-	add_library(SDL3::SDL3 ALIAS SDL3-static)
-	list(APPEND EXTERNAL_LINKS SDL3::SDL3)
-
-	# STB Image
-	CPMAddPackage(
-		NAME stb_image
-		GITHUB_REPOSITORY nothings/stb
-		GIT_TAG f58f558c120e9b32c217290b80bad1a0729fbb2c
-		EXCLUDE_FROM_ALL YES
-		SOURCE_DIR "${EXTERNAL_DIR}/stb"
-	)
-	if(stb_image_ADDED)
-		add_library(stb_image INTERFACE)
-		target_include_directories(stb_image INTERFACE ${stb_image_SOURCE_DIR})
-	endif()
-	list(APPEND EXTERNAL_LINKS stb_image)
-
-	# RmlUi
-	CPMAddPackage(
-        NAME RmlUi
-        GITHUB_REPOSITORY mikke89/RmlUi
-        GIT_TAG 6.1
-        OPTIONS
-			"RMLUI_BACKEND native"
-		EXCLUDE_FROM_ALL YES
-		SOURCE_DIR "${EXTERNAL_DIR}/RmlUi"
-    )
-	list(APPEND EXTERNAL_LINKS RmlUi::RmlUi)
-	list(APPEND EXTERNAL_LINKS RmlUi::Debugger)
 
 	# VMA
 	CPMAddPackage(
@@ -225,6 +192,111 @@ function(add_app_dependencies)
 		SOURCE_DIR "${EXTERNAL_DIR}/glm"
 	)
 	list(APPEND EXTERNAL_LINKS glm)
+
+	# STB Image
+	CPMAddPackage(
+		NAME stb_image
+		GITHUB_REPOSITORY nothings/stb
+		GIT_TAG f58f558c120e9b32c217290b80bad1a0729fbb2c
+		EXCLUDE_FROM_ALL YES
+		SOURCE_DIR "${EXTERNAL_DIR}/stb"
+	)
+	if(stb_image_ADDED)
+		add_library(stb_image INTERFACE)
+		target_include_directories(stb_image INTERFACE ${stb_image_SOURCE_DIR})
+	endif()
+	list(APPEND EXTERNAL_LINKS stb_image)
+
+	# Freetype
+	CPMAddPackage(
+        NAME freetype
+        GITHUB_REPOSITORY libsdl-org/freetype
+        GIT_TAG VER-2-13-3
+        OPTIONS
+			"FT_DISABLE_HARFBUZZ ON"
+			"FT_WITH_HARFBUZZ OFF"
+		EXCLUDE_FROM_ALL YES
+		SOURCE_DIR "${EXTERNAL_DIR}/freetype"
+    )
+	add_library(Freetype::Freetype ALIAS freetype)
+	list(APPEND EXTERNAL_LINKS freetype)
+
+	# SDL
+	# if (CONNECTION_MACHINE_BUILD_TESTS) # hack to allow SDL to build without window system on linux
+		# set(SDL_UNIX_CONSOLE_BUILD ON)
+	# endif()
+	if (CONNECTION_MACHINE_BUILD_TESTS OR CONNECTION_MACHINE_BUILD_CLI_APP)
+		CPMAddPackage(
+			NAME SDL3
+			GITHUB_REPOSITORY libsdl-org/SDL
+			GIT_TAG d9ca0457b5c9f819c3af5f156880219c8d41da40
+			OPTIONS
+				"SDL_STATIC ON"
+			EXCLUDE_FROM_ALL YES
+			SOURCE_DIR "${EXTERNAL_DIR}/SDL"
+		)
+	else()
+		CPMAddPackage(
+			NAME SDL3
+			GITHUB_REPOSITORY libsdl-org/SDL
+			GIT_TAG d9ca0457b5c9f819c3af5f156880219c8d41da40
+			OPTIONS
+				"SDL_STATIC ON"
+				"SDL_UNIX_CONSOLE_BUILD ON"
+			EXCLUDE_FROM_ALL YES
+			SOURCE_DIR "${EXTERNAL_DIR}/SDL"
+		)
+	endif()
+	add_library(SDL3::SDL3 ALIAS SDL3-static)
+	list(APPEND EXTERNAL_LINKS SDL3::SDL3)
+
+	# RmlUi
+	CPMAddPackage(
+        NAME RmlUi
+        GITHUB_REPOSITORY mikke89/RmlUi
+        GIT_TAG 6.1
+        OPTIONS
+			"RMLUI_BACKEND native"
+		EXCLUDE_FROM_ALL YES
+		SOURCE_DIR "${EXTERNAL_DIR}/RmlUi"
+    )
+	list(APPEND EXTERNAL_LINKS RmlUi::RmlUi)
+	list(APPEND EXTERNAL_LINKS RmlUi::Debugger)
+
+	# httplib
+	CPMAddPackage(
+		NAME httplib
+		GITHUB_REPOSITORY yhirose/cpp-httplib
+		GIT_TAG v0.26.0
+		EXCLUDE_FROM_ALL YES
+		SOURCE_DIR "${EXTERNAL_DIR}/cpp-httplib"
+		OPTIONS
+			"HTTPLIB_REQUIRE_OPENSSL ON"
+			"HTTPLIB_USE_ZSTD_IF_AVAILABLE OFF"
+	)
+	list(APPEND EXTERNAL_LINKS httplib)
+
+	# readline This will be added at some point!
+	# CPMAddPackage(
+	# 	NAME readline
+	# 	GIT_REPOSITORY git://git.savannah.gnu.org/readline.git
+	# 	GIT_TAG readline-8.3
+	# 	DOWNLOAD_ONLY YES
+	# 	SOURCE_DIR "${EXTERNAL_DIR}/readline"
+	# )
+	# file(GLOB_RECURSE readline_SOURCES
+	# 	"${readline_SOURCE_DIR}/*.cpp"
+	# )
+	# # readline_SOURCE_DIR
+	# # readline_BINARY_DIR
+	# add_custom_command(
+	# 	OUTPUT "${copied_resource}"
+	# 	COMMAND "${CMAKE_COMMAND}" -E make_directory "${copied_resource_dir}"
+	# 	COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${original_resource}" "${copied_resource}"
+	# 	DEPENDS "${original_resource}"
+	# 	COMMENT "Copying resource: ${resource_path_relative}"
+	# 	VERBATIM
+	# )
 
 	set(EXTERNAL_LINKS "${EXTERNAL_LINKS}" PARENT_SCOPE)
 endfunction()

@@ -5,6 +5,7 @@
 
 class LogicToucher : public CircuitTool {
 public:
+	using CircuitTool::CircuitTool;
 	inline void reset() override final { clicked = false; elementCreator.clear(); }
 	void activate() override final;
 

@@ -10,6 +10,11 @@ scrollbarvertical {
 	width: 0;
 }
 
+#pick-texture, #pick-new-texture, #reload-texture, #remove-texture, #embed-texture {
+	display: inline-block;
+	margin: 2dp 4dp 2dp auto;
+}
+
 #reset-block-creation, #update-block-creation {
 	display: inline-block;
 	margin: 0.2em 0.2em;
@@ -61,43 +66,50 @@ scrollbarvertical {
 	min-height: 18dp;
 	padding: 2dp 4dp;
 	margin: 1dp 1dp;
-	border-left: 2dp transparent;
 	border-radius: 3dp;
 	background:#2e2e2e;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	gap: 2dp;
-	flex-wrap: wrap;
 }
 
-.connection-list-item .connection-break {
-	flex-basis: 100%;
-	height: 0;
-	padding: 0;
-	margin: 0;
+.connection-list-item > div {
+	width: 100%;
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
 }
 
 .connection-list-item .connection-list-item-pos-x,
 .connection-list-item .connection-list-item-pos-y,
+.connection-list-item .connection-list-item-bit-width,
+.connection-list-item .connection-list-item-switch-port-offset,
 .connection-list-item .set-position-button,
 .connection-list-item .remove-connection-button {
 	margin-top: 2dp;
 }
 
 .connection-list-item .connection-list-item-pos-x,
-.connection-list-item .connection-list-item-pos-y {
+.connection-list-item .connection-list-item-pos-y,
+.connection-list-item .connection-list-item-bit-width {
 	flex: 0 0 auto;
 }
 
-.connection-list-item > * {
+.connection-list-item > div > *:not(h1) {
 	margin-right: 2dp;
 }
 
-.connection-list-item > *:last-child {
+.connection-list-item > div > *:not(h1):last-child {
 	margin-right: 0;
 }
 
+.connection-list-item > div > h1 {
+	margin-right: 12dp;
+}
+
 .connection-list-item .set-position-button,
+.connection-list-item .connection-list-item-switch-port-offset,
 .connection-list-item .remove-connection-button {
 	padding: 0 4dp;
 	min-width: 16dp;
@@ -114,9 +126,9 @@ scrollbarvertical {
 	background-color: #3b3b3b;
 }
 
-.connection-list-item:active {
+/* .connection-list-item:active {
 	background-color: #1d1d1d;
-}
+} */
 
 .connection-list-item.selected {
 	background-color: #2e2e2e;
@@ -162,15 +174,21 @@ scrollbarvertical {
 	gap: 4dp;
 }
 
-.form-row label {
+.form-row > label {
 	width: 44dp;
 	font-size: 11dp;
 	color: #c9c9c9;
 }
 
-.form-row input {
+.form-row > input {
 	flex: 1;
 	min-width: 0;
+}
+
+.form-row-2 {
+	display: flex;
+	align-items: center;
+	gap: 4dp;
 }
 
 .form-actions {
@@ -204,4 +222,3 @@ scrollbarvertical {
 		flex-direction: column;
 	}
 }
-.connection-list-item:active { background-color: #1d1d1d; }

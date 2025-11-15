@@ -28,7 +28,7 @@ public:
 
 	// Windows ==================================================================================================================================
 	WindowId registerWindow(SdlWindow* window);
-	void resizeWindow(WindowId windowId, glm::vec2 size);
+	void resizeWindow(WindowId windowId, std::pair<uint32_t, uint32_t> size);
 	void deregisterWindow(WindowId windowId);
 
 	// RmlUI ====================================================================================================================================
@@ -55,23 +55,35 @@ public:
 	void deregisterBlockRenderData(BlockRenderDataId blockRenderDataId);
 	void setBlockName(BlockRenderDataId blockRenderDataId, const std::string& blockName);
 	void setBlockSize(BlockRenderDataId blockRenderDataId, Size size);
-	void setBlockTextureIndex(BlockRenderDataId blockRenderDataId, unsigned int textureIndex);
+	BlockTextureId addBlockTexture(const std::string& path);
+	BlockTextureId addBlockTexture(const std::filesystem::path& path);
+	void refreshBlockTexture(const std::string& path);
+	BlockTextureId addBlockTexture(const unsigned char* pixels, int textureWidth, int textureHeight);
+	void updateBlockTexture(const unsigned char* pixels, BlockTextureId blockTextureId);
+	void removeBlockTexture(const std::string& path);
+	void removeBlockTexture(BlockTextureId blockTextureId);
+	void setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId);
+	void setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize);
+	void setBlockTexture(BlockRenderDataId blockRenderDataId, BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize, Vec2Int textureStepSize);
 	BlockPortRenderDataId addBlockPort(BlockRenderDataId blockRenderDataId, bool isInput, FVector positionOnBlock);
 	void removeBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId);
 	void moveBlockPort(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId, FVector newPositionOnBlock);
 	void setBlockPortName(BlockRenderDataId blockRenderDataId, BlockPortRenderDataId blockPortRenderDataId, const std::string& newPortName);
+	void regenerateAllChunksWithBlock(BlockRenderDataId blockRenderDataId);
+
 
 	// Viewports ================================================================================================================================
 	ViewportId registerViewport(WindowId windowId, glm::vec2 origin, glm::vec2 size);
 	void moveViewport(ViewportId viewportId, WindowId windowId, glm::vec2 origin, glm::vec2 size);
 	void moveViewportView(ViewportId viewportId, FPosition topLeft, FPosition bottomRight);
 	void setViewportEvaluator(ViewportId viewportId, Evaluator* evaluator, Address address); // tmp circuit
+	void resetViewport(ViewportId viewportId);
 	void deregisterViewport(ViewportId viewportId);
 
 	// block and wires
 	void startMakingEdits(ViewportId viewportId);
 	void stopMakingEdits(ViewportId viewportId);
-	void addBlock(ViewportId viewportId, BlockRenderDataId blockRenderDataId, Position position, Orientation orientation, Position statePosition);
+	void addBlock(ViewportId viewportId, BlockRenderDataId blockRenderDataId, Position position, Orientation orientation);
 	void removeBlock(ViewportId viewportId, Position position);
 	void moveBlock(ViewportId viewportId, Position curPos, Position newPos, Orientation newOrientation);
 	void addWire(ViewportId viewportId, std::pair<Position, Position> points, std::pair<FVector, FVector> socketOffsets);

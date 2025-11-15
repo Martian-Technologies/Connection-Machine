@@ -1,8 +1,8 @@
 #ifndef viewManager_h
 #define viewManager_h
 
-#include "backend/circuit/circuit.h"
 #include "backend/position/position.h"
+#include "backend/circuit/circuit.h"
 #include "util/vec2.h"
 
 class EventRegister;
@@ -45,6 +45,8 @@ public:
 	Vec2 gridToView(FPosition position) const;
 	Vec2 gridToView(FVector vector) const;
 
+	void focus();
+
 private:
 	// helpers
 	void applyLimits();
@@ -73,12 +75,12 @@ private:
 
 	// view data per circuit
 	std::map<circuit_id_t, ViewPositioningData> perCircuitViewData;
-	circuit_id_t currentCircuitId = 0;
-	
+	Circuit* currentCircuit = nullptr;
+
 	// view
 	FPosition viewCenter;
 	float viewScale;
-	
+
 	float aspectRatio;
 
 	EventRegister* eventRegister = nullptr;

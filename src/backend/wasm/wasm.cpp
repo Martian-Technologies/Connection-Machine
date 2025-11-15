@@ -57,16 +57,16 @@ std::optional<wasmtime::Module> Wasm::loadModuleFromString(const std::string& wa
 
 	try {
 		// Try binary first by checking magic bytes
-		const uint8_t wasmMagic[] = {0x00, 0x61, 0x73, 0x6d};
+		const std::uint8_t wasmMagic[] = {0x00, 0x61, 0x73, 0x6d};
 		bool isBinary = wasmOrWat.size() >= 4 &&
-						static_cast<uint8_t>(wasmOrWat[0]) == wasmMagic[0] &&
-						static_cast<uint8_t>(wasmOrWat[1]) == wasmMagic[1] &&
-						static_cast<uint8_t>(wasmOrWat[2]) == wasmMagic[2] &&
-						static_cast<uint8_t>(wasmOrWat[3]) == wasmMagic[3];
+						static_cast<std::uint8_t>(wasmOrWat[0]) == wasmMagic[0] &&
+						static_cast<std::uint8_t>(wasmOrWat[1]) == wasmMagic[1] &&
+						static_cast<std::uint8_t>(wasmOrWat[2]) == wasmMagic[2] &&
+						static_cast<std::uint8_t>(wasmOrWat[3]) == wasmMagic[3];
 
 		wasmtime::Result<wasmtime::Module> result(wasmtime::Error("Not yet initialized."));
 		if (isBinary) {
-			std::vector<uint8_t> buffer(wasmOrWat.begin(), wasmOrWat.end());
+			std::vector<std::uint8_t> buffer(wasmOrWat.begin(), wasmOrWat.end());
 			result = wasmtime::Module::compile(*engine, buffer);
 		} else {
 			result = wasmtime::Module::compile(*engine, wasmOrWat);

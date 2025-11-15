@@ -6,11 +6,15 @@
 
 #include "contentManager.h"
 
+class SearchBar;
+
 class SettingsWindow {
 public:
 	SettingsWindow(Rml::ElementDocument* document);
+	~SettingsWindow();
 
 	void toggleVisibility();
+	void reloadContent();
 	bool isVisible() const { return visible; };
 
 private:
@@ -21,7 +25,7 @@ private:
 	Rml::Element* activeNav;
 
 	ContentManager contentManager;
-	std::unique_ptr<class SearchBar> searchBar; // forward-managed search bar
+	std::unique_ptr<SearchBar> searchBar;
 
 	bool visible;
 };

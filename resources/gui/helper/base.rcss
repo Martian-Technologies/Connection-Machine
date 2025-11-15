@@ -145,25 +145,26 @@ button:focus-visible, .btn:focus-visible {
 	width: 100%;
 }
 
-
-input[type="checkbox"] {
-	width: 16dp;
-	height: 16dp;
-	background-color: #474747;
-	border: 1dp;
+input[type="checkbox"], checkbox {
+	width: 18dp;
+	height: 18dp;
+	background-color: #3aa53a20;
+	border: 1dp #3d8d3dff;
 	border-radius: 3dp;
 	color: #f0f0f0;
-	margin-right: 8dp;
 }
 
-input[type="checkbox"]:hover {
-	background-color: #555555;
-	border-color: #f0f0f0;
+input[type="checkbox"]:hover, checkbox:hover {
+	background-color: #3aa53a60;
 }
 
-input[type="checkbox"]:checked {
-	background-color: #8fbc8f;
-	border-color: #a9d1a9;
+input[type="checkbox"]:checked, checkbox:checked {
+	background-color: #3d8d3dff;
+	border-color: #3d8d3dff;
+}
+
+input[type="checkbox"]:checked:hover, checkbox:checked:hover {
+	background-color: rgb(74, 154, 74);
 }
 
 tab {
@@ -178,3 +179,6 @@ tab:active {
 	background: #717171;
 }
 
+.invisible {
+	display: none;
+}

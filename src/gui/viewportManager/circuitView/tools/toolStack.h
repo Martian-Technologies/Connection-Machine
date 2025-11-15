@@ -12,7 +12,7 @@ class ToolManager;
 
 class ToolStack {
 public:
-	inline ToolStack(Environment* environment, EventRegister* eventRegister, ViewportId viewportId, CircuitView* circuitView, ToolManager* toolManager) :
+	inline ToolStack(Environment& environment, EventRegister* eventRegister, ViewportId viewportId, CircuitView* circuitView, ToolManager& toolManager) :
 		environment(environment), eventRegister(eventRegister), viewportId(viewportId), circuitView(circuitView), toolManager(toolManager), toolStackInterface(this) {
 		eventRegister->registerFunction("pointer enter view", std::bind(&ToolStack::enterBlockView, this, std::placeholders::_1));
 		eventRegister->registerFunction("pointer exit view", std::bind(&ToolStack::exitBlockView, this, std::placeholders::_1));
@@ -35,7 +35,7 @@ public:
 	SharedCircuitTool getCurrentNonHelperTool() const;
 	SharedCircuitTool getCurrentTool() const;
 
-	void setMode(std::string mode);
+	void setMode(const std::string& mode);
 
 	void setCircuit(Circuit* circuit);
 
@@ -67,8 +67,8 @@ private:
 	bool isActive = false;
 	std::vector<SharedCircuitTool> toolStack;
 
-	ToolManager* toolManager;
-	Environment* environment;
+	ToolManager& toolManager;
+	Environment& environment;
 };
 
 #endif /* toolStack_h */

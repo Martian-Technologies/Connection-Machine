@@ -30,10 +30,10 @@ The preprocessor define should be the name of the file with an underscore.
 ```
 
 ### Naming
-**camalCase** for file names
+**camelCase** for file names
 ".h" extension for headers and ".cpp" extension for source files
 
-- variable and function names should be **camalCase**
+- variable and function names should be **camelCase**
 - const variable and enum state names should be **MACRO_CASE**
 - type names should be **PascalCase**
 

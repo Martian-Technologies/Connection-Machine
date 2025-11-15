@@ -10,7 +10,7 @@ void SelectionMakerTool::reset() {
 	CircuitTool::reset();
 	if (!activeSelectionHelper) {
 		mode = "Area";
-		activeSelectionHelper = std::make_shared<AreaCreationTool>();
+		activeSelectionHelper = std::make_shared<AreaCreationTool>(environment);
 	}
 	activeSelectionHelper->restart();
 	updateElements();
@@ -28,16 +28,16 @@ void SelectionMakerTool::activate() {
 	}
 }
 
-void SelectionMakerTool::setMode(std::string toolMode) {
-	if (mode != toolMode) {
-		if (toolMode == "Area") {
-			activeSelectionHelper = std::make_shared<AreaCreationTool>();
-			mode = toolMode;
-		} else if (toolMode == "Tensor") {
-			activeSelectionHelper = std::make_shared<TensorCreationTool>();
-			mode = toolMode;
+void SelectionMakerTool::setMode(const std::string& mode) {
+	if (this->mode != mode) {
+		if (mode == "Area") {
+			activeSelectionHelper = std::make_shared<AreaCreationTool>(environment);
+			this->mode = mode;
+		} else if (mode == "Tensor") {
+			activeSelectionHelper = std::make_shared<TensorCreationTool>(environment);
+			this->mode = mode;
 		} else {
-			logError("Tool mode \"{}\" could not be found", "", toolMode);
+			logError("Tool mode \"{}\" could not be found", "", mode);
 		}
 		toolStackInterface->popAbove(this);
 	}
@@ -45,7 +45,7 @@ void SelectionMakerTool::setMode(std::string toolMode) {
 
 bool SelectionMakerTool::copy(const Event* event) {
 	if (!activeSelectionHelper->isFinished() || !circuit) return false;
-	circuitView->getBackend()->setClipboard(std::make_shared<CopiedBlocks>(circuit->getBlockContainer(), activeSelectionHelper->getSelection()));
+	circuitView->getBackend().setClipboard(std::make_shared<CopiedBlocks>(circuit->getBlockContainer(), activeSelectionHelper->getSelection()));
 	return true;
 }
 

@@ -5,7 +5,13 @@
 #include "gui/helper/eventPasser.h"
 #include "gui/mainWindow/circuitView/circuitViewWidget.h"
 
-SimControlsManager::SimControlsManager(Rml::ElementDocument* document, std::shared_ptr<CircuitViewWidget> circuitViewWidget, DataUpdateEventManager* dataUpdateEventManager) : circuitViewWidget(circuitViewWidget), dataUpdateEventReceiver(dataUpdateEventManager) {
+#include "gui/helper/uiControllers/numberControllers.h"
+
+SimControlsManager::SimControlsManager(
+	Rml::ElementDocument* document,
+	std::shared_ptr<CircuitViewWidget> circuitViewWidget,
+	DataUpdateEventManager& dataUpdateEventManager
+) : circuitViewWidget(circuitViewWidget), dataUpdateEventReceiver(dataUpdateEventManager) {
 	toggleSimElement = document->GetElementById("toggle-simulation");
 	realisticElement = document->GetElementById("realistic-button");
 	limitSpeedElement = document->GetElementById("limit-speed-checkbox");
@@ -17,7 +23,50 @@ SimControlsManager::SimControlsManager(Rml::ElementDocument* document, std::shar
 		limitSpeed();
 		event.StopPropagation();
 	}));
-	tpsInputElement->AddEventListener("change", new EventPasser(std::bind(&SimControlsManager::setTPS, this)));
+
+	Evaluator* evaluator = this->circuitViewWidget->getCircuitView()->getEvaluator();
+	new UiDataController<float>(
+		tpsInputElement,
+		evaluator ? evaluator->getTickrate() : 0,
+		[this](float value) {
+			Evaluator* evaluator = this->circuitViewWidget->getCircuitView()->getEvaluator();
+			if (evaluator) evaluator->setTickrate(value);
+		},
+		[dataUpdateEventManager = &dataUpdateEventManager, circuitViewWidget](std::function<void(double)> func) {
+			std::shared_ptr<DataUpdateEventManager::DataUpdateEventReceiver> DUER = std::make_shared<DataUpdateEventManager::DataUpdateEventReceiver>(*dataUpdateEventManager);
+			DUER->linkFunction("evaluatorTargetTickrateSet", [circuitViewWidget, func](const DataUpdateEventManager::EventData* dataEvent) {
+				auto data = dataEvent->cast<std::pair<evaluator_id_t, double>>();
+				Evaluator* evaluator = circuitViewWidget->getCircuitView()->getEvaluator();
+				if (!evaluator) return;
+				if (data->get().first == evaluator->getEvaluatorId()) func(data->get().second);
+			});
+			return DUER;
+		},
+		[](float value, const std::string* string) -> std::string {
+			if (string) {
+				if (string->empty()) return "tps";
+				std::string tpsStr = fmt::format("{:.1f}", value);
+				if (tpsStr.back() == '0') tpsStr.pop_back();
+				if (string->back() != '.' && tpsStr.back() == '.') tpsStr.pop_back();
+				return tpsStr + "tps";
+			}
+			std::string tpsStr = fmt::format("{:.1f}", value);
+			if (tpsStr.back() == '0') tpsStr.pop_back();
+			if (tpsStr.back() == '.') tpsStr.pop_back();
+			return tpsStr + "tps";
+		}
+	);
+
+	// std::stringstream ss(correctValue);
+	// if (!approx_equals(evaluator->getTickrate(), tps)) {
+	// 	std::string tpsStr = fmt::format("{:.1f}", evaluator->getTickrate());
+	// 	if (tpsStr.back() == '0') tpsStr.pop_back();
+	// 	if (tpsStr.back() == '.') tpsStr.pop_back();
+	// 	tpsInputElement->SetInnerRML(std::string(tpsStr.size(), ' ') + "tps");
+	// 	tpsInputElement->SetAttribute<Rml::String>("value", tpsStr);
+	// }
+
+	// tpsInputElement->AddEventListener("change", new EventPasser(std::bind(&SimControlsManager::setTPS, this)));
 
 	dataUpdateEventReceiver.linkFunction("circuitViewChangeEvaluator", std::bind(&SimControlsManager::update, this));
 	update();
@@ -47,7 +96,7 @@ void SimControlsManager::update() {
 		std::string correctValue;
 		bool foundDecimal = false;
 		for (char c : value) {
-			if (('0' <= c && c <= '9') || (correctValue.empty() && c == '-')) {
+			if ('0' <= c && c <= '9') {
 				correctValue += c;
 			} else if (c == '.' && !foundDecimal) {
 				foundDecimal = true;
@@ -109,7 +158,7 @@ void SimControlsManager::setTPS() {
 		std::string correctValue;
 		bool foundDecimal = false;
 		for (char c : value) {
-			if (('0' <= c && c <= '9') || (correctValue.empty() && c == '-')) {
+			if ('0' <= c && c <= '9') {
 				correctValue += c;
 			} else if (c == '.' && !foundDecimal) {
 				foundDecimal = true;

@@ -5,6 +5,7 @@
 
 class PortSelector : public CircuitTool {
 public:
+	using CircuitTool::CircuitTool;
 	void activate() override final;
 	static inline std::vector<std::string> getModes_() { return {}; }
 	static inline std::string getPath_() { return "NONE"; }

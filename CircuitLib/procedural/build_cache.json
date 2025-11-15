@@ -1,0 +1,8 @@
+{
+    "cpp/adder.cpp": "46914ebe5d3e5f3d5e02d48e328cd603",
+    "cpp/andGate.cpp": "a66f51229f93f4f2c943586a6b82cd9c",
+    "cpp/box.cpp": "c4a9b81b2f3d2c04ff36a08ec170a407",
+    "cpp/edgeDetector.cpp": "35ecaa6df21b65c1a77bb82503785bf4",
+    "zig/edge_detector.zig": "4bbb46d6c2d6a975381368a69ca9eef9",
+    "zig/bus_test.zig": "be7d3fb06977926039ace644ed7d41ed"
+}

@@ -32,6 +32,20 @@ public:
 		undoPosition = 0;
 	}
 
+	nlohmann::json dumpState() const {
+		nlohmann::json stateJson;
+		stateJson["undoPosition"] = undoPosition;
+		stateJson["differences"] = nlohmann::json::array();
+		for (const auto& diffOpt : differences) {
+			if (diffOpt.has_value()) {
+				stateJson["differences"].push_back(diffOpt->dumpState());
+			} else {
+				stateJson["differences"].push_back(nullptr);
+			}
+		}
+		return stateJson;
+	}
+
 private:
 	unsigned int undoPosition = 0;
 	std::vector<std::optional<MinimalDifference>> differences;

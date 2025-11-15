@@ -5,6 +5,7 @@
 
 class SingleConnectTool : public CircuitToolHelper {
 public:
+	using CircuitToolHelper::CircuitToolHelper;
 	void activate() override final {
 		CircuitTool::activate();
 		registerFunction("Tool Primary Activate", std::bind(&SingleConnectTool::makeConnection, this, std::placeholders::_1));

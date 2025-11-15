@@ -3,18 +3,23 @@
 
 #include "proceduralCircuit.h"
 
-#include "backend/wasm/wasm.h"
+#include <wasmtime.hh>
 
 class CircuitFileManager;
 
 class WasmProceduralCircuit : public ProceduralCircuit {
 public:
+	WasmProceduralCircuit(const WasmProceduralCircuit&) = delete;
+    WasmProceduralCircuit& operator=(const WasmProceduralCircuit&) = delete;
+
 	class WasmInstance {
 	public:
-		WasmInstance(wasmtime::Module module, CircuitManager* circuitManager, CircuitFileManager* fileManager);
+		WasmInstance(wasmtime::Module module, CircuitManager& circuitManager, CircuitFileManager& fileManager);
 		WasmInstance(WasmInstance&& wasmInstance);
-
 		WasmInstance& operator=(WasmInstance&& wasmInstance);
+		WasmInstance(const WasmInstance&) = delete;
+		WasmInstance& operator=(const WasmInstance&) = delete;
+
 
 		void makeCircuit(const ProceduralCircuitParameters& parameters, GeneratedCircuit& generatedCircuit);
 
@@ -22,6 +27,7 @@ public:
 		inline const std::string& getName() const { return name; }
 		inline const std::string& getUUID() const { return UUID; }
 		inline const ProceduralCircuitParameters& getDefaultParameters() const { return defaultParameters; }
+		nlohmann::json dumpState() const;
 
 	private:
 		std::string wasmToString(int32_t wasmPtr);
@@ -48,8 +54,8 @@ public:
 	};
 
 	WasmProceduralCircuit(
-		CircuitManager* circuitManager,
-		DataUpdateEventManager* dataUpdateEventManager,
+		CircuitManager& circuitManager,
+		DataUpdateEventManager& dataUpdateEventManager,
 		WasmInstance&& wasmInstance
 	);
 	WasmProceduralCircuit(WasmProceduralCircuit&& other);
@@ -58,6 +64,8 @@ public:
 
 private:
 	void makeCircuit(const ProceduralCircuitParameters& parameters, GeneratedCircuit& generatedCircuit) override final;
+
+	nlohmann::json dumpStateInherited() const override final;
 
 	WasmInstance wasmInstance;
 

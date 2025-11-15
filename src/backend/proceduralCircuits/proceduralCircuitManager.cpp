@@ -1,6 +1,6 @@
 #include "proceduralCircuitManager.h"
 
-ProceduralCircuitManager::ProceduralCircuitManager(CircuitManager* circuitManager, DataUpdateEventManager* dataUpdateEventManager, CircuitFileManager* fileManager) :
+ProceduralCircuitManager::ProceduralCircuitManager(CircuitManager& circuitManager, DataUpdateEventManager& dataUpdateEventManager, CircuitFileManager& fileManager) :
 	circuitManager(circuitManager), dataUpdateEventManager(dataUpdateEventManager), dataUpdateEventReceiver(dataUpdateEventManager), fileManager(fileManager) {
 	dataUpdateEventReceiver.linkFunction("proceduralCircuitPathUpdate", [this](const DataUpdateEventManager::EventData* eventData) {
 		auto data = eventData->cast<std::string>();
@@ -37,7 +37,7 @@ const std::string* ProceduralCircuitManager::createWasmProceduralCircuit(wasmtim
 		SharedWasmProceduralCircuit wasmProceduralCircuit = std::make_shared<WasmProceduralCircuit>(circuitManager, dataUpdateEventManager, std::move(wasmInstance));
 		pathToUUID.emplace(wasmProceduralCircuit->getPath(), wasmProceduralCircuit->getUUID());
 		proceduralCircuits.emplace(wasmProceduralCircuit->getUUID(), wasmProceduralCircuit);
-		dataUpdateEventManager->sendEvent<std::string>("proceduralCircuitPathUpdate", wasmProceduralCircuit->getUUID());
+		dataUpdateEventManager.sendEvent<std::string>("proceduralCircuitPathUpdate", wasmProceduralCircuit->getUUID());
 		return &(wasmProceduralCircuit->getUUID());
 	}
 	return nullptr;
@@ -58,4 +58,14 @@ const SharedProceduralCircuit ProceduralCircuitManager::getProceduralCircuit(con
 	auto iter = proceduralCircuits.find(uuid);
 	if (iter == proceduralCircuits.end()) return nullptr;
 	return iter->second;
+}
+
+nlohmann::json ProceduralCircuitManager::dumpState() const {
+	nlohmann::json stateJson;
+	stateJson["pathToUUID"] = pathToUUID;
+	stateJson["proceduralCircuits"] = nlohmann::json::object();
+	for (const auto& pair : proceduralCircuits) {
+		stateJson["proceduralCircuits"][pair.first] = pair.second->dumpState();
+	}
+	return stateJson;
 }

@@ -8,7 +8,7 @@ public:
 	void init(VulkanDevice* device, VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size);
 	void cleanup();
 
-	void createFramebuffers(VkRenderPass renderPass);
+	void createFramebuffers(VkRenderPass renderPass, const AllocatedImage& colorImage);
 	void recreate(VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size);
 
 	inline vkb::Swapchain& getSwapchain() { return swapchain; }
@@ -18,7 +18,7 @@ public:
 private:
 	void createSwapchain(VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size, bool useOld);
 	void destroyFramebuffers();
-	
+
 private:
 	vkb::Swapchain swapchain;
 	std::vector<VkFramebuffer> framebuffers;

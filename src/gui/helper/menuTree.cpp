@@ -87,7 +87,7 @@ void MenuTree::setPaths(const std::vector<std::vector<std::string>>& paths, Rml:
 	}
 	std::string pathStr = getPath(current);
 	if (!(pathStr.empty())) pathStr += "/";
-	for (auto iter : pathsByRoot) {
+	for (const std::pair<std::string, std::vector<std::vector<std::string>>>& pair : pathsByRoot) {
 		Rml::ElementPtr newItem = document->CreateElement("li");
 		// add listener
 		if (!clickableName) newItem->AddEventListener("click", new MenuTreeListener(false, &listenerFunction));
@@ -171,14 +171,14 @@ void MenuTree::setPaths(const std::vector<std::vector<std::string>>& paths, Rml:
 			}
 		));
 		// set id
-		newItem->SetId(pathStr + iter.first + "-menu");
+		newItem->SetId(pathStr + pair.first + "-menu");
 		// create div for text
 		Rml::ElementPtr newDiv = document->CreateElement("div");
-		newDiv->AppendChild(std::move(document->CreateTextNode(iter.first)));
+		newDiv->AppendChild(std::move(document->CreateTextNode(pair.first)));
 		newItem->AppendChild(std::move(newDiv));
 		Rml::Element* newItem2 = elementList->AppendChild(std::move(newItem));
-		if (!iter.second.empty()) {
-			setPaths(iter.second, newItem2);
+		if (!pair.second.empty()) {
+			setPaths(pair.second, newItem2);
 		}
 	}
 }

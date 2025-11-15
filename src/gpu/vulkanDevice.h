@@ -26,14 +26,18 @@ public:
 	VkResult submitPresent(VkPresentInfoKHR* presentInfo);
 	void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
-	inline uint32_t getGraphicsQueueIndex() { return graphicsQueue.index; }
-	inline uint32_t getPresentQueueIndex() { return presentQueue.index; }
+	inline uint32_t getGraphicsQueueIndex() const { return graphicsQueue.index; }
+	inline uint32_t getPresentQueueIndex() const { return presentQueue.index; }
 
 	inline vkb::Device& getDevice() { return device; }
+	inline const vkb::Device& getDevice() const { return device; }
 	inline VmaAllocator getAllocator() { return vmaAllocator; }
+	inline const VmaAllocator getAllocator() const { return vmaAllocator; }
 
 	inline BlockTextureManager& getBlockTextureManager() { return blockTextureManager; }
 	inline RmlResourceManager& getRmlResourceManager() { return rmlResourceManager; }
+
+	VkSampleCountFlagBits getMaxUsableSampleCount() const { return msaaSamples; }
 
 private:
 	void createAllocator();
@@ -59,6 +63,7 @@ private:
 	// Texture
 	RmlResourceManager rmlResourceManager;
 	BlockTextureManager blockTextureManager;
+	VkSampleCountFlagBits msaaSamples;
 };
 
 #endif

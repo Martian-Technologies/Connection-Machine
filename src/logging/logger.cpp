@@ -10,18 +10,16 @@
 #define ANSI_FATAL "\033[1;4;41;97m"
 #define ANSI_TAIL "\033[0m"
 
-Logger::Logger(const std::filesystem::path& outputFile)
-	: outputFile(outputFile), outputFileStream(outputFile) {
-}
+Logger::Logger(const std::filesystem::path& outputFile) : outputFile(outputFile), outputFileStream(outputFile) { }
 
 void Logger::log(LogType type, const std::string& message, const std::string& subcategory) {
 	std::lock_guard<std::mutex> guard(loggingMutex);
-	
-	std::string categoryText; 
+
+	std::string categoryText;
 	if (subcategory != "") {
 		categoryText = " - " + subcategory;
 	}
-	
+
 	switch (type) {
 	// output to stderr
 	case LogType::Info:

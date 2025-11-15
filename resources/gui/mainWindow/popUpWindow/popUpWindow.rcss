@@ -1,18 +1,46 @@
 /* Pop Up Window */
 
-#pop-up-window {
+.pop-up-overlay {
+	position: absolute;
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+}
+
+.pop-up-overlay-internal {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+}
+
+.pop-up-window {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: space-around;
 	padding: 1rem;
-	width: 400dp;
-	height: 250dp;
 	color: white;
 }
 
+.pop-up-window-blocked {
+	min-width: 300dp;
+}
+
+.pop-up-window-not-blocked {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
 /* --- action buttons --- */
-#pop-up-actions {
+.pop-up-actions {
 	align-items: center;
 	justify-content: center;
 	gap: 12dp;
@@ -29,7 +57,44 @@
 	text-align: center;
 }
 
-#pop-up-text {
+.pop-up-text {
 	font-size: 20dp;
 	font-weight: 500;
+}
+
+.pop-up-text-container {
+	width: 100%;
+	text-align: center;
+	margin-bottom: 12dp;
+}
+
+.pop-up-text-line {
+	margin: 4dp 0dp;
+	font-size: 20dp;
+	font-weight: 500;
+	display: block;
+}
+
+.pop-up-text-small-line {
+	font-size: 14dp;
+	color: #a0a0a0;
+	margin: 2dp 0dp;
+	display: block;
+}
+
+/* --- text input --- */
+
+.pop-up-textarea {
+	width: 100%;
+	/* height: 100%; */
+	font-size: 14dp;
+	padding: 8dp;
+	border-radius: 4dp;
+	background-color: #2a2a2a;
+	color: #c9c9c9;
+	border: 1dp #6a4d28;
+}
+
+.pop-up-textarea:focus {
+	border: 1dp #d1963a;
 }

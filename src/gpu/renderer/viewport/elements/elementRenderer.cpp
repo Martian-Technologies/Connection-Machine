@@ -7,7 +7,6 @@
 #include "computerAPI/directoryManager.h"
 #include "computerAPI/fileLoader.h"
 #include "gpu/abstractions/vulkanShader.h"
-#include "util/vec2.h"
 #include "gpu/renderer/viewport/blockTextureManager.h"
 
 void ElementRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
@@ -23,6 +22,7 @@ void ElementRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	blockPreviewPipelineInfo.renderPass = renderPass;
 	blockPreviewPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, sizeof(BlockPreviewPushConstant) });
 	blockPreviewPipelineInfo.descriptorSets.push_back(device->getBlockTextureManager().getDescriptorLayout());
+	blockPreviewPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
 	blockPreviewPipeline.init(device, blockPreviewPipelineInfo);
 
 	destroyShaderModule(device->getDevice(), blockPreviewVertShader);
@@ -38,6 +38,7 @@ void ElementRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	boxSelectionPipelineInfo.renderPass = renderPass;
 	boxSelectionPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, offsetof(BoxSelectionPushConstant, state) });
 	boxSelectionPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(uint32_t) });
+	boxSelectionPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
 	boxSelectionPipeline.init(device, boxSelectionPipelineInfo);
 
 	destroyShaderModule(device->getDevice(), boxSelectionVertShader);
@@ -52,6 +53,7 @@ void ElementRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	connectionPreviewPipelineInfo.fragShader = connectionPreviewFragShader;
 	connectionPreviewPipelineInfo.renderPass = renderPass;
 	connectionPreviewPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, sizeof(ConnectionPreviewPushConstant) });
+	connectionPreviewPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
 	connectionPreviewPipeline.init(device, connectionPreviewPipelineInfo);
 
 	destroyShaderModule(device->getDevice(), connectionPreviewVertShader);
@@ -67,6 +69,7 @@ void ElementRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	arrowCirclePipelineInfo.renderPass = renderPass;
 	arrowCirclePipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, offsetof(ArrowCirclePushConstant, depth) });
 	arrowCirclePipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(uint32_t) });
+	arrowCirclePipelineInfo.sampleCount = device->getMaxUsableSampleCount();
 	arrowCirclePipeline.init(device, arrowCirclePipelineInfo);
 
 	destroyShaderModule(device->getDevice(), arrowCircleVertShader);
@@ -82,6 +85,7 @@ void ElementRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
 	arrowPipelineInfo.renderPass = renderPass;
 	arrowPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, offsetof(ArrowPushConstant, depth) });
 	arrowPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(uint32_t) });
+	arrowPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
 	arrowPipeline.init(device, arrowPipelineInfo);
 
 	destroyShaderModule(device->getDevice(), arrowVertShader);
@@ -99,20 +103,19 @@ void ElementRenderer::cleanup() {
 void ElementRenderer::renderBlockPreviews(Frame& frame, const glm::mat4& viewMatrix, const std::vector<BlockPreviewRenderData>& blockPreviews) {
 	if (!blockPreviews.empty()) {
 		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPreviewPipeline.getHandle());
-		std::shared_ptr<BlockTexture> blockTexture = device->getBlockTextureManager().getTexture();
+		std::shared_ptr<BlockTextureArray> blockTexture = device->getBlockTextureManager().getTextureArray();
 		frame.lifetime.push(blockTexture);
 		vkCmdBindDescriptorSets(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPreviewPipeline.getLayout(), 0, 1, &blockTexture->descriptor, 0, nullptr);
 
 		BlockPreviewPushConstant blockPreviewConstant;
 		blockPreviewConstant.mvp = viewMatrix;
-		Vec2 uvCellSize = device->getBlockTextureManager().getTileset().getCellUVSize();
-		blockPreviewConstant.uvCellSizeX = uvCellSize.x;
-		blockPreviewConstant.uvCellSizeY = uvCellSize.y;
 		for (const BlockPreviewRenderData& preview : blockPreviews) {
 			blockPreviewConstant.position = preview.position;
 			blockPreviewConstant.size = preview.size;
 			blockPreviewConstant.orientation = preview.orientation.rotation + 4 * preview.orientation.flipped;
-			blockPreviewConstant.uvOffsetX = device->getBlockTextureManager().getTileset().getTopLeftUV(preview.textureIndex, 0).x;
+			blockPreviewConstant.texLayer = preview.textureIndex;
+			blockPreviewConstant.texPos = preview.texPos;
+			blockPreviewConstant.texSize = preview.texSize;
 
 			blockPreviewPipeline.cmdPushConstants(frame.mainCommandBuffer, &blockPreviewConstant);
 			vkCmdDraw(frame.mainCommandBuffer, 6, 1, 0, 0);

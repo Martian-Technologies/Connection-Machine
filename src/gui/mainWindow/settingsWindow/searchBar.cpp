@@ -7,6 +7,14 @@ SearchBar::SearchBar(Rml::Element* document) : context(document) {
 	Initialize();
 }
 
+void SearchBar::reapplyFilter() {
+	Rml::Element* search = context->GetElementById("settings-search");
+	if (!search) return;
+	auto* input = dynamic_cast<Rml::ElementFormControlInput*>(search);
+	std::string text = input ? input->GetValue() : "";
+	queryContext(text);
+}
+
 void SearchBar::Initialize() {
 	Rml::Element* search = context->GetElementById("settings-search");
 	if (!search) return;

@@ -10,9 +10,9 @@ class CircuitManager;
 
 class BlockContainer {
 public:
-	inline BlockContainer(CircuitManager* circuitManager, BlockDataManager* blockDataManager) : circuitManager(circuitManager), blockDataManager(blockDataManager) { }
+	inline BlockContainer(CircuitManager& circuitManager, BlockDataManager& blockDataManager) : circuitManager(circuitManager), blockDataManager(blockDataManager) { }
 
-	inline BlockDataManager* getBlockDataManager() const { return blockDataManager; }
+	inline BlockDataManager& getBlockDataManager() const { return blockDataManager; }
 
 	void clear(Difference* difference);
 
@@ -61,14 +61,22 @@ public:
 	/* ----------- connections ----------- */
 	// -- getters --
 	bool connectionExists(Position outputPosition, Position inputPosition) const;
-	const phmap::flat_hash_set<ConnectionEnd>* getInputConnections(Position position) const;
-	const phmap::flat_hash_set<ConnectionEnd>* getOutputConnections(Position position) const;
+	bool connectionExists(ConnectionEnd connectionEndA, ConnectionEnd connectionEndB) const;
+	const std::unordered_set<ConnectionEnd>* getInputConnections(Position position) const;
+	const std::unordered_set<ConnectionEnd>* getOutputConnections(Position position) const;
+	const std::unordered_set<ConnectionEnd>* getBidirectionalConnections(Position position) const;
 	const std::optional<ConnectionEnd> getInputConnectionEnd(Position position) const;
 	const std::optional<ConnectionEnd> getOutputConnectionEnd(Position position) const;
+	const std::optional<ConnectionEnd> getBidirectionalConnectionEnd(Position position) const;
+	const std::optional<ConnectionEnd> getInputOrBidirectionalConnectionEnd(Position position) const;
+	const std::optional<ConnectionEnd> getOutputOrBidirectionalConnectionEnd(Position position) const;
+
+	unsigned int getBitwidthOfJunction(Position position) const { return getBitwidthOfJunction(getBlock(position)); }
+	unsigned int getBitwidthOfJunction(block_id_t blockId) const { return getBitwidthOfJunction(getBlock(blockId)); }
 
 	// -- setters --
 	// Trys to creates a connection. Returns if successful. Pass a Difference* to read the what changes were made.
-	bool tryCreateConnection(ConnectionEnd outputConnectionEnd, ConnectionEnd inputConnectionEnd, Difference* difference);
+	bool tryCreateConnection(ConnectionEnd connectionEndA, ConnectionEnd connectionEndB, Difference* difference);
 	// Trys to creates a connection. Returns if successful. Pass a Difference* to read the what changes were made.
 	bool tryCreateConnection(Position outputPosition, Position inputPosition, Difference* difference);
 	// Trys to remove a connection. Returns if successful. Pass a Difference* to read the what changes were made.
@@ -93,7 +101,13 @@ public:
 	Difference getCreationDifference() const;
 	DifferenceSharedPtr getCreationDifferenceShared() const;
 
+	nlohmann::json dumpState() const;
+
 private:
+	unsigned int getBitwidthOfJunction(block_id_t blockId, std::unordered_set<block_id_t>& visited) const;
+	unsigned int getBitwidthOfJunction(const Block* block) const;
+
+
 	inline Block* getBlock_(Position position);
 	inline Block* getBlock_(block_id_t blockId);
 	inline Cell* getCell(Position position) { return grid.get(position); }
@@ -105,9 +119,10 @@ private:
 	void removeBlockCells(const Block* block);
 	block_id_t getNewId() { return ++lastId; }
 
+
 	BlockType selfBlockType = BlockType::NONE;
-	CircuitManager* circuitManager;
-	BlockDataManager* blockDataManager;
+	CircuitManager& circuitManager;
+	BlockDataManager& blockDataManager;
 	block_id_t lastId = 0;
 	Sparse2d<Cell> grid;
 	std::unordered_map<block_id_t, Block> blocks;

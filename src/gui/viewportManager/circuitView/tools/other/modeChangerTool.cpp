@@ -10,14 +10,16 @@ const std::vector<std::pair<BlockType, std::string>> types = {
 	{BlockType::NAND, "Nand"},
 	{BlockType::NOR, "Nor"},
 	{BlockType::XNOR, "Xnor"},
-	{BlockType::JUNCTION, "Junction"}
+	{BlockType::BUFFER, "Buffer"},
+	{BlockType::NOT, "Not"},
+	// {BlockType::JUNCTION, "Junction"}
 };
 
 void ModeChangerTool::reset() {
 	CircuitTool::reset();
 	if (!activeSelectionHelper) {
 		mode = "Area";
-		activeSelectionHelper = std::make_shared<AreaCreationTool>();
+		activeSelectionHelper = std::make_shared<AreaCreationTool>(environment);
 	}
 	activeSelectionHelper->restart();
 	updateElements();
@@ -36,16 +38,16 @@ void ModeChangerTool::activate() {
 	}
 }
 
-void ModeChangerTool::setMode(std::string toolMode) {
-	if (mode != toolMode) {
-		if (toolMode == "Area") {
-			activeSelectionHelper = std::make_shared<AreaCreationTool>();
-			mode = toolMode;
-		} else if (toolMode == "Tensor") {
-			activeSelectionHelper = std::make_shared<TensorCreationTool>();
-			mode = toolMode;
+void ModeChangerTool::setMode(const std::string& mode) {
+	if (this->mode != mode) {
+		if (mode == "Area") {
+			activeSelectionHelper = std::make_shared<AreaCreationTool>(environment);
+			this->mode = mode;
+		} else if (mode == "Tensor") {
+			activeSelectionHelper = std::make_shared<TensorCreationTool>(environment);
+			this->mode = mode;
 		} else {
-			logError("Tool mode \"{}\" could not be found", "", toolMode);
+			logError("Tool mode \"{}\" could not be found", "", mode);
 		}
 		toolStackInterface->popAbove(this);
 	}

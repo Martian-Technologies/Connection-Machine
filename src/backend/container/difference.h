@@ -5,10 +5,10 @@
 #include "../position/position.h"
 
 enum MoveType {
-		SINGLE,
-		MULTI_BEGIN,
-		MULTI_MIDDLE, // not used
-		MULTI_FINAL,
+		SINGLE = 0,
+		MULTI_BEGIN = 1,
+		MULTI_MIDDLE = 2, // not used
+		MULTI_FINAL = 3,
 	};
 
 class Difference {

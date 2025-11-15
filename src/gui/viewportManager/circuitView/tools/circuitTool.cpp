@@ -4,6 +4,10 @@
 #include "../events/customEvents.h"
 #include "gpu/mainRendererDefs.h"
 
+void CircuitTool::sendEventToCircuitView(const Event& event) {
+	eventRegister->doEvent(event);
+}
+
 bool CircuitTool::sendEvent(const Event* event) {
 	auto events = registeredEvents;
 	for (const auto& pair : events) {
@@ -17,11 +21,11 @@ bool CircuitTool::sendEvent(const Event* event) {
 	return false;
 }
 
-void CircuitTool::registerFunction(std::string eventName, EventFunction function) {
-	registeredEvents.emplace_back(eventName, eventRegister->registerFunction(eventName, function));
+void CircuitTool::registerFunction(const std::string& eventName, const EventFunction& function) {
+registeredEvents.emplace_back(eventName, eventRegister->registerFunction(eventName, function));
 }
 
-void CircuitTool::unregisterFunction(std::string eventName) {
+void CircuitTool::unregisterFunction(const std::string& eventName) {
 	for (auto iter = registeredEvents.begin(); iter != registeredEvents.end(); iter++) {
 		if (iter->first == eventName) {
 			eventRegister->unregisterFunction(iter->first, iter->second);
@@ -32,7 +36,7 @@ void CircuitTool::unregisterFunction(std::string eventName) {
 }
 
 void CircuitTool::unregisterFunctions() {
-	for (auto eventFuncPair : registeredEvents) {
+	for (const auto& eventFuncPair : registeredEvents) {
 		eventRegister->unregisterFunction(eventFuncPair.first, eventFuncPair.second);
 	}
 	registeredEvents.clear();
@@ -43,7 +47,6 @@ void CircuitTool::setStatusBar(const std::string& text) {
 }
 
 void CircuitTool::activate() {
-	assert(environment); // it should have been set
 	setStatusBar("");
 	registerFunction("pointer enter view", std::bind(&CircuitTool::enterBlockView, this, std::placeholders::_1));
 	registerFunction("pointer exit view", std::bind(&CircuitTool::exitBlockView, this, std::placeholders::_1));

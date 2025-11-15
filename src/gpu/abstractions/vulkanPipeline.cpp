@@ -7,7 +7,7 @@ const std::vector<VkDynamicState> dynamicStates = {
 
 void Pipeline::init(VulkanDevice* device, const PipelineInformation& info) {
 	this->device = device;
-	
+
 	// shader stages
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
 	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -66,7 +66,7 @@ void Pipeline::init(VulkanDevice* device, const PipelineInformation& info) {
 	VkPipelineMultisampleStateCreateInfo multisampling{};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampling.sampleShadingEnable = VK_FALSE;
-	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampling.rasterizationSamples = info.sampleCount;
 	multisampling.minSampleShading = 1.0f; // unused
 	multisampling.pSampleMask = nullptr; // unused
 	multisampling.alphaToCoverageEnable = VK_FALSE; // unused
@@ -100,7 +100,7 @@ void Pipeline::init(VulkanDevice* device, const PipelineInformation& info) {
 	colorBlending.blendConstants[1] = 0.0f; // unused
 	colorBlending.blendConstants[2] = 0.0f; // unused
 	colorBlending.blendConstants[3] = 0.0f; // unused
-	
+
 	// pipeline layout
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -123,7 +123,7 @@ void Pipeline::init(VulkanDevice* device, const PipelineInformation& info) {
 	}
 	pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstants.size());
 	pipelineLayoutInfo.pPushConstantRanges = pushConstants.data();
-	
+
 	// create pipeline layout
 	if (vkCreatePipelineLayout(device->getDevice(), &pipelineLayoutInfo, nullptr, &layout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");

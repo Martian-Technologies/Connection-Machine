@@ -1,0 +1,3 @@
+For anyone who is using wasm the CM API may change at anytime as the current API is not great.
+There may be ways to update cm.h/cm.zig to keep backward compatibility and so recompiling may fix issues.
+Expect current .wasm files to stop functioning.

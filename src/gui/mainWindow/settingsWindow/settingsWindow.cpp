@@ -15,8 +15,10 @@ SettingsWindow::SettingsWindow(Rml::ElementDocument* document) : contentManager(
 	// connectCategoryListeners();
 	// connectWindowOptions();
 
-	contentManager.load();
+	reloadContent();
 }
+
+SettingsWindow::~SettingsWindow() = default;
 
 void SettingsWindow::connectCategoryListeners() {
 	// Rml::ElementList items;
@@ -76,4 +78,14 @@ void SettingsWindow::connectCategoryListeners() {
 void SettingsWindow::toggleVisibility() {
 	visible = !visible;
 	context->SetClass("invisible", !visible);
+	if (visible) {
+		reloadContent();
+	}
+}
+
+void SettingsWindow::reloadContent() {
+	contentManager.load();
+	if (searchBar) {
+		searchBar->reapplyFilter();
+	}
 }

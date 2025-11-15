@@ -13,7 +13,10 @@ class ParsedCircuit;
 
 class CircuitManager {
 public:
-	CircuitManager(DataUpdateEventManager* dataUpdateEventManager, EvaluatorManager* evaluatorManager, CircuitFileManager* fileManager);
+	CircuitManager(DataUpdateEventManager& dataUpdateEventManager, EvaluatorManager& evaluatorManager, CircuitFileManager& fileManager);
+	CircuitManager(const CircuitManager&) = delete;
+    CircuitManager& operator=(const CircuitManager&) = delete;
+
 	// Circuit
 	inline SharedCircuit getCircuit(circuit_id_t id) {
 		auto iter = circuits.find(id);
@@ -50,14 +53,14 @@ public:
 		}
 	}
 
-	inline ProceduralCircuitManager* getProceduralCircuitManager() { return &proceduralCircuitManager; }
-	inline const ProceduralCircuitManager* getProceduralCircuitManager() const { return &proceduralCircuitManager; }
+	inline ProceduralCircuitManager& getProceduralCircuitManager() { return proceduralCircuitManager; }
+	inline const ProceduralCircuitManager& getProceduralCircuitManager() const { return proceduralCircuitManager; }
 
 	// Block Data
-	inline BlockDataManager* getBlockDataManager() { return &blockDataManager; }
-	inline const BlockDataManager* getBlockDataManager() const { return &blockDataManager; }
-	inline CircuitBlockDataManager* getCircuitBlockDataManager() { return &circuitBlockDataManager; }
-	inline const CircuitBlockDataManager* getCircuitBlockDataManager() const { return &circuitBlockDataManager; }
+	inline BlockDataManager& getBlockDataManager() { return blockDataManager; }
+	inline const BlockDataManager& getBlockDataManager() const { return blockDataManager; }
+	inline CircuitBlockDataManager& getCircuitBlockDataManager() { return circuitBlockDataManager; }
+	inline const CircuitBlockDataManager& getCircuitBlockDataManager() const { return circuitBlockDataManager; }
 
 	inline BlockType setupBlockData(circuit_id_t circuitId) {
 		auto iter = circuits.find(circuitId);
@@ -151,6 +154,8 @@ public:
 		circuit->addEdit();
 	}
 
+	nlohmann::json dumpState() const;
+
 private:
 	circuit_id_t getNewCircuitId() { return ++lastId; }
 
@@ -158,8 +163,8 @@ private:
 	CircuitBlockDataManager circuitBlockDataManager;
 	DataUpdateEventManager::DataUpdateEventReceiver dataUpdateEventReceiver;
 	ProceduralCircuitManager proceduralCircuitManager;
-	DataUpdateEventManager* dataUpdateEventManager;
-	EvaluatorManager* evaluatorManager;
+	DataUpdateEventManager& dataUpdateEventManager;
+	EvaluatorManager& evaluatorManager;
 
 	circuit_id_t lastId = 0;
 	std::map<circuit_id_t, SharedCircuit> circuits;

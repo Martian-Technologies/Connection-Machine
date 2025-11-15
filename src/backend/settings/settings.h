@@ -31,6 +31,9 @@ namespace Settings {
 	inline void registerListener(const std::string& key, SettingsMap::ListenerFunction<settingType> listener) {
 		getSettingsMap().registerListener<settingType>(key, std::move(listener));
 	}
+	inline void registerListener(SettingsMap::AllListenerFunction listener) {
+		getSettingsMap().registerListener(std::move(listener));
+	}
 };
 
 #endif /* settings_h */

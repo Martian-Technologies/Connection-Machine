@@ -37,6 +37,8 @@
 
 #include <SDL3/SDL.h>
 
+#include "scancodeToKeyIdentifier.h"
+
 class RmlSystemInterface : public Rml::SystemInterface {
 public:
 	RmlSystemInterface();
@@ -72,19 +74,17 @@ private:
 };
 
 namespace RmlSDL {
+	// Applies input on the context based on the given SDL event.
+	// @return True if the event is still propagating, false if it was handled by the context.
+	bool InputEventHandler(Rml::Context* context, SDL_Window* window, SDL_Event& ev, float windowScalingSize);
 
-// Applies input on the context based on the given SDL event.
-// @return True if the event is still propagating, false if it was handled by the context.
-bool InputEventHandler(Rml::Context* context, SDL_Window* window, SDL_Event& ev, float windowScalingSize);
+	// Converts the SDL mouse button to RmlUi mouse button.
+	int ConvertMouseButton(int sdl_mouse_button);
 
-// Converts the SDL key to RmlUi key.
-Rml::Input::KeyIdentifier ConvertKey(int sdl_key);
+	// Returns the active RmlUi key modifier state.
+	int GetKeyModifierState();
 
-// Converts the SDL mouse button to RmlUi mouse button.
-int ConvertMouseButton(int sdl_mouse_button);
-
-// Returns the active RmlUi key modifier state.
-int GetKeyModifierState();
+	Rml::EventId getRmlDropFileEventId();
 
 } // namespace RmlSDL
 

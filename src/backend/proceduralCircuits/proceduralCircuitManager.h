@@ -10,14 +10,16 @@ class CircuitFileManager;
 
 class ProceduralCircuitManager {
 public:
-	ProceduralCircuitManager(CircuitManager* circuitManager, DataUpdateEventManager* dataUpdateEventManager, CircuitFileManager* fileManager);
+	ProceduralCircuitManager(CircuitManager& circuitManager, DataUpdateEventManager& dataUpdateEventManager, CircuitFileManager& fileManager);
+	ProceduralCircuitManager(const ProceduralCircuitManager&) = delete;
+    ProceduralCircuitManager& operator=(const ProceduralCircuitManager&) = delete;
 
 	template<class ProceduralCircuitType>
 	const std::string* createProceduralCircuit(const std::string& name, const std::string& uuid = generate_uuid_v4()) {
 		std::shared_ptr<ProceduralCircuitType> proceduralCircuit = std::make_shared<ProceduralCircuitType>(circuitManager, dataUpdateEventManager, name, uuid);
 		pathToUUID.emplace(proceduralCircuit->getPath(), uuid);
 		proceduralCircuits.emplace(uuid, proceduralCircuit);
-		dataUpdateEventManager->sendEvent<std::string>("proceduralCircuitPathUpdate", proceduralCircuit->getUUID());
+		dataUpdateEventManager.sendEvent<std::string>("proceduralCircuitPathUpdate", proceduralCircuit->getUUID());
 		return &(proceduralCircuit->getUUID());
 	}
 
@@ -34,10 +36,12 @@ public:
 
 	inline const std::map<std::string, SharedProceduralCircuit>& getProceduralCircuits() const { return proceduralCircuits; }
 
+	nlohmann::json dumpState() const;
+
 private:
-	CircuitManager* circuitManager;
-	CircuitFileManager* fileManager;
-	DataUpdateEventManager* dataUpdateEventManager;
+	CircuitManager& circuitManager;
+	CircuitFileManager& fileManager;
+	DataUpdateEventManager& dataUpdateEventManager;
 
 	DataUpdateEventManager::DataUpdateEventReceiver dataUpdateEventReceiver;
 	std::map<std::string, SharedProceduralCircuit> proceduralCircuits;

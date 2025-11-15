@@ -6,12 +6,13 @@
 
 class SelectionMakerTool : public CircuitTool {
 public:
+	using CircuitTool::CircuitTool;
 	void reset() override final;
 	void activate() override final;
 
 	static inline std::vector<std::string> getModes_() { return { "Area", "Tensor" }; }
 	inline std::vector<std::string> getModes() const override final { return getModes_(); }
-	void setMode(std::string toolMode) override final;
+	void setMode(const std::string& mode) override final;
 	static inline std::string getPath_() { return "selection maker"; }
 	inline std::string getPath() const override final { return getPath_(); }
 	inline bool canMakeEdits() const override final { return false; }

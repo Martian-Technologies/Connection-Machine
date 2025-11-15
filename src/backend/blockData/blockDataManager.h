@@ -6,63 +6,27 @@
 
 class BlockDataManager {
 public:
-	BlockDataManager(DataUpdateEventManager* dataUpdateEventManager) : dataUpdateEventManager(dataUpdateEventManager) { }
+	BlockDataManager(DataUpdateEventManager& dataUpdateEventManager) : dataUpdateEventManager(dataUpdateEventManager) { }
+	BlockDataManager(const BlockDataManager&) = delete;
+    BlockDataManager& operator=(const BlockDataManager&) = delete;
 
-	void initializeDefaults() {
-		assert(blockData.size() == 0); // should call this before doing anything
-		// load default data
-		for (unsigned int i = 0; i < 13; i++) addBlock();
-		getBlockData(BlockType::AND)->setName("And");
-		getBlockData(BlockType::OR)->setName("Or");
-		getBlockData(BlockType::XOR)->setName("Xor");
-		getBlockData(BlockType::NAND)->setName("Nand");
-		getBlockData(BlockType::NOR)->setName("Nor");
-		getBlockData(BlockType::XNOR)->setName("Xnor");
-		getBlockData(BlockType::JUNCTION)->setName("Junction");
-		// TRISTATE_BUFFER
-		getBlockData(BlockType::TRISTATE_BUFFER)->setName("Tristate Buffer");
-		getBlockData(BlockType::TRISTATE_BUFFER)->setDefaultData(false);
-		getBlockData(BlockType::TRISTATE_BUFFER)->setConnectionInput(Vector(0, 1), 0);
-		getBlockData(BlockType::TRISTATE_BUFFER)->setConnectionInput(Vector(0, 0), 1);
-		getBlockData(BlockType::TRISTATE_BUFFER)->setConnectionOutput(Vector(0, 1), 2);
-		getBlockData(BlockType::TRISTATE_BUFFER)->setSize(Size(1, 2));
-		// BUTTON
-		getBlockData(BlockType::BUTTON)->setName("Button");
-		getBlockData(BlockType::BUTTON)->setDefaultData(false);
-		getBlockData(BlockType::BUTTON)->setConnectionOutput(Vector(0), 0);
-		// TICK_BUTTON
-		getBlockData(BlockType::TICK_BUTTON)->setName("Tick Button");
-		getBlockData(BlockType::TICK_BUTTON)->setDefaultData(false);
-		getBlockData(BlockType::TICK_BUTTON)->setConnectionOutput(Vector(0), 0);
-		// SWITCH
-		getBlockData(BlockType::SWITCH)->setName("Switch");
-		getBlockData(BlockType::SWITCH)->setDefaultData(false);
-		getBlockData(BlockType::SWITCH)->setConnectionOutput(Vector(0), 0);
-		// CONSTANT
-		getBlockData(BlockType::CONSTANT)->setName("Constant");
-		getBlockData(BlockType::CONSTANT)->setDefaultData(false);
-		getBlockData(BlockType::CONSTANT)->setIsPlaceable(false);
-		getBlockData(BlockType::CONSTANT)->setConnectionOutput(Vector(0), 0);
-		// LIGHT
-		getBlockData(BlockType::LIGHT)->setName("Light");
-		getBlockData(BlockType::LIGHT)->setDefaultData(false);
-		getBlockData(BlockType::LIGHT)->setConnectionInput(Vector(0), 0);
-	}
+	void initializeDefaults();
 
 	inline BlockType addBlock() noexcept {
 		blockData.emplace_back((BlockType)(blockData.size() + 1), dataUpdateEventManager);
 		BlockType blockType = (BlockType)blockData.size();
+		dataUpdateEventManager.sendEvent<BlockType>("newBlockType", blockType);
 		// sending data events for default data
 		// pre
-		dataUpdateEventManager->sendEvent<std::pair<BlockType, Size>>("preBlockSizeChange", { blockType, Size(1) });
-		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("preBlockDataSetConnection", { blockType, 0 });
-		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("preBlockDataSetConnection", { blockType, 1 });
+		dataUpdateEventManager.sendEvent<std::pair<BlockType, Size>>("preBlockSizeChange", { blockType, Size(1) });
+		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("preBlockDataSetConnection", { blockType, connection_end_id_t(0) });
+		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("preBlockDataSetConnection", { blockType, connection_end_id_t(1) });
 		// post
-		dataUpdateEventManager->sendEvent<std::pair<BlockType, Size>>("postBlockSizeChange", { blockType, Size(1) });
-		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, 0 });
-		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, 1 });
-		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, 0 });
-		dataUpdateEventManager->sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, 1 });
+		dataUpdateEventManager.sendEvent<std::pair<BlockType, Size>>("postBlockSizeChange", { blockType, Size(1) });
+		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, connection_end_id_t(0) });
+		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, connection_end_id_t(1) });
+		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, connection_end_id_t(0) });
+		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, connection_end_id_t(1) });
 		sendBlockDataUpdate();
 		return blockType;
 	}
@@ -76,10 +40,16 @@ public:
 		return BlockType::NONE;
 	}
 
-	inline void sendBlockDataUpdate() { dataUpdateEventManager->sendEvent("blockDataUpdate"); }
+	inline void sendBlockDataUpdate() { dataUpdateEventManager.sendEvent("blockDataUpdate"); }
 
-	inline const BlockData* getBlockData(BlockType type) const noexcept { if (!blockExists(type)) return nullptr; return &blockData[type - 1]; }
-	inline BlockData* getBlockData(BlockType type) noexcept { if (!blockExists(type)) return nullptr; return &blockData[type - 1]; }
+	inline const BlockData* getBlockData(BlockType type) const noexcept {
+		if (!blockExists(type)) return nullptr;
+		return &blockData[type - 1];
+	}
+	inline BlockData* getBlockData(BlockType type) noexcept {
+		if (!blockExists(type)) return nullptr;
+		return &blockData[type - 1];
+	}
 
 	inline unsigned int maxBlockId() const noexcept { return blockData.size(); }
 	inline bool blockExists(BlockType type) const noexcept { return type != BlockType::NONE && type <= blockData.size(); }
@@ -114,13 +84,25 @@ public:
 		if (!blockExists(type)) return std::nullopt;
 		return blockData[type - 1].getOutputConnectionId(vector);
 	}
-	inline  std::optional<connection_end_id_t> getInputConnectionId(BlockType type, Orientation orientation, Vector vector) const noexcept {
+	inline std::optional<connection_end_id_t> getInputConnectionId(BlockType type, Orientation orientation, Vector vector) const noexcept {
 		if (!blockExists(type)) return std::nullopt;
 		return blockData[type - 1].getInputConnectionId(vector, orientation);
 	}
-	inline  std::optional<connection_end_id_t> getOutputConnectionId(BlockType type, Orientation orientation, Vector vector) const noexcept {
+	inline std::optional<connection_end_id_t> getOutputConnectionId(BlockType type, Orientation orientation, Vector vector) const noexcept {
 		if (!blockExists(type)) return std::nullopt;
 		return blockData[type - 1].getOutputConnectionId(vector, orientation);
+	}
+	inline std::optional<connection_end_id_t> getBidirectionalConnectionId(BlockType type, Orientation orientation, Vector vector) const noexcept {
+		if (!blockExists(type)) return std::nullopt;
+		return blockData[type - 1].getBidirectionalConnectionId(vector, orientation);
+	}
+	inline std::optional<connection_end_id_t> getInputOrBidirectionalConnectionId(BlockType type, Orientation orientation, Vector vector) const noexcept {
+		if (!blockExists(type)) return std::nullopt;
+		return blockData[type - 1].getInputOrBidirectionalConnectionId(vector, orientation);
+	}
+	inline std::optional<connection_end_id_t> getOutputOrBidirectionalConnectionId(BlockType type, Orientation orientation, Vector vector) const noexcept {
+		if (!blockExists(type)) return std::nullopt;
+		return blockData[type - 1].getOutputOrBidirectionalConnectionId(vector, orientation);
 	}
 	inline std::optional<Vector> getConnectionVector(BlockType type, connection_end_id_t connectionId) const noexcept {
 		if (!blockExists(type)) return std::nullopt;
@@ -130,9 +112,8 @@ public:
 		if (!blockExists(type)) return std::nullopt;
 		return blockData[type - 1].getConnectionVector(connectionId, orientation);
 	}
-
 	inline connection_end_id_t getConnectionCount(BlockType type) const noexcept {
-		if (!blockExists(type)) return 0;
+		if (!blockExists(type)) return connection_end_id_t(0);
 		return blockData[type - 1].getConnectionCount();
 	}
 	inline bool connectionExists(BlockType type, connection_end_id_t connectionId) const noexcept {
@@ -147,10 +128,49 @@ public:
 		if (!blockExists(type)) return false;
 		return blockData[type - 1].isConnectionOutput(connectionId);
 	}
+	inline bool isConnectionBidirectional(BlockType type, connection_end_id_t connectionId) const noexcept {
+		if (!blockExists(type)) return false;
+		return blockData[type - 1].isConnectionBidirectional(connectionId);
+	}
+	inline bool isConnectionInputOrBidirectional(BlockType type, connection_end_id_t connectionId) const noexcept {
+		if (!blockExists(type)) return false;
+		return blockData[type - 1].isConnectionInputOrBidirectional(connectionId);
+	}
+	inline bool isConnectionOutputOrBidirectional(BlockType type, connection_end_id_t connectionId) const noexcept {
+		if (!blockExists(type)) return false;
+		return blockData[type - 1].isConnectionOutputOrBidirectional(connectionId);
+	}
+
+	BlockType getBusBlock(unsigned int bitwith);
+	BlockType getBusBlock(unsigned int numInputs, unsigned int inputBitwidth);
+	BlockType getBusBlock(unsigned int numInputs, unsigned int numOutputs, unsigned int inputLaneWidth, unsigned int outputLaneWidth);
+	struct BusConnectionData {
+		Vector positionOnBlock;
+		std::variant<unsigned int, std::vector<unsigned int>> bitConfiguration = static_cast<unsigned int>(1);
+
+		bool operator==(const BusConnectionData& other) const noexcept { return positionOnBlock == other.positionOnBlock && bitConfiguration == other.bitConfiguration; }
+
+		auto operator<=>(const BusConnectionData& other) const noexcept {
+			if (positionOnBlock == other.positionOnBlock) {
+				if (auto cmp = bitConfiguration <=> other.bitConfiguration; cmp != 0) return cmp;
+				return std::strong_ordering::equal;
+			}
+			if (positionOnBlock.dy == other.positionOnBlock.dy) return positionOnBlock.dx <=> other.positionOnBlock.dx;
+			return positionOnBlock.dy <=> other.positionOnBlock.dy;
+		}
+
+		nlohmann::json dumpState() const;
+	};
+	BlockType getBusBlock(std::vector<BusConnectionData> busConnections);
+
+	nlohmann::json dumpState() const;
 
 private:
 	std::vector<BlockData> blockData;
-	DataUpdateEventManager* dataUpdateEventManager;
+	DataUpdateEventManager& dataUpdateEventManager;
+	std::map<std::vector<BusConnectionData>, BlockType> createdBuses;
+
+	static nlohmann::json dumpBusConnectionDataVector(const std::vector<BusConnectionData>& busConnections);
 };
 
 #endif /* blockDataManager_h */

@@ -82,18 +82,18 @@
 }
 
 #limit-speed-checkbox {
-	margin: 0;
+	/* margin: 0; */
 	width: 20dp;
 	height: 20dp;
-	border: 1dp #3d8d3dff;
-	border-radius: 4dp;
-	background-color: #3aa53a20;
-	padding: 0;
+	/* border: 1dp #3d8d3dff; */
+	/* border-radius: 4dp; */
+	/* background-color: #3aa53a20; */
+	/* padding: 0;
 	display: inline-flex;
 	align-items: center;
-	justify-content: center;
+	justify-content: center; */
 }
-
+/*
 #limit-speed-checkbox:hover {
 	background-color: #3aa53a40;
 }
@@ -106,12 +106,13 @@
 #limit-speed-checkbox:checked:hover {
 	background-color: #3d8d3da0;
 }
+*/
 
 #tps-input {
 	background-color: #252525;
 	color: #fff;
 	height: 20dp;
-	width: 64dp;
+	width: 95dp;
 	border: 1dp #3b3b3b;
 	border-radius: 4dp;
 	padding: 0 4dp;

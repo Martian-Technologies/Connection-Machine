@@ -24,6 +24,8 @@ public:
 	// Set how often files are checked for changes.
 	void setInterval(std::chrono::milliseconds interval);
 
+	nlohmann::json dumpState() const;
+
 private:
 	struct WatchedFile {
 		std::filesystem::file_time_type lastWriteTime;
@@ -33,7 +35,7 @@ private:
 	void watcherThreadFunc();
 
 	std::unordered_map<std::string, WatchedFile> watchedFiles_;
-	std::mutex watchedFilesMutex_;
+	mutable std::mutex watchedFilesMutex_;
 
 	std::queue<std::pair<std::string, Callback>> callbackQueue_;
 	std::mutex callbackQueueMutex_;

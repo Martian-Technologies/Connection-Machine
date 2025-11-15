@@ -5,6 +5,7 @@
 
 class TensorConnectTool : public CircuitToolHelper {
 public:
+	using CircuitToolHelper::CircuitToolHelper;
 	void reset() override final;
 
 	void activate() override final;

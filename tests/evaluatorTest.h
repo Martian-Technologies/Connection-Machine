@@ -2,22 +2,20 @@
 #define evaulatorTests_h
 
 #include <gtest/gtest.h>
-#include "backend/backend.h"
+#include "backend/address.h"
+#include "environment/environment.h"
 
 class EvaluatorTest : public ::testing::Test {
 public:
-	EvaluatorTest() : backend(nullptr) {
-		backend.getCircuitManager().getBlockDataManager()->initializeDefaults();
-	}
 	void changeState(const Address& addr);
 	void readState(const Address& addr) const;
 
 protected:
 	void SetUp() override;
 	void TearDown() override;
-	Backend backend;
-	SharedCircuit circuit;
-	SharedEvaluator evaluator;
+	Environment environment {false};
+	SharedEvaluator evaluator = nullptr;
+	SharedCircuit circuit = nullptr;
 	int i;
 };
 

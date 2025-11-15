@@ -10,12 +10,20 @@ BlockType stringToBlockType(const std::string& str) {
 	if (str == "NAND") return BlockType::NAND;
 	if (str == "NOR") return BlockType::NOR;
 	if (str == "XNOR") return BlockType::XNOR;
+	if (str == "BUFFER") return BlockType::BUFFER;
+	if (str == "NOT") return BlockType::NOT;
 	if (str == "JUNCTION") return BlockType::JUNCTION;
+	if (str == "JUNCTION_L") return BlockType::JUNCTION_L;
+	if (str == "JUNCTION_H") return BlockType::JUNCTION_H;
+	if (str == "JUNCTION_X") return BlockType::JUNCTION_X;
 	if (str == "TRISTATE_BUFFER") return BlockType::TRISTATE_BUFFER;
 	if (str == "BUTTON") return BlockType::BUTTON;
 	if (str == "TICK_BUTTON") return BlockType::TICK_BUTTON;
 	if (str == "SWITCH") return BlockType::SWITCH;
-	if (str == "CONSTANT") return BlockType::CONSTANT;
+	if (str == "CONSTANT_OFF") return BlockType::CONSTANT_OFF;
+	if (str == "CONSTANT_ON") return BlockType::CONSTANT_ON;
+	if (str == "CONSTANT_Z") return BlockType::CONSTANT_Z;
+	if (str == "CONSTANT_X") return BlockType::CONSTANT_X;
 	if (str == "LIGHT") return BlockType::LIGHT;
 	return BlockType::CUSTOM;
 }
@@ -41,12 +49,20 @@ std::string blockTypeToString(BlockType type) {
 	case BlockType::NAND: return "NAND";
 	case BlockType::NOR: return "NOR";
 	case BlockType::XNOR: return "XNOR";
+	case BlockType::BUFFER: return "BUFFER";
+	case BlockType::NOT: return "NOT";
 	case BlockType::JUNCTION: return "JUNCTION";
+	case BlockType::JUNCTION_L: return "JUNCTION_L";
+	case BlockType::JUNCTION_H: return "JUNCTION_H";
+	case BlockType::JUNCTION_X: return "JUNCTION_X";
 	case BlockType::TRISTATE_BUFFER: return "TRISTATE_BUFFER";
 	case BlockType::BUTTON: return "BUTTON";
 	case BlockType::TICK_BUTTON: return "TICK_BUTTON";
 	case BlockType::SWITCH: return "SWITCH";
-	case BlockType::CONSTANT: return "CONSTANT";
+	case BlockType::CONSTANT_OFF: return "CONSTANT_OFF";
+	case BlockType::CONSTANT_ON: return "CONSTANT_ON";
+	case BlockType::CONSTANT_Z: return "CONSTANT_Z";
+	case BlockType::CONSTANT_X: return "CONSTANT_X";
 	case BlockType::LIGHT: return "LIGHT";
 	case BlockType::CUSTOM: return "CUSTOM";
 	default: return "NONE";
@@ -81,7 +97,10 @@ std::vector<circuit_id_t> ConnectionMachineParser::load(const std::string& path)
 	inputFile >> token;
 
 	unsigned int version;
-	if (token == "version_7") {
+	const unsigned int latestVersion = 8;
+	if (token == "version_8") {
+		version = 8;
+	} else if (token == "version_7") {
 		version = 7;
 	} else if (token == "version_6") {
 		version = 6;
@@ -109,9 +128,12 @@ std::vector<circuit_id_t> ConnectionMachineParser::load(const std::string& path)
 			// std::filesystem::path(importFileName).
 			std::filesystem::path fullPath = std::filesystem::absolute(std::filesystem::path(path)).parent_path() / importFileName;
 			const std::string& fPath = std::filesystem::weakly_canonical(fullPath).generic_string();
-			circuitFileManager->loadFromFile(fPath);
+			circuitFileManager.loadFromFile(fPath);
 		} else if (token == "Circuit:") {
 			if (currentParsedCircuit) {
+				if (version != latestVersion) {
+					currentParsedCircuit->setOldFileVersion(true);
+				}
 				circuit_id_t circuitId = loadParsedCircuit(*currentParsedCircuit);
 				if (circuitId != 0) circuitIds.push_back(circuitId);
 				currentParsedCircuit = nullptr;
@@ -125,29 +147,88 @@ std::vector<circuit_id_t> ConnectionMachineParser::load(const std::string& path)
 		} else if (token == "size:") {
 			currentParsedCircuit->markAsCustom();
 			unsigned int width, height;
-			if (version < 7)
-				inputFile >> cToken >> width >> cToken >> height >> cToken;
-			else
-				inputFile >> width >> cToken >> height;
+			if (version < 7) inputFile >> cToken >> width >> cToken >> height >> cToken;
+			else inputFile >> width >> cToken >> height;
 			currentParsedCircuit->setSize(Size(width, height));
 		} else if (token == "ports" || token == "ports:") {
 			currentParsedCircuit->markAsCustom();
 			if (version <= 5) getline(inputFile, token);
-			while (true) {
-				inputFile >> std::ws;
-				if (inputFile.peek() != '(') break;
-				inputFile >> cToken;
-				connection_end_id_t endId;
-				int blockId;
-				coordinate_t vecX, vecY;
-				std::string portName = "";
-				inputFile >> token >> endId >> cToken >> blockId >> cToken >> cToken >> vecX >> cToken >> vecY >> cToken >> cToken >> std::quoted(portName) >> cToken;
-				currentParsedCircuit->addConnectionPort(token == "IN,", endId, Vector(vecX, vecY), blockId, 0, portName);
+			if (version <= 7) {
+				while (true) {
+					inputFile >> std::ws;
+					if (inputFile.peek() != '(') break;
+					inputFile >> cToken;
+					unsigned int endId;
+					int blockId;
+					coordinate_t vecX, vecY;
+					std::string portName = "";
+					inputFile >> token >> endId >> cToken >> blockId >> cToken >> cToken >> vecX >> cToken >> vecY >> cToken >> cToken >> std::quoted(portName) >> cToken;
+					currentParsedCircuit->addConnectionPort(token == "IN,", connection_end_id_t(endId), Vector(vecX, vecY), blockId, connection_end_id_t(0), portName);
+				}
+			} else {
+				while (true) {
+					inputFile >> std::ws;
+					if (inputFile.peek() != '(') break;
+					inputFile >> cToken;
+					unsigned int endId;
+					std::optional<Position> positionOfBlock;
+					coordinate_t vecX, vecY;
+					f_coordinate_t offsetX, offsetY;
+					std::string portName = "";
+					inputFile >> token >> endId >> cToken >> cToken;
+					if (cToken == 'N') {
+						inputFile >> cToken >> cToken >> cToken; // read "NONE"
+					} else {
+						coordinate_t posX, posY;
+						inputFile >> posX >> cToken >> posY >> cToken;
+						positionOfBlock = Position(posX, posY);
+					}
+					inputFile >> cToken >> cToken >> vecX >> cToken >> vecY >> cToken >> cToken >> cToken >> offsetX >> cToken >> offsetY >> cToken >> cToken >> std::quoted(portName) >> cToken >> cToken;
+					unsigned int bitWidth = 1;
+					if (cToken == '[') {
+						logError("IC cant have array of bits as input bitWidth");
+						std::vector<unsigned int> bits;
+						while (true) {
+							int bit = 0;
+							inputFile >> cToken;
+							if (cToken == ']') break;
+							inputFile.unget();
+							inputFile >> bit;
+							if (bit >= 0) {
+								bits.push_back(bit);
+							} else {
+								logError("Invalid bit {} loaded from file.", "ConnectionMachineParser", bit);
+							}
+						}
+
+					} else {
+						inputFile.unget();
+						inputFile >> bitWidth;
+						if (bitWidth == 0) {
+							logError("Invalid bit width {} loaded from file.", "ConnectionMachineParser", bitWidth);
+							bitWidth = 1;
+						}
+					}
+					inputFile >> cToken;
+					currentParsedCircuit->addConnectionPort(token == "IN,", connection_end_id_t(endId), *positionOfBlock, Vector(vecX, vecY), FVector(offsetX, offsetY), portName, bitWidth);
+				}
 			}
 		} else if (token == "UUID:") {
 			std::string uuid;
 			inputFile >> uuid;
 			currentParsedCircuit->setUUID(uuid == "null" ? generate_uuid_v4() : uuid);
+		} else if (token == "texture:") {
+			std::string texturePath;
+			inputFile >> std::quoted(texturePath);
+			currentParsedCircuit->setTexturePath(texturePath);
+		} else if (token == "textureTileData:") {
+			int tileSizeX, tileSizeY, smallestCordTileX, smallestCordTileY, blockTileSizeX, blockTileSizeY;
+			inputFile >> cToken >> tileSizeX >> cToken >> tileSizeY >> cToken >> cToken >> cToken >> smallestCordTileX >> cToken >> smallestCordTileY >> cToken >>
+				cToken >> cToken >> blockTileSizeX >> cToken >> blockTileSizeY >> cToken;
+			currentParsedCircuit->setUsesTileMapTexture(true);
+			currentParsedCircuit->setTextureTileSize({ tileSizeX, tileSizeY });
+			currentParsedCircuit->setTextureBlockTileSize({ smallestCordTileX, smallestCordTileY });
+			currentParsedCircuit->setTextureBlockTileSize({ blockTileSizeX, blockTileSizeY });
 		} else if (token == "blockId") {
 			// block id
 			int blockId;
@@ -157,15 +238,61 @@ std::vector<circuit_id_t> ConnectionMachineParser::load(const std::string& path)
 			BlockType blockType = stringToBlockType(blockTypeStr);
 
 			if (blockType == BlockType::CUSTOM) {
-				SharedCircuit circuit = circuitManager->getCircuit(blockTypeStr);
+				SharedCircuit circuit = circuitManager.getCircuit(blockTypeStr);
 				if (circuit) {
-					blockType = circuitManager->getCircuitBlockDataManager()->getCircuitBlockData(circuit->getCircuitId())->getBlockType();
+					blockType = circuitManager.getCircuitBlockDataManager().getCircuitBlockData(circuit->getCircuitId())->getBlockType();
 				} else {
-					SharedProceduralCircuit proceduralCircuit = circuitManager->getProceduralCircuitManager()->getProceduralCircuit(blockTypeStr);
+					SharedProceduralCircuit proceduralCircuit = circuitManager.getProceduralCircuitManager().getProceduralCircuit(blockTypeStr);
 					if (proceduralCircuit) {
 						blockType = proceduralCircuit->getBlockType(ProceduralCircuitParameters(inputFile));
+					} else if (blockTypeStr == "Bus") {
+						std::vector<BlockDataManager::BusConnectionData> busConnections;
+						char cToken;
+						inputFile >> cToken;
+						if (cToken != '(') {
+							// inputFile.unget(); // Makes the stream be unchanged from when it was passed in
+							return circuitIds;
+						}
+						while (true) {
+							inputFile >> cToken;
+							if (cToken != ',') {
+								if (cToken == ')') break;
+								inputFile.unget();
+							}
+							int portPosX = 0;
+							int portPosY = 0;
+							inputFile >> portPosX >> portPosY >> cToken;
+							if (cToken == '[') {
+								std::vector<unsigned int> bits;
+								while (true) {
+									int bit = 0;
+									inputFile >> cToken;
+									if (cToken == ']') break;
+									inputFile.unget();
+									inputFile >> bit;
+									if (bit >= 0) {
+										bits.push_back(bit);
+									} else {
+										logError("Invalid bit {} loaded from file.", "ConnectionMachineParser", bit);
+									}
+								}
+								busConnections.push_back(BlockDataManager::BusConnectionData(Vector(portPosX, portPosY), bits));
+							} else {
+								inputFile.unget();
+								unsigned int bitWidth = 0;
+								inputFile >> bitWidth;
+								if (bitWidth != 0) {
+									busConnections.emplace_back(Vector(portPosX, portPosY), bitWidth);
+									blockType = circuitManager.getBlockDataManager().getBusBlock(bitWidth);
+								} else {
+									logError("Invalid bit width {} loaded from file.", "ConnectionMachineParser", bitWidth);
+									return circuitIds;
+								}
+							}
+						}
+						blockType = circuitManager.getBlockDataManager().getBusBlock(busConnections);
 					} else {
-						logError("Count not find Circuit or ProceduralCircuit with UUID: {}", "ConnectionMachineParser", blockTypeStr);
+						logError("Could not find Circuit or ProceduralCircuit or Bus with UUID: {}", "ConnectionMachineParser", blockTypeStr);
 						return circuitIds;
 					}
 				}
@@ -192,12 +319,15 @@ std::vector<circuit_id_t> ConnectionMachineParser::load(const std::string& path)
 						logError("Failed to parse (blockid, connection_id) token", "ConnectionMachineParser");
 						break;
 					}
-					currentParsedCircuit->addConnection(blockId, connId, otherBlockId, otherConnId);
+					currentParsedCircuit->addConnection(blockId, connection_end_id_t(connId), otherBlockId, connection_end_id_t(otherConnId));
 				}
 			}
 		}
 	}
 	if (currentParsedCircuit) {
+		if (version != latestVersion) {
+			currentParsedCircuit->setOldFileVersion(true);
+		}
 		circuit_id_t circuitId = loadParsedCircuit(*currentParsedCircuit);
 		if (circuitId != 0) circuitIds.push_back(circuitId);
 	}
@@ -215,7 +345,7 @@ bool ConnectionMachineParser::save(const CircuitFileManager::FileData& fileData,
 		return false;
 	}
 
-	outputFile << "version_7\n";
+	outputFile << "version_8\n";
 
 	// find all required imports
 	// not ideal but if we loop through from maxBlockId down then we will find all dependencies across every circuit, not just this one
@@ -223,18 +353,18 @@ bool ConnectionMachineParser::save(const CircuitFileManager::FileData& fileData,
 	std::set<std::string> pathImports;
 	std::map<std::string, std::set<std::string>> inFileDependencies;
 	for (const std::string& UUID : fileData.UUIDs) {
-		SharedCircuit circuit = circuitManager->getCircuit(UUID);
+		SharedCircuit circuit = circuitManager.getCircuit(UUID);
 		if (!circuit) continue;
-		const BlockContainer* blockContainer = circuit->getBlockContainer();
-		for (auto itr = blockContainer->begin(); itr != blockContainer->end(); ++itr) {
-			BlockData* blockData = circuitManager->getBlockDataManager()->getBlockData(itr->second.type());
+		const BlockContainer& blockContainer = circuit->getBlockContainer();
+		for (auto itr = blockContainer.begin(); itr != blockContainer.end(); ++itr) {
+			BlockData* blockData = circuitManager.getBlockDataManager().getBlockData(itr->second.type());
 			if (!blockData) {
 				logError("Could not find block data for block {}", "ConnectionMachineParser", std::to_string(itr->second.type()));
 				continue;
 			}
 			if (blockData->isPrimitive() || !imports.insert(blockData->getBlockType()).second) continue;
-			circuit_id_t subCircuitId = circuitManager->getCircuitBlockDataManager()->getCircuitId(blockData->getBlockType());
-			const CircuitBlockData* subCircuitBlockData = circuitManager->getCircuitBlockDataManager()->getCircuitBlockData(subCircuitId);
+			circuit_id_t subCircuitId = circuitManager.getCircuitBlockDataManager().getCircuitId(blockData->getBlockType());
+			const CircuitBlockData* subCircuitBlockData = circuitManager.getCircuitBlockDataManager().getCircuitBlockData(subCircuitId);
 			if (!subCircuitBlockData) {
 				logError("Could not find save path for depedecy {}", "ConnectionMachineParser", subCircuitId);
 				continue;
@@ -245,10 +375,10 @@ bool ConnectionMachineParser::save(const CircuitFileManager::FileData& fileData,
 			if (subProceduralCircuitUUID) {
 				subUUID = &(subProceduralCircuitUUID.value());
 			} else {
-				SharedCircuit circuit = circuitManager->getCircuit(subCircuitId);
+				SharedCircuit circuit = circuitManager.getCircuit(subCircuitId);
 				subUUID = &(circuit->getUUID());
 			}
-			subSavePath = circuitFileManager->getSavePath(*subUUID);
+			subSavePath = circuitFileManager.getSavePath(*subUUID);
 			if (!subSavePath) {
 				logError("Could not find save path for depedecy {}", "ConnectionMachineParser", *subUUID);
 				continue;
@@ -282,70 +412,96 @@ bool ConnectionMachineParser::save(const CircuitFileManager::FileData& fileData,
 			continue;
 		}
 		UUIDsAlreadyInFile.emplace(UUID);
-		SharedCircuit circuit = circuitManager->getCircuit(UUID);
-		if (!circuit) continue;;
-		const BlockContainer* blockContainer = circuit->getBlockContainer();
-		const CircuitBlockData* circuitBlockData = circuitManager->getCircuitBlockDataManager()->getCircuitBlockData(circuit->getCircuitId());
+		SharedCircuit circuit = circuitManager.getCircuit(UUID);
+		if (!circuit) continue;
+		;
+		const BlockContainer& blockContainer = circuit->getBlockContainer();
+		const CircuitBlockData* circuitBlockData = circuitManager.getCircuitBlockDataManager().getCircuitBlockData(circuit->getCircuitId());
 		outputFile << "Circuit: \"" << circuit->getCircuitName() << "\"\n";
 		outputFile << "UUID: " << circuit->getUUID() << "\n";
 		if (circuitBlockData) {
-			BlockData* blockData = circuitManager->getBlockDataManager()->getBlockData(circuitBlockData->getBlockType());
+			BlockData* blockData = circuitManager.getBlockDataManager().getBlockData(circuitBlockData->getBlockType());
+			if (blockData->getTexturePath() != "") {
+				outputFile << "texture: " << std::quoted(blockData->getTexturePath()) << "\n";
+				if (blockData->getUsesTileMapTexture()) {
+					outputFile << "textureTileData: " << blockData->getTextureTileSize().toString() << ", " << blockData->getTextureSmallestCordTile().toString() << ", "
+							   << blockData->getTextureBlockTileSize().toString() << "\n";
+				}
+			}
 			outputFile << "size: " << blockData->getSize().toString() << "\n";
 			outputFile << "ports:\n";
 			for (auto pair : blockData->getConnections()) {
 				const Position* position = circuitBlockData->getConnectionIdToPosition(pair.first);
-				block_id_t id;
-				if (position) {
-					const Block* block = blockContainer->getBlock(*position);
-					if (!block) {
-						logError("Could not find block for connection: {}", "ConnectionMachineParser", pair.first);
-						continue;
-					}
-					id = block->id();
-				} else {
-					logError("Could not find position for connection: {}", "ConnectionMachineParser", pair.first);
-					id = 0;
-				}
 				std::optional<std::string> name = blockData->getConnectionIdToName(pair.first);
 				if (!name) name = "";
-
-				outputFile << "\t(" << (pair.second.second ? "IN, " : "OUT, ") << pair.first << ", " << id << ", " << pair.second.first.toString() << ", \"" << *name << "\")\n";
+				outputFile << "\t(" << (pair.second.portType == BlockData::ConnectionData::PortType::INPUT ? "IN, " : "OUT, ") << std::to_string(pair.first) << ", ";
+				if (position) outputFile << fmt::to_string(*position);
+				else outputFile<< "NONE";
+				outputFile << ", " << pair.second.positionOnBlock.toString() << ", " << pair.second.portOffset.toString() << ", \"" << *name << "\", " << std::to_string(pair.second.getBitWidth()) << ")\n";
 			}
 		}
 
-		for (auto itr = blockContainer->begin(); itr != blockContainer->end(); ++itr) {
+		for (auto itr = blockContainer.begin(); itr != blockContainer.end(); ++itr) {
 			const Block& block = itr->second;
 			Position pos = block.getPosition();
 
-
-			const BlockData* blockData = circuitManager->getBlockDataManager()->getBlockData(block.type());
-			connection_end_id_t connectionNum = blockData->getConnectionCount();
+			const BlockData* blockData = circuitManager.getBlockDataManager().getBlockData(block.type());
 			std::string blockTypeStr;
-			if (!blockData->isPrimitive()) {
-				circuit_id_t subCircuitId = circuitManager->getCircuitBlockDataManager()->getCircuitId(block.type());
-				const std::optional<std::string>& proceduralCircuitUUID = circuitManager->getCircuitBlockDataManager()->getCircuitBlockData(subCircuitId)->getProceduralCircuitUUID();
+			if (blockData->isBus()) {
+				blockTypeStr = "Bus (";
+				bool first = true;
+				for (const std::pair<connection_end_id_t, BlockData::ConnectionData>& connectionData : blockData->getConnections()) {
+					if (first) first = false;
+					else {
+						blockTypeStr += ",";
+					}
+					blockTypeStr += " ";
+					blockTypeStr += std::to_string(connectionData.second.positionOnBlock.dx) + " " + std::to_string(connectionData.second.positionOnBlock.dy) + " ";
+					if (std::holds_alternative<unsigned int>(connectionData.second.bitConfiguration)) {
+						blockTypeStr += std::to_string(std::get<unsigned int>(connectionData.second.bitConfiguration));
+					} else {
+						blockTypeStr += "[";
+						for (unsigned int bit : std::get<std::vector<unsigned int>>(connectionData.second.bitConfiguration)) {
+							blockTypeStr += " " + std::to_string(bit);
+						}
+						blockTypeStr += " ]";
+					}
+				}
+				blockTypeStr += ")";
+			} else if (!blockData->isPrimitive()) {
+				circuit_id_t subCircuitId = circuitManager.getCircuitBlockDataManager().getCircuitId(block.type());
+				const std::optional<std::string>& proceduralCircuitUUID =
+					circuitManager.getCircuitBlockDataManager().getCircuitBlockData(subCircuitId)->getProceduralCircuitUUID();
 				if (proceduralCircuitUUID.has_value()) {
 					const ProceduralCircuitParameters* proceduralCircuitParameters =
-						circuitManager->getProceduralCircuitManager()->getProceduralCircuit(proceduralCircuitUUID.value())->getProceduralCircuitParameters(subCircuitId);
+						circuitManager.getProceduralCircuitManager().getProceduralCircuit(proceduralCircuitUUID.value())->getProceduralCircuitParameters(subCircuitId);
 
 					blockTypeStr = '"' + proceduralCircuitUUID.value() + "\" " + (proceduralCircuitParameters->toString());
 				} else {
-					const SharedCircuit circuit = circuitManager->getCircuit(subCircuitId);
+					const SharedCircuit circuit = circuitManager.getCircuit(subCircuitId);
 					blockTypeStr = '"' + circuit->getUUID() + '"';
 				}
 			} else {
 				blockTypeStr = blockTypeToString(block.type());
 			}
 
-			outputFile << "blockId " << itr->first << ' '
-				<< blockTypeStr << ' ' << pos.x << ' '
-				<< pos.y << ' ' << orientationToString(block.getOrientation()) << '\n';
+			outputFile << "blockId " << itr->first << ' ' << blockTypeStr << ' ' << pos.x << ' ' << pos.y << ' ' << orientationToString(block.getOrientation()) << '\n';
 			const ConnectionContainer& connectionContainer = block.getConnectionContainer();
 
+			std::vector<connection_end_id_t> connectionIds;
 			for (auto& connectionIter : connectionContainer.getConnections()) {
-				outputFile << '\t' << "(connId:" << connectionIter.first << ')';
-				for (ConnectionEnd conn : connectionIter.second) {
-					outputFile << " (" << conn.getBlockId() << ' ' << conn.getConnectionId() << ')';
+				connectionIds.push_back(connectionIter.first);
+			}
+			std::sort(connectionIds.begin(), connectionIds.end());
+			for (connection_end_id_t connectionId : connectionIds) {
+				outputFile << '\t' << "(connId:" << std::to_string(connectionId) << ')';
+				std::vector<ConnectionEnd> connections;
+				for (ConnectionEnd conn : *connectionContainer.getConnections(connectionId)) {
+					connections.push_back(conn);
+				}
+				std::sort(connections.begin(), connections.end());
+				for (ConnectionEnd conn : connections) {
+					outputFile << " (" << conn.getBlockId() << ' ' << std::to_string(conn.getConnectionId()) << ')';
 				}
 				outputFile << '\n';
 			}

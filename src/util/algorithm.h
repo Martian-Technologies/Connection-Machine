@@ -73,4 +73,57 @@ inline void stringSplitInto(const std::string& s, const char delimiter, std::vec
 	}
 }
 
+template <typename T>
+inline std::string to_string(const std::vector<T>& vec) {
+	std::string result = "[";
+	for (size_t i = 0; i < vec.size(); i++) {
+		result += to_string(vec[i]);
+		if (i < vec.size() - 1) {
+			result += ", ";
+		}
+	}
+	result += "]";
+	return result;
+}
+
+template <typename... Ts>
+inline std::string to_string(const std::variant<Ts...>& var) {
+	return std::visit([](const auto& value) {
+		return to_string(value);
+	}, var);
+}
+
+template <typename T>
+inline std::string to_string(const T& value) {
+	return std::to_string(value);
+}
+
+template <typename T>
+inline std::vector<std::optional<T>> to_optional_vector(const std::vector<T>& input) {
+	std::vector<std::optional<T>> result;
+	result.reserve(input.size());
+	for (const auto& value : input) {
+		result.emplace_back(value);
+	}
+	return result;
+}
+
+template <typename T>
+struct std::hash<std::vector<T>> {
+	inline std::size_t operator()(std::vector<T> const& vec) const noexcept {
+		std::size_t seed = vec.size();
+		std::hash<T> hasher;
+
+		for (auto const& x : vec) {
+			std::size_t h = hasher(x);
+			h = ((h >> 16) ^ h) * 0x45d9f3b;
+			h = ((h >> 16) ^ h) * 0x45d9f3b;
+			h = (h >> 16) ^ h;
+
+			seed ^= h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		}
+		return seed;
+	}
+};
+
 #endif /* algorithm_h */

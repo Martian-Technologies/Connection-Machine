@@ -19,7 +19,7 @@ void ToolManager::selectStack(int stack) {
 
 SharedCircuitTool ToolManager::selectTool(SharedCircuitTool tool) {
 	if (!tool) return nullptr;
-	
+
 	if (activeToolStack != tool->getStackId()) {
 		toolStacks[activeToolStack].deactivate();
 		activeToolStack = tool->getStackId();
@@ -48,7 +48,7 @@ SharedCircuitTool ToolManager::selectTool(SharedCircuitTool tool) {
 	}
 }
 
-void ToolManager::setMode(std::string mode) {
+void ToolManager::setMode(const std::string& mode) {
 	if (activeToolStack == -1) return;
 	toolStacks[activeToolStack].setMode(mode);
 }
