@@ -523,3 +523,74 @@ TEST_F(CircuitTest, MoveBlock) {
 	ASSERT_TRUE(container.connectionExists(pos1, pos4));
 	ASSERT_TRUE(container.connectionExists(pos4, pos3));
 }
+
+TEST_F(CircuitTest, InsertOverAreaNoObsstruction) {
+	for (int i = 0; i < loopsPerTest; i++) {
+		Position pos1 = randPos();
+		Position pos2 = randPos();
+		Rotation rot = Rotation::ZERO;
+		pos1.x %= 100; // takes too long otherwise
+		pos1.y %= 100; // takes too long otherwise
+		pos2.x %= 100; // takes too long otherwise
+		pos2.y %= 100; // takes too long otherwise
+
+		circuit->tryInsertOverArea(pos1, pos2, rot, BlockType::AND);
+
+		const BlockContainer& container = circuit->getBlockContainer();
+
+		for (auto it = pos1.iterTo(pos2); it; ++it) {
+    		Position p = *it;
+			const Block* block = container.getBlock(p);
+			ASSERT_TRUE(block != nullptr);
+			ASSERT_EQ(block->type(), BlockType::AND);
+		}
+
+		circuit->clear(true);
+		for (auto it = pos1.iterTo(pos2); it; ++it) {
+    		Position p = *it;
+			const Block* block = container.getBlock(p);
+			ASSERT_TRUE(block == nullptr);
+		}
+	}
+}
+
+TEST_F(CircuitTest, InsertOverAreaWithObstruction) {
+	for (int i = 0; i < loopsPerTest; i++) {
+		Position pos1 = randPos();
+		Position pos2 = randPos();
+		Rotation rot = Rotation::ZERO;
+		pos1.x %= 20; // takes too long otherwise
+		pos1.y %= 20; // takes too long otherwise
+		pos2.x %= 20; // takes too long otherwise
+		pos2.y %= 20; // takes too long otherwise
+
+
+		for (auto it = pos1.iterTo(pos2); it; ++it) {
+    		Position p = *it;
+			bool success = circuit->tryInsertBlock(p, Rotation::ZERO, BlockType::OR);
+			ASSERT_TRUE(success);
+
+			circuit->tryInsertOverArea(pos1, pos2, rot, BlockType::AND);
+			const BlockContainer& container = circuit->getBlockContainer();
+
+			for (auto it2 = pos1.iterTo(pos2); it2; ++it2) {
+    			Position p2 = *it2;
+				const Block* block = container.getBlock(p2);
+				ASSERT_TRUE(block != nullptr);
+				if (p2 == p){
+					ASSERT_EQ(block->type(), BlockType::OR);
+				} else {
+					ASSERT_EQ(block->type(), BlockType::AND);
+				}
+			}
+
+			circuit->clear(true);
+			for (auto its = pos1.iterTo(pos2); its; ++its) {
+    			Position p2 = *its;
+				const Block* block = container.getBlock(p2);
+				ASSERT_TRUE(block == nullptr);
+			}
+			
+		}
+	}
+}
