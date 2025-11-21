@@ -1,0 +1,24 @@
+version_8
+Circuit: "Bus_Tristate_Buffer (("size": 2))"
+UUID: daa939f9-7270-42c3-82e1-30f16100d15e
+size: 1x2
+ports:
+	(IN, 0, (0, 0), <0, 0>, <0.500000, 0.500000>, "Out", 2)
+	(OUT, 1, (6, 0), <0, 0>, <0.500000, 0.500000>, "In", 2)
+	(IN, 2, (0, -1), <0, 1>, <0.500000, 0.500000>, "Enable", 1)
+blockId 1 Bus ( 0 0 [ 0 ], 0 1 [ 1 ], 1 0 2) 0 0 ONE_EIGHTY_FLIPPED
+	(connId:0) (4 0)
+	(connId:1) (5 0)
+blockId 2 Bus ( 0 0 [ 0 ], 0 1 [ 1 ], 1 0 2) 5 0 ZERO
+	(connId:0) (4 2)
+	(connId:1) (5 2)
+blockId 3 SWITCH 0 -1 ZERO
+	(connId:0) (4 1) (5 1)
+blockId 4 TRISTATE_BUFFER 3 0 ZERO
+	(connId:0) (1 0)
+	(connId:1) (3 0)
+	(connId:2) (2 0)
+blockId 5 TRISTATE_BUFFER 3 2 ZERO
+	(connId:0) (1 1)
+	(connId:1) (3 0)
+	(connId:2) (2 1)

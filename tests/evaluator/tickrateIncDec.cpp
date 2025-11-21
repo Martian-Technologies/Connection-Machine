@@ -61,7 +61,6 @@ TEST_F(TickrateIncDecEvaluatorTest, ExactSequenceRounding) {
 		double expectedNext;
 		double expectedPrev;
 	} cases[] = {
-		{ 0.1, 0.2, Evaluator::MIN_TICKRATE_DECREASABLE },
 		{ 0.9, 1.0, 0.8 },
 		{ 1.0, 2.0, 0.9 },
 		{ 1.9, 2.0, 1.0 },

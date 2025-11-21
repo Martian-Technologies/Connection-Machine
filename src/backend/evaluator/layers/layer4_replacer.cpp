@@ -235,6 +235,9 @@ void Replacer::mergeJunctions(SimPauseGuard& pauseGuard, int layer) {
 				continue;
 			}
 		}
+		if (!isJunctionType(busInterfacePassthrough.getBlockType(id))) {
+			continue;
+		}
 		JunctionFloodFillResult floodFillResult = junctionFloodFill(id);
 
 		Replacement& replacement = makeReplacement(layer);

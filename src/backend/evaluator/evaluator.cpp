@@ -19,9 +19,17 @@ Evaluator::Evaluator(
 	circuit_id_t circuitId,
 	DataUpdateEventManager& dataUpdateEventManager
 ) :
-	evaluatorId(evaluatorId), circuitManager(circuitManager), blockDataManager(blockDataManager), circuitBlockDataManager(circuitBlockDataManager),
-	evalCircuitContainer(), dataUpdateEventManager(dataUpdateEventManager), receiver(dataUpdateEventManager), evalConfig(dataUpdateEventManager, evaluatorId),
-	middleIdProvider(1), evalSimulator(std::make_unique<EvalSimulator>(evalConfig, middleIdProvider, dirtySimulatorIds, dirtyMiddleIds, blockDataManager)) {
+	evaluatorId(evaluatorId),
+	circuitManager(circuitManager),
+	blockDataManager(blockDataManager),
+	circuitBlockDataManager(circuitBlockDataManager),
+	evalCircuitContainer(),
+	dataUpdateEventManager(dataUpdateEventManager),
+	receiver(dataUpdateEventManager),
+	evalConfig(dataUpdateEventManager, evaluatorId),
+	middleIdProvider(1),
+	evalSimulator(std::make_unique<EvalSimulator>(evalConfig, middleIdProvider, dirtySimulatorIds, dirtyMiddleIds, blockDataManager)
+) {
 	const auto circuit = circuitManager.getCircuit(circuitId);
 	if (!circuit) {
 		logError("Circuit with ID {} not found", "Evaluator::Evaluator", circuitId);
@@ -885,6 +893,18 @@ std::optional<middle_id_t> Evaluator::getMiddleId(const Address& address) const 
 logic_state_t Evaluator::getState(const Address& address) {
 	std::shared_lock lk(simMutex);
 	return getStateFromSimulatorId(getBlockSimulatorId(address));
+}
+
+std::variant<logic_state_t, std::vector<logic_state_t>> Evaluator::getPinState(const Address& address) {
+	std::shared_lock lk(simMutex);
+	std::variant<simulator_id_t, std::vector<simulator_id_t>> simulatorIdVariant = getPinSimulatorId(address);
+	if (std::holds_alternative<simulator_id_t>(simulatorIdVariant)) {
+		simulator_id_t simulatorId = std::get<simulator_id_t>(simulatorIdVariant);
+		return getStateFromSimulatorId(simulatorId);
+	} else {
+		std::vector<simulator_id_t> simulatorIds = std::get<std::vector<simulator_id_t>>(simulatorIdVariant);
+		return getStatesFromSimulatorIds(simulatorIds);
+	}
 }
 
 void Evaluator::setState(const Address& address, logic_state_t state) {

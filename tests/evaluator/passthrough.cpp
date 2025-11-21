@@ -2,7 +2,6 @@
 #include "environment/environment.h"
 #include "backend/evaluator/evaluator.h"
 #include "computerAPI/directoryManager.h"
-#include "computerAPI/directoryManager.h"
 
 class PassthroughEvaluatorTest : public ::testing::Test {
 protected:
