@@ -82,7 +82,7 @@ CircuitViewWidget::CircuitViewWidget(Environment& environment, Rml::ElementDocum
 			this->mainWindow.logError("Cant start simulation when there is none");
 			return;
 		}
-		circuitView->getEvaluator()->togglePause();
+		circuitView->getEvaluator()->setPause(!circuitView->getEvaluator()->isPause());
 		this->mainWindow.getSimControlsManager()->update();
 	});
 	keybindHandler.addListener("Keybinds/Simulation/Step Forward", [this]() {

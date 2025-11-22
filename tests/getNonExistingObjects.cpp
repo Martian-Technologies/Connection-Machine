@@ -55,8 +55,8 @@ TEST_F(GetNonExistingObjects, Evaluator) {
 	ASSERT_NE(evaluator, nullptr);
 	ASSERT_EQ(evaluator->getBlockSimulatorId(Address(Position(10, 29))), 3);
 	ASSERT_EQ(evaluator->getBlockSimulatorIds(Address(Position(29, -86)), {Position(-21, 18)}), std::vector<simulator_id_t>{3});
-	ASSERT_EQ(evaluator->getState(Address(Position(-1, 2))), logic_state_t::UNDEFINED);
-	ASSERT_EQ(evaluator->getBoolState(Address(Position(0, 0))), false);
+	ASSERT_EQ(evaluator->getState(Position(-1, 2)), X);
+	ASSERT_EQ(evaluator->getState(Position(0, 0)), X);
 }
 
 TEST_F(GetNonExistingObjects, Backend) {

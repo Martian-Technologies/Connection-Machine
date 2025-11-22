@@ -57,7 +57,7 @@ public:
 
 private:
 	void checkTutorial(DifferenceSharedPtr diff, circuit_id_t circuitId);
-	void checkTutorialState(Position pos, bool state);
+	void checkTutorialState(Position pos, logic_state_t state);
 
 	void runCurrentStep();
     bool isCurrentStepComplete() const;

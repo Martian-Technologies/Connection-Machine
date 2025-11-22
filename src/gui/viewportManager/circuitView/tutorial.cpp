@@ -43,7 +43,7 @@ void Tutorial::Stop() {
 	tutorialRunning = false;
 }
 void Tutorial::checkTutorial(DifferenceSharedPtr, circuit_id_t) { advanceTutorial(); }
-void Tutorial::checkTutorialState(Position pos, bool state) { advanceTutorial(); }
+void Tutorial::checkTutorialState(Position pos, logic_state_t state) { advanceTutorial(); }
 
 void Tutorial::setTutorial(const std::vector<TutorialStep>& steps) { tutorialSteps = steps; }
 

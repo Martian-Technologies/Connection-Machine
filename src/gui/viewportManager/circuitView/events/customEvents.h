@@ -2,6 +2,7 @@
 #define customEvents_h
 
 #include "backend/position/position.h"
+#include "backend/evaluator/simulator/logicState.h"
 #include "util/vec2.h"
 #include "event.h"
 
@@ -50,13 +51,13 @@ private:
 
 class StateSetEvent : public Event {
 public:
-	inline StateSetEvent(const std::string& name, const Position& position, bool state) : Event(name), position(position), state(state) { }
+	inline StateSetEvent(const std::string& name, const Position& position, logic_state_t state) : Event(name), position(position), state(state) { }
 
 	inline Position getPosition() const { return position; }
-	inline bool getState() const { return state; }
+	inline logic_state_t getState() const { return state; }
 
 private:
-	bool state;
+	logic_state_t state;
 	Position position;
 };
 

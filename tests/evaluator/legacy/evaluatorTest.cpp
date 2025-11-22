@@ -16,6 +16,10 @@ protected:
 	SharedEvaluator evaluator = nullptr;
 	SharedCircuit circuit = nullptr;
 	int i;
+	logic_state_t L = logic_state_t::LOW;
+	logic_state_t H = logic_state_t::HIGH;
+	logic_state_t Z = logic_state_t::FLOATING;
+	logic_state_t X = logic_state_t::UNDEFINED;
 };
 
 // Note that logic simulator is tested separately
@@ -73,11 +77,11 @@ TEST_F(EvaluatorTest, BasicStateManagement) {
 	circuit->tryInsertBlock(pos, rot, BlockType::SWITCH);
 
 	Address addr(pos);
-	ASSERT_EQ(evaluator->getState(addr), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(addr), L);
 
 	// set state
-	evaluator->setState(addr, logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(addr), logic_state_t::HIGH);
+	evaluator->setState(addr, H);
+	ASSERT_EQ(evaluator->getState(addr), H);
 }
 
 // TEST_F(EvaluatorTest, BulkStateOperations) {
@@ -101,7 +105,7 @@ TEST_F(EvaluatorTest, BasicStateManagement) {
 // 	std::vector<logic_state_t> states = evaluator->getBulkStates(addresses);
 // 	ASSERT_EQ(states.size(), addresses.size());
 // 	for (logic_state_t state : states) {
-// 		ASSERT_EQ(state, logic_state_t::LOW);
+// 		ASSERT_EQ(state, L);
 // 	}
 // }
 
@@ -119,19 +123,19 @@ TEST_F(EvaluatorTest, LogicGateEvaluation) {
 	circuit->tryCreateConnection(in2, andPos);
 
 	// set input states
-	evaluator->setState(Address(in1), logic_state_t::HIGH);
-	evaluator->setState(Address(in2), logic_state_t::HIGH);
+	evaluator->setState(Address(in1), H);
+	evaluator->setState(Address(in2), H);
 
 	// run simulation
 	evaluator->tickStep();
 
 	// check AND gate output
-	ASSERT_EQ(evaluator->getState(Address(andPos)), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address(andPos)), H);
 
 	// change one input
-	evaluator->setState(Address(in1), logic_state_t::LOW);
+	evaluator->setState(Address(in1), L);
 	evaluator->tickStep();
-	ASSERT_EQ(evaluator->getState(Address(andPos)), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address(andPos)), L);
 
 	evaluator->setPause(true);
 }
@@ -153,13 +157,13 @@ TEST_F(EvaluatorTest, EvaluatingCircuitModifications) {
 	//ASSERT_EQ(evaluator->getState(removedAddr), false);
 
 	// block movement
-	evaluator->setState(pos2, true);
+	evaluator->setState(pos2, H);
 	Position newPos(i, i); ++i;
 	circuit->tryMoveBlock(pos2, newPos, Orientation());
 
 	// reaccess addresses
 	//ASSERT_EQ(evaluator->getState(Address(pos2)), false); // This old address will cause an error as it is not found in address tree
-	ASSERT_EQ(evaluator->getState(Address(newPos)), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address(newPos)), H);
 }
 
 TEST_F(EvaluatorTest, ThreadSafetyAndPausing) {
@@ -178,14 +182,14 @@ TEST_F(EvaluatorTest, ThreadSafetyAndPausing) {
 
 	logic_state_t finalState = evaluator->getState(addr);
 	// the change state is ran 100 times, ending on 99%2==0
-	ASSERT_TRUE(finalState == logic_state_t::LOW) << "Not synced threads";
+	ASSERT_TRUE(finalState == L) << "Not synced threads";
 
 	evaluator->setPause(true);
 }
 
 void EvaluatorTest::changeState(const Address& addr) {
 	for (int j = 0; j < 100; j++) {
-		evaluator->setState(addr, j % 2 == 0);
+		evaluator->setState(addr, fromBool(j % 2 == 0));
 		std::this_thread::sleep_for(std::chrono::milliseconds(2));
 	}
 }
@@ -230,21 +234,21 @@ TEST_F(EvaluatorTest, EqualityCircuit) {
 		circuit->tryCreateConnection(Position { i, 2 }, Position { 0, 3 });
 	}
 	for (int i = 0; i < 4; ++i) {
-		evaluator->setState(Address({ 0, 0 }), (i & 1) == 1);
-		evaluator->setState(Address({ 1, 0 }), (i & 2) == 2);
-		evaluator->setState(Address({ 2, 0 }), (i & 4) == 4);
-		evaluator->setState(Address({ 3, 0 }), (i & 8) == 8);
+		evaluator->setState(Address({ 0, 0 }), fromBool((i & 1) == 1));
+		evaluator->setState(Address({ 1, 0 }), fromBool((i & 2) == 2));
+		evaluator->setState(Address({ 2, 0 }), fromBool((i & 4) == 4));
+		evaluator->setState(Address({ 3, 0 }), fromBool((i & 8) == 8));
 		for (int j = 0; j < 4; ++j) {
-			evaluator->setState(Address({ 0, 1 }), (j & 1) == 1);
-			evaluator->setState(Address({ 1, 1 }), (j & 2) == 2);
-			evaluator->setState(Address({ 2, 1 }), (j & 4) == 4);
-			evaluator->setState(Address({ 3, 1 }), (j & 8) == 8);
+			evaluator->setState(Address({ 0, 1 }), fromBool((j & 1) == 1));
+			evaluator->setState(Address({ 1, 1 }), fromBool((j & 2) == 2));
+			evaluator->setState(Address({ 2, 1 }), fromBool((j & 4) == 4));
+			evaluator->setState(Address({ 3, 1 }), fromBool((j & 8) == 8));
 			evaluator->tickStep(2);
-			ASSERT_EQ(evaluator->getBoolState(Address({ 0, 2 })), (i & 1) == (j & 1));
-			ASSERT_EQ(evaluator->getBoolState(Address({ 1, 2 })), (i & 2) == (j & 2));
-			ASSERT_EQ(evaluator->getBoolState(Address({ 2, 2 })), (i & 4) == (j & 4));
-			ASSERT_EQ(evaluator->getBoolState(Address({ 3, 2 })), (i & 8) == (j & 8));
-			ASSERT_EQ(evaluator->getBoolState(Address({ 0, 3 })), i == j);
+			ASSERT_EQ(evaluator->getState(Address({ 0, 2 })), fromBool((i & 1) == (j & 1)));
+			ASSERT_EQ(evaluator->getState(Address({ 1, 2 })), fromBool((i & 2) == (j & 2)));
+			ASSERT_EQ(evaluator->getState(Address({ 2, 2 })), fromBool((i & 4) == (j & 4)));
+			ASSERT_EQ(evaluator->getState(Address({ 3, 2 })), fromBool((i & 8) == (j & 8)));
+			ASSERT_EQ(evaluator->getState(Address({ 0, 3 })), fromBool(i == j));
 		}
 	}
 }
@@ -259,52 +263,52 @@ TEST_F(EvaluatorTest, JunctionRemovalGate) {
 	circuit->tryCreateConnection(Position { 1, 0 }, Position { 2, 0 }); // switch 2 to junction 1
 	circuit->tryCreateConnection(Position { 3, 0 }, Position { 4, 0 }); // junction 2 to and gate
 	circuit->tryCreateConnection(Position { 2, 0 }, Position { 3, 0 }); // junction 1 to junction 2
-	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::LOW);
-	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::LOW);
-	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::LOW);
-	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::LOW);
-	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::LOW);
-	evaluator->setState(Address({ 0, 0 }), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), L);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), L);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), L);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), L);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), L);
+	evaluator->setState(Address({ 0, 0 }), H);
 	evaluator->tickStep(1);
-	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::LOW);
-	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::UNDEFINED);
-	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::UNDEFINED);
-	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
-	evaluator->setState(Address({ 1, 0 }), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), L);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), X);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), X);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), X);
+	evaluator->setState(Address({ 1, 0 }), H);
 	evaluator->tickStep(1);
-	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::HIGH);
-	evaluator->setState(Address({ 0, 0 }), logic_state_t::LOW);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), H);
+	evaluator->setState(Address({ 0, 0 }), L);
 	evaluator->tickStep(1);
-	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), logic_state_t::LOW);
-	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::UNDEFINED);
-	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::UNDEFINED);
-	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 0, 0 })), L);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), X);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), X);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), X);
 	circuit->tryRemoveBlock(Position { 0, 0 });
-	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), X);
 	evaluator->tickStep(1);
-	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), H);
 	circuit->tryRemoveConnection(Position { 2, 0 }, Position { 3, 0 });
-	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::FLOATING);
-	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::HIGH);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), Z);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), H);
 	evaluator->tickStep(1);
-	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), logic_state_t::HIGH);
-	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), logic_state_t::FLOATING);
-	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), logic_state_t::UNDEFINED);
+	ASSERT_EQ(evaluator->getState(Address({ 1, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 2, 0 })), H);
+	ASSERT_EQ(evaluator->getState(Address({ 3, 0 })), Z);
+	ASSERT_EQ(evaluator->getState(Address({ 4, 0 })), X);
 }
 
 TEST_F(EvaluatorTest, TristateBufferEnableControlsOutput) {
@@ -325,31 +329,31 @@ TEST_F(EvaluatorTest, TristateBufferEnableControlsOutput) {
 	ASSERT_TRUE(circuit->tryCreateConnection(enablePos, tristateEnablePortPos));
 	ASSERT_TRUE(circuit->tryCreateConnection(tristateOutputPortPos, lightPos));
 
-	evaluator->setState(Address(dataPos), logic_state_t::LOW);
-	evaluator->setState(Address(enablePos), logic_state_t::LOW);
+	evaluator->setState(Address(dataPos), L);
+	evaluator->setState(Address(enablePos), L);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePos)), logic_state_t::FLOATING);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(tristatePos)), Z);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), Z);
 
-	evaluator->setState(Address(dataPos), logic_state_t::HIGH);
+	evaluator->setState(Address(dataPos), H);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePos)), logic_state_t::FLOATING);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(tristatePos)), Z);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), Z);
 
-	evaluator->setState(Address(enablePos), logic_state_t::HIGH);
+	evaluator->setState(Address(enablePos), H);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePos)), logic_state_t::HIGH);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(tristatePos)), H);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), H);
 
-	evaluator->setState(Address(dataPos), logic_state_t::LOW);
+	evaluator->setState(Address(dataPos), L);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePos)), logic_state_t::LOW);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::LOW);
+	EXPECT_EQ(evaluator->getState(Address(tristatePos)), L);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), L);
 
-	evaluator->setState(Address(enablePos), logic_state_t::LOW);
+	evaluator->setState(Address(enablePos), L);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePos)), logic_state_t::FLOATING);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(tristatePos)), Z);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), Z);
 }
 
 TEST_F(EvaluatorTest, TristateBuffersResolveContentionOnJunction) {
@@ -386,193 +390,60 @@ TEST_F(EvaluatorTest, TristateBuffersResolveContentionOnJunction) {
 	ASSERT_TRUE(circuit->tryCreateConnection(junctionPos, lightPos));
 
 	// baseline: everything low / disabled
-	evaluator->setState(Address(dataPosA), logic_state_t::LOW);
-	evaluator->setState(Address(enablePosA), logic_state_t::LOW);
-	evaluator->setState(Address(dataPosB), logic_state_t::LOW);
-	evaluator->setState(Address(enablePosB), logic_state_t::LOW);
+	evaluator->setState(Address(dataPosA), L);
+	evaluator->setState(Address(enablePosA), L);
+	evaluator->setState(Address(dataPosB), L);
+	evaluator->setState(Address(enablePosB), L);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePosA)), logic_state_t::FLOATING);
-	EXPECT_EQ(evaluator->getState(Address(tristatePosB)), logic_state_t::FLOATING);
-	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::FLOATING);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(tristatePosA)), Z);
+	EXPECT_EQ(evaluator->getState(Address(tristatePosB)), Z);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), Z);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), Z);
 
 	// enable A: junction follows A's data
-	evaluator->setState(Address(dataPosA), logic_state_t::HIGH);
-	evaluator->setState(Address(enablePosA), logic_state_t::HIGH);
+	evaluator->setState(Address(dataPosA), H);
+	evaluator->setState(Address(enablePosA), H);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePosA)), logic_state_t::HIGH);
-	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::HIGH);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(tristatePosA)), H);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), H);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), H);
 
 	// disable A, bus should float again
-	evaluator->setState(Address(enablePosA), logic_state_t::LOW);
+	evaluator->setState(Address(enablePosA), L);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePosA)), logic_state_t::FLOATING);
-	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::FLOATING);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(tristatePosA)), Z);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), Z);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), Z);
 
 	// enable B: junction follows B
-	evaluator->setState(Address(dataPosB), logic_state_t::HIGH);
-	evaluator->setState(Address(enablePosB), logic_state_t::HIGH);
+	evaluator->setState(Address(dataPosB), H);
+	evaluator->setState(Address(enablePosB), H);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePosB)), logic_state_t::HIGH);
-	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::HIGH);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(tristatePosB)), H);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), H);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), H);
 
 	// contention: A drives LOW, B drives HIGH
-	evaluator->setState(Address(dataPosA), logic_state_t::LOW);
-	evaluator->setState(Address(enablePosA), logic_state_t::HIGH);
+	evaluator->setState(Address(dataPosA), L);
+	evaluator->setState(Address(enablePosA), H);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(tristatePosA)), logic_state_t::LOW);
-	EXPECT_EQ(evaluator->getState(Address(tristatePosB)), logic_state_t::HIGH);
-	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::UNDEFINED);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::UNDEFINED);
+	EXPECT_EQ(evaluator->getState(Address(tristatePosA)), L);
+	EXPECT_EQ(evaluator->getState(Address(tristatePosB)), H);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), X);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), X);
 
 	// remove tri-state A while replacement mappings exist
 	ASSERT_TRUE(circuit->tryRemoveBlock(tristatePosA));
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::HIGH);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::HIGH);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), H);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), H);
 
 	// disable remaining driver -> bus floats
-	evaluator->setState(Address(enablePosB), logic_state_t::LOW);
+	evaluator->setState(Address(enablePosB), L);
 	evaluator->tickStep(2);
-	EXPECT_EQ(evaluator->getState(Address(junctionPos)), logic_state_t::FLOATING);
-	EXPECT_EQ(evaluator->getState(Address(lightPos)), logic_state_t::FLOATING);
+	EXPECT_EQ(evaluator->getState(Address(junctionPos)), Z);
+	EXPECT_EQ(evaluator->getState(Address(lightPos)), Z);
 }
-
-logic_state_t naiveButCorrectGateImplementation(BlockType blockType, std::vector<logic_state_t> inputs) {
-	int numLow = 0;
-	int numHigh = 0;
-	int numFloating = 0;
-	int numUndefined = 0;
-	for (logic_state_t input : inputs) {
-		if (input == logic_state_t::LOW) {
-			++numLow;
-		} else if (input == logic_state_t::HIGH) {
-			++numHigh;
-		} else if (input == logic_state_t::FLOATING) {
-			++numFloating;
-		} else if (input == logic_state_t::UNDEFINED) {
-			++numUndefined;
-		}
-	}
-	int total = numLow + numHigh + numFloating + numUndefined;
-	if (total == 0) {
-		if (blockType == BlockType::JUNCTION) {
-			return logic_state_t::FLOATING;
-		}
-		if (blockType == BlockType::JUNCTION_H) {
-			return logic_state_t::HIGH;
-		}
-		if (blockType == BlockType::JUNCTION_X || blockType == BlockType::BUFFER || blockType == BlockType::NOT) {
-			return logic_state_t::UNDEFINED;
-		}
-		return logic_state_t::LOW;
-	}
-	if (blockType == BlockType::AND) {
-		if (numLow != 0) {
-			return logic_state_t::LOW;
-		}
-		if (numUndefined != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		if (numFloating != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		return logic_state_t::HIGH;
-	} else if (blockType == BlockType::OR) {
-		if (numHigh != 0) {
-			return logic_state_t::HIGH;
-		}
-		if (numUndefined != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		if (numFloating != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		return logic_state_t::LOW;
-	} else if (blockType == BlockType::NAND) {
-		if (numLow != 0) {
-			return logic_state_t::HIGH;
-		}
-		if (numUndefined != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		if (numFloating != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		return logic_state_t::LOW;
-	} else if (blockType == BlockType::NOR) {
-		if (numHigh != 0) {
-			return logic_state_t::LOW;
-		}
-		if (numUndefined != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		if (numFloating != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		return logic_state_t::HIGH;
-	} else if (blockType == BlockType::XOR) {
-		if (numUndefined != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		if (numFloating != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		bool parity = (numHigh % 2 == 1);
-		if (parity) {
-			return logic_state_t::HIGH;
-		}
-		return logic_state_t::LOW;
-	} else if (blockType == BlockType::XNOR) {
-		if (numUndefined != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		if (numFloating != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		bool parity = (numHigh % 2 == 0);
-		if (parity) {
-			return logic_state_t::HIGH;
-		}
-		return logic_state_t::LOW;
-	} else if (blockType == BlockType::JUNCTION ||
-			   blockType == BlockType::JUNCTION_L ||
-			   blockType == BlockType::JUNCTION_H ||
-			   blockType == BlockType::JUNCTION_X ||
-			   blockType == BlockType::BUFFER ||
-			   blockType == BlockType::NOT) {
-		if (numUndefined != 0) {
-			return logic_state_t::UNDEFINED;
-		}
-		bool hasHigh = numHigh > 0;
-		bool hasLow = numLow > 0;
-		if (hasHigh && hasLow) {
-			return logic_state_t::UNDEFINED;
-		} else if (hasHigh) {
-			if (blockType == BlockType::NOT) {
-				return logic_state_t::LOW;
-			}
-			return logic_state_t::HIGH;
-		} else if (hasLow) {
-			if (blockType == BlockType::NOT) {
-				return logic_state_t::HIGH;
-			}
-			return logic_state_t::LOW;
-		}
-		if (blockType == BlockType::JUNCTION_L) {
-			return logic_state_t::LOW;
-		} else if (blockType == BlockType::JUNCTION_H) {
-			return logic_state_t::HIGH;
-		} else if (blockType == BlockType::JUNCTION_X || blockType == BlockType::BUFFER || blockType == BlockType::NOT) {
-			return logic_state_t::UNDEFINED;
-		}
-		return logic_state_t::FLOATING;
-	}
-	return logic_state_t::UNDEFINED;
-};
 
 TEST_F(EvaluatorTest, LargeEvaluatorTest) {
 	int LARGE_NUMBER = 10;
@@ -591,7 +462,7 @@ TEST_F(EvaluatorTest, LargeEvaluatorTest) {
 
 	for (i = 0; i < LARGE_NUMBER; i++) {
 		circuit->tryInsertBlock(Position(i, 0), Rotation::ZERO, BlockType::SWITCH);
-		evaluator->setState(Address( {i, 0} ), logic_state_t::HIGH);
+		evaluator->setState(Position(i, 0), H);
 	}
 	int j = 0;
 	for (BlockType type : allTypes) {
@@ -603,16 +474,16 @@ TEST_F(EvaluatorTest, LargeEvaluatorTest) {
 	}
 	evaluator->tickStep(1);
 	Position andGate(rand() % LARGE_NUMBER, 1);
-	// and on should be true
-	ASSERT_TRUE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 1})));
-	// or on should be true
-	ASSERT_TRUE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 2})));
-	// xor on should be true
-	ASSERT_TRUE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 3})));
-	// nand on should be false
-	ASSERT_FALSE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 4})));
-	// nor on should be false
-	ASSERT_FALSE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 5})));
-	// xnor on should be false
-	ASSERT_FALSE(evaluator->getBoolState(Address( {rand() % LARGE_NUMBER, 6})));
+	// and on should be high
+	ASSERT_EQ(evaluator->getState(Address( {rand() % LARGE_NUMBER, 1})), H);
+	// or on should be high
+	ASSERT_EQ(evaluator->getState(Address( {rand() % LARGE_NUMBER, 2})), H);
+	// xor on should be high
+	ASSERT_EQ(evaluator->getState(Address( {rand() % LARGE_NUMBER, 3})), H);
+	// nand on should be low
+	ASSERT_EQ(evaluator->getState(Address( {rand() % LARGE_NUMBER, 4})), L);
+	// nor on should be low
+	ASSERT_EQ(evaluator->getState(Address( {rand() % LARGE_NUMBER, 5})), L);
+	// xnor on should be low
+	ASSERT_EQ(evaluator->getState(Address( {rand() % LARGE_NUMBER, 6})), L);
 }

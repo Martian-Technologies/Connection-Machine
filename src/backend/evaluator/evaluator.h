@@ -91,7 +91,6 @@ public:
 	void reset();
 	void setPause(bool pause) { evalConfig.setRunning(!pause); }
 	bool isPause() const { return !evalConfig.isRunning(); }
-	void togglePause() { setPause(isPause() ? false : true); }
 	void addSprint(unsigned int nTicks) { evalConfig.addSprint(nTicks); }
 	bool isSprinting() const { return evalConfig.getSprintCount() > 0; }
 	void waitForSprintComplete();
@@ -118,9 +117,7 @@ public:
 	void makeEdit(DifferenceSharedPtr difference, circuit_id_t circuitId);
 	logic_state_t getState(const Address& address);
 	std::variant<logic_state_t, std::vector<logic_state_t>> getPinState(const Address& address);
-	bool getBoolState(const Address& address) { return toBool(getState(address)); };
 	void setState(const Address& address, logic_state_t state);
-	void setState(const Address& address, bool state) { setState(address, fromBool(state)); }
 	circuit_id_t getCircuitId() const { return evalCircuitContainer.getCircuitId(eval_circuit_id_t(0)).value_or(0); }
 	circuit_id_t getCircuitId(const Address& address) const {
 		std::shared_lock lk(simMutex);
