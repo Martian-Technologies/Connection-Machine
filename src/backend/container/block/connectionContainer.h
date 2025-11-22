@@ -4,7 +4,6 @@
 #include "connectionEnd.h"
 
 class ConnectionContainer {
-	friend class BlockContainer;
 public:
 	inline const std::unordered_map<connection_end_id_t, std::unordered_set<ConnectionEnd>>& getConnections() const { return connections; }
 
@@ -16,13 +15,12 @@ public:
 	}
 
 	bool hasConnection(connection_end_id_t thisEndId, ConnectionEnd otherConnectionEnd) const;
+	bool tryMakeConnection(connection_end_id_t thisEndId, ConnectionEnd otherConnectionEnd);
+	bool tryRemoveConnection(connection_end_id_t thisEndId, ConnectionEnd otherConnectionEnd);
 
 	nlohmann::json dumpState() const;
 
 private:
-	bool tryMakeConnection(connection_end_id_t thisEndId, ConnectionEnd otherConnectionEnd);
-	bool tryRemoveConnection(connection_end_id_t thisEndId, ConnectionEnd otherConnectionEnd);
-
 	std::unordered_map<connection_end_id_t, std::unordered_set<ConnectionEnd>> connections;
 };
 

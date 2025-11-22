@@ -5,11 +5,11 @@
 #include "../position/position.h"
 
 enum MoveType {
-		SINGLE = 0,
-		MULTI_BEGIN = 1,
-		MULTI_MIDDLE = 2, // not used
-		MULTI_FINAL = 3,
-	};
+	SINGLE = 0,
+	MULTI_BEGIN = 1,
+	MULTI_MIDDLE = 2, // not used
+	MULTI_FINAL = 3,
+};
 
 class Difference {
 	friend class BlockContainer;

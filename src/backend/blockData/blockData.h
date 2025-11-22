@@ -85,6 +85,9 @@ public:
 
 	inline std::optional<connection_end_id_t> getInputConnectionId(Vector positionOnBlock) const noexcept;
 	inline std::optional<connection_end_id_t> getOutputConnectionId(Vector positionOnBlock) const noexcept;
+	inline std::optional<connection_end_id_t> getBidirectionalConnectionId(Vector vector) const noexcept;
+	inline std::optional<connection_end_id_t> getInputOrBidirectionalConnectionId(Vector vector) const noexcept;
+	inline std::optional<connection_end_id_t> getOutputOrBidirectionalConnectionId(Vector vector) const noexcept;
 	inline std::optional<connection_end_id_t> getInputConnectionId(Vector vector, Orientation orientation) const noexcept;
 	inline std::optional<connection_end_id_t> getOutputConnectionId(Vector vector, Orientation orientation) const noexcept;
 	inline std::optional<connection_end_id_t> getBidirectionalConnectionId(Vector vector, Orientation orientation) const noexcept;
@@ -213,14 +216,40 @@ inline std::optional<connection_end_id_t> BlockData::getOutputConnectionId(Vecto
 	}
 	return std::nullopt;
 }
+inline std::optional<connection_end_id_t> BlockData::getBidirectionalConnectionId(Vector positionOnBlock) const noexcept {
+	if (defaultData) return std::nullopt;
+	for (auto& pair : connections) {
+		if (pair.second.positionOnBlock == positionOnBlock && pair.second.portType == ConnectionData::PortType::BIDIRECTIONAL) return pair.first;
+	}
+	return std::nullopt;
+}
+inline std::optional<connection_end_id_t> BlockData::getInputOrBidirectionalConnectionId(Vector positionOnBlock) const noexcept {
+	if (defaultData) {
+		if (positionOnBlock.dx == 0 && positionOnBlock.dy == 0) return connection_end_id_t(0);
+		return std::nullopt;
+	}
+	for (auto& pair : connections) {
+		if (pair.second.positionOnBlock == positionOnBlock && (pair.second.portType == ConnectionData::PortType::INPUT || pair.second.portType == ConnectionData::PortType::BIDIRECTIONAL)) return pair.first;
+	}
+	return std::nullopt;
+}
+inline std::optional<connection_end_id_t> BlockData::getOutputOrBidirectionalConnectionId(Vector positionOnBlock) const noexcept {
+	if (defaultData) {
+		if (positionOnBlock.dx == 0 && positionOnBlock.dy == 0) return connection_end_id_t(1);
+		return std::nullopt;
+	}
+	for (auto& pair : connections) {
+		if (pair.second.positionOnBlock == positionOnBlock && (pair.second.portType == ConnectionData::PortType::OUTPUT || pair.second.portType == ConnectionData::PortType::BIDIRECTIONAL)) return pair.first;
+	}
+	return std::nullopt;
+}
 inline std::optional<connection_end_id_t> BlockData::getInputConnectionId(Vector vector, Orientation orientation) const noexcept {
 	if (defaultData) {
 		if (vector.dx == 0 && vector.dy == 0) return connection_end_id_t(0);
 		return std::nullopt;
 	}
-	Vector noOrientationVec = orientation.inverseTransformVectorWithArea(vector, orientation * blockSize);
 	for (auto& pair : connections) {
-		if (pair.second.positionOnBlock == noOrientationVec && pair.second.portType == ConnectionData::PortType::INPUT) return pair.first;
+		if (pair.second.positionOnBlock == vector && pair.second.portType == ConnectionData::PortType::INPUT) return pair.first;
 	}
 	return std::nullopt;
 }

@@ -1,5 +1,5 @@
-#ifndef sparse2d_h
-#define sparse2d_h
+#ifndef sparse3d_h
+#define sparse3d_h
 
 #include <parallel_hashmap/phmap.h>
 
@@ -8,15 +8,15 @@
 /*
 Should be defined as:
 template <class T>
-class Sparse2d {
+class Sparse3d {
 public:
-	Sparse2d();
-	Sparse2d(const Sparse2d& other);
-	Sparse2d<T>& operator=(const Sparse2d<T>& other)
-	T* get(Position position);
-	const T* get(Position position) const;
-	void insert(Position position, const T& value);
-	void remove(Position position);
+	Sparse3d();
+	Sparse3d(const Sparse3d& other);
+	Sparse3d<T>& operator=(const Sparse3d<T>& other)
+	T* get(Position3 position);
+	const T* get(Position3 position) const;
+	void insert(Position3 position, const T& value);
+	void remove(Position3 position);
 	void clear();
 }
 */
@@ -25,7 +25,7 @@ template <class T>
 class Sparse3dArray;
 
 template <class T>
-using Sparse2d = Sparse3dArray<T>;
+using Sparse3d = Sparse3dArray<T>;
 
 template <class T>
 class Sparse3dArray {
@@ -114,4 +114,4 @@ nlohmann::json Sparse3dArray<T>::dumpStateAndInner() const /* GCOVR_EXCL_FUNCTIO
 	return stateJson;
 }
 
-#endif /* sparse2d_h */
+#endif /* sparse3d_h */

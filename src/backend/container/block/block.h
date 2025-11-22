@@ -3,7 +3,6 @@
 
 #include "connectionContainer.h"
 #include "backend/blockData/blockDataManager.h"
-#include "blockHelpers.h"
 
 class Block {
 	friend class BlockContainer;

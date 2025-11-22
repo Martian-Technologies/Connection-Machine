@@ -481,7 +481,7 @@ struct Size3 {
 
 	inline Iterator iter() const noexcept;
 
-	inline Vector3 getLargestVector3InArea() { return Vector3(w - 1, h - 1, d - 1); }
+	inline Vector3 getLargestVectorInArea() { return Vector3(w - 1, h - 1, d - 1); }
 
 	coordinate_t w, h, d;
 };
@@ -686,21 +686,21 @@ struct Orientation3d {
 		);
 	}
 	inline Orientation3d relativeTo(Orientation3d orientation3d) const noexcept { return (*this) * (orientation3d.inverse()); }
-	inline Vector3 transformVector3WithArea(Vector3 vector3, Size3 size3) const noexcept {
-		Vector3 half = size3.getLargestVector3InArea();
+	inline Vector3 transformVectorWithArea(Vector3 vector3, Size3 size3) const noexcept {
+		Vector3 half = size3.getLargestVectorInArea();
 		Vector3 point = half - (vector3 * 2);
 		return (*this) * half + (*this) * point;
 	}
-	inline Vector3 inverseTransformVector3WithArea(Vector3 vector3, Size3 size3) const noexcept {
-		return inverse().transformVector3WithArea(vector3, size3);
+	inline Vector3 inverseTransformVectorWithArea(Vector3 vector3, Size3 size3) const noexcept {
+		return inverse().transformVectorWithArea(vector3, size3);
 	}
-	inline FVector3 transformFVector3WithArea(FVector3 vector3, FSize3 size3) const noexcept {
+	inline FVector3 transformFVectorWithArea(FVector3 vector3, FSize3 size3) const noexcept {
 		FVector3 half(size3.w, size3.h, size3.d);
 		FVector3 point = half - (vector3 * 2);
 		return (*this) * half + (*this) * point;
 	}
-	inline FVector3 inverseTransformFVector3WithArea(FVector3 vector3, FSize3 size3) const noexcept {
-		return inverse().transformFVector3WithArea(vector3, size3);
+	inline FVector3 inversetransformFVectorWithArea(FVector3 vector3, FSize3 size3) const noexcept {
+		return inverse().transformFVectorWithArea(vector3, size3);
 	}
 
 	Vector3 x; // | x1 y1 z1 ||x|   |x_1x + y1*y + z1*z|

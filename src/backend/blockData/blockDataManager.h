@@ -84,6 +84,18 @@ public:
 		if (!blockExists(type)) return std::nullopt;
 		return blockData[type - 1].getOutputConnectionId(vector);
 	}
+	inline std::optional<connection_end_id_t> getBidirectionalConnectionId(BlockType type, Vector vector) const noexcept {
+		if (!blockExists(type)) return std::nullopt;
+		return blockData[type - 1].getBidirectionalConnectionId(vector);
+	}
+	inline std::optional<connection_end_id_t> getInputOrBidirectionalConnectionId(BlockType type, Vector vector) const noexcept {
+		if (!blockExists(type)) return std::nullopt;
+		return blockData[type - 1].getInputOrBidirectionalConnectionId(vector);
+	}
+	inline std::optional<connection_end_id_t> getOutputOrBidirectionalConnectionId(BlockType type, Vector vector) const noexcept {
+		if (!blockExists(type)) return std::nullopt;
+		return blockData[type - 1].getOutputOrBidirectionalConnectionId(vector);
+	}
 	inline std::optional<connection_end_id_t> getInputConnectionId(BlockType type, Orientation orientation, Vector vector) const noexcept {
 		if (!blockExists(type)) return std::nullopt;
 		return blockData[type - 1].getInputConnectionId(vector, orientation);
