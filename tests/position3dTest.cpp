@@ -272,9 +272,8 @@ TEST_F(Position3dTest, toString) {
 	size3.d = -41;
 	ASSERT_EQ(size3.toString(), "-1161231x-51x-41");
 
-	// Orientation orientation;
-
-	// ASSERT_EQ(orientation.toString(), "(r:0, f:0)");
+	Orientation orientation;
+	ASSERT_EQ(orientation.toString(), "(r:0, f:0)");
 }
 
 TEST_F(Position3dTest, vector3Iter) {

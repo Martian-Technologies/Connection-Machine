@@ -48,7 +48,14 @@ struct Vector3 {
 		dz -= other.dz;
 		return *this;
 	}
-	inline coordinate_t operator*(Vector3 vector3) const noexcept { return dx * vector3.dx + dy * vector3.dy; }
+	inline coordinate_t dot(Vector3 vector3) const noexcept { return dx * vector3.dx + dy * vector3.dy; }
+	inline Vector3 cross(Vector3 vector3) const noexcept {
+		return Vector3(
+			dy * vector3.dz - dz * vector3.dy,
+			dz * vector3.dx + dx * vector3.dz,
+			dx * vector3.dy + dy * vector3.dx
+		);
+	}
 	inline Vector3 operator*(coordinate_t scalar) const noexcept { return Vector3(dx * scalar, dy * scalar, dz * scalar); }
 	inline Vector3& operator*=(coordinate_t scalar) noexcept {
 		dx *= scalar;
@@ -234,7 +241,9 @@ struct Position3 {
 
 	inline coordinate_t manhattenDistanceTo(Position3 position3) const noexcept { return Abs(x - position3.x) + Abs(y - position3.y) + Abs(z - position3.z); }
 	inline coordinate_t manhattenDistanceToOrigin() const noexcept { return Abs(x) + Abs(y) + Abs(y); }
-	inline coordinate_t distanceToSquared(Position3 position3) const noexcept { return FastPower<2>(x - position3.x) + FastPower<2>(y - position3.y) + FastPower<2>(z - position3.z); }
+	inline coordinate_t distanceToSquared(Position3 position3) const noexcept {
+		return FastPower<2>(x - position3.x) + FastPower<2>(y - position3.y) + FastPower<2>(z - position3.z);
+	}
 	inline coordinate_t distanceToOriginSquared() const noexcept { return FastPower<2>(x) + FastPower<2>(y) + FastPower<2>(z); }
 	inline f_coordinate_t distanceTo(Position3 position3) const noexcept { return sqrt(distanceToSquared(position3)); }
 	inline f_coordinate_t distanceToOrigin() const noexcept { return sqrt(distanceToOriginSquared()); }
@@ -496,8 +505,12 @@ public:
 		sizeY = size3.h;
 		end = size3.volume() - 1;
 	}
-	inline bool operator==(const Iterator& other) const { return (end == other.end && cur == other.cur && sizeX == other.sizeX && sizeY == other.sizeY && notDone == other.notDone); }
-	inline bool operator!=(const Iterator& other) const { return (end != other.end || cur != other.cur || sizeX != other.sizeX || sizeY != other.sizeY || notDone != other.notDone); }
+	inline bool operator==(const Iterator& other) const {
+		return (end == other.end && cur == other.cur && sizeX == other.sizeX && sizeY == other.sizeY && notDone == other.notDone);
+	}
+	inline bool operator!=(const Iterator& other) const {
+		return (end != other.end || cur != other.cur || sizeX != other.sizeX || sizeY != other.sizeY || notDone != other.notDone);
+	}
 	inline Iterator& operator++() {
 		next();
 		return *this;
@@ -567,11 +580,13 @@ struct FSize3 {
 	inline bool containsTartgetCell(FVector3 vector3) const noexcept {
 		return (
 			(!isNegative(vector3.dx) && !isNegative(vector3.dy) && !isNegative(vector3.dz)) &&
-			(approx_lessOrEquals(std::floor(vector3.dx) + 1, w) && approx_lessOrEquals(std::floor(vector3.dy) + 1, h) && approx_lessOrEquals(std::floor(vector3.dz) + 1, d))
+			(approx_lessOrEquals(std::floor(vector3.dx) + 1, w) && approx_lessOrEquals(std::floor(vector3.dy) + 1, h) &&
+			 approx_lessOrEquals(std::floor(vector3.dz) + 1, d))
 		);
 	}
 	inline bool containsVector3(FVector3 vector3) const noexcept {
-		return !isNegative(vector3.dx) && !isNegative(vector3.dy) && !isNegative(vector3.dz) && approx_lessOrEquals(vector3.dx, w) && approx_lessOrEquals(vector3.dy, h) && approx_lessOrEquals(vector3.dz, d);
+		return !isNegative(vector3.dx) && !isNegative(vector3.dy) && !isNegative(vector3.dz) && approx_lessOrEquals(vector3.dx, w) &&
+			   approx_lessOrEquals(vector3.dy, h) && approx_lessOrEquals(vector3.dz, d);
 	}
 	inline std::string toString() const noexcept { return std::to_string(w) + "x" + std::to_string(h) + "x" + std::to_string(d); }
 
@@ -601,174 +616,101 @@ inline FPosition3 Position3::free() const noexcept { return FPosition3(x, y, z);
 inline Position3 FPosition3::snap() const noexcept { return Position3(std::floor(x), std::floor(y), std::floor(z)); }
 inline FSize3 Size3::free() const noexcept { return FSize3(w, h, d); }
 inline Size3 FSize3::snap() const noexcept { return Size3(std::floor(w), std::floor(h), std::floor(d)); }
-/*
+
 // ---- we also define block rotation here so ----
-enum Rotation : std::uint8_t {
-	ZERO = 0,
-	NINETY = 1,
-	ONE_EIGHTY = 2,
-	TWO_SEVENTY = 3,
-};
-
-template <>
-struct fmt::formatter<Rotation> : fmt::formatter<std::string> {
-	auto format(Rotation v, format_context& ctx) const {
-		switch (v) {
-		case Rotation::TWO_SEVENTY: return "TWO_SEVENTY";
-		case Rotation::ONE_EIGHTY: return "ONE_EIGHTY";
-		case Rotation::NINETY: return "NINETY";
-		default: return "ZERO";
-		}
-	}
-};
-
-inline Vector3 rotateVector3(Vector3 vector3, Rotation rotationAmount) noexcept {
-	switch (rotationAmount) {
-	case Rotation::TWO_SEVENTY: return Vector3(vector3.dy, -vector3.dx);
-	case Rotation::ONE_EIGHTY: return Vector3(-vector3.dx, -vector3.dy);
-	case Rotation::NINETY: return Vector3(-vector3.dy, vector3.dx);
-	default: return vector3;
-	}
-}
-inline FVector3 rotateVector3(FVector3 vector3, Rotation rotationAmount) noexcept {
-	switch (rotationAmount) {
-	case Rotation::TWO_SEVENTY: return FVector3(vector3.dy, -vector3.dx);
-	case Rotation::ONE_EIGHTY: return FVector3(-vector3.dx, -vector3.dy);
-	case Rotation::NINETY: return FVector3(-vector3.dy, vector3.dx);
-	default: return vector3;
-	}
-}
-inline Size3 rotateSize3(Rotation rotationAmount, Size3 size3) noexcept {
-	if (rotationAmount & 1) return Size3(size3.h, size3.w);
-	return size3;
-}
-inline FSize3 rotateSize3(Rotation rotationAmount, FSize3 size3) noexcept {
-	if (rotationAmount & 1) return FSize3(size3.h, size3.w);
-	return size3;
-}
-inline constexpr Rotation rotate(Rotation rotation, bool clockWise) {
-	if (clockWise) {
-		if (rotation == Rotation::TWO_SEVENTY) return Rotation::ZERO;
-		return (Rotation)((int)rotation + 1);
-	}
-	if (rotation == Rotation::ZERO) return Rotation::TWO_SEVENTY;
-	return (Rotation)((int)rotation - 1);
-}
-inline constexpr Rotation addRotations(Rotation rotationA, Rotation rotationB) {
-	std::uint8_t output = rotationA + rotationB;
-	if ((std::uint8_t)output > (std::uint8_t)Rotation::TWO_SEVENTY) output -= 4;
-	return (Rotation)output;
-}
-inline constexpr Rotation rotationNeg(Rotation rotation) { return (Rotation)((4 - (std::uint8_t)rotation) & 0b11); }
-inline constexpr Rotation subRotations(Rotation rotationA, Rotation rotationB) { return addRotations(rotationA, rotationNeg(rotationB)); }
-inline constexpr int getDegrees(Rotation rotation) { return rotation * 90; }
-inline Vector3 rotateVector3WithArea(Vector3 vector3, Size3 size3, Rotation rotationAmount) {
-	switch (rotationAmount) {
-	case Rotation::NINETY: return Vector3(size3.h - vector3.dy - 1, vector3.dx);
-	case Rotation::ONE_EIGHTY: return Vector3(size3.w - vector3.dx - 1, size3.h - vector3.dy - 1);
-	case Rotation::TWO_SEVENTY: return Vector3(vector3.dy, size3.w - vector3.dx - 1);
-	default: return vector3;
-	}
-}
-inline Vector3 reverseRotateVector3WithArea(Vector3 vector3, Size3 size3, Rotation rotationAmount) {
-	switch (rotationAmount) {
-	case Rotation::NINETY: return Vector3(vector3.dy, size3.w - vector3.dx - 1);
-	case Rotation::ONE_EIGHTY: return Vector3(size3.w - vector3.dx - 1, size3.h - vector3.dy - 1);
-	case Rotation::TWO_SEVENTY: return Vector3(size3.h - vector3.dy - 1, vector3.dx);
-	default: return vector3;
-	}
-}
-inline FVector3 rotateFVector3WithArea(FVector3 vector3, FSize3 size3, Rotation rotationAmount) {
-	switch (rotationAmount) {
-	case Rotation::NINETY: return FVector3(size3.h - vector3.dy, vector3.dx);
-	case Rotation::ONE_EIGHTY: return FVector3(size3.w - vector3.dx, size3.h - vector3.dy);
-	case Rotation::TWO_SEVENTY: return FVector3(vector3.dy, size3.w - vector3.dx);
-	default: return vector3;
-	}
-}
-inline FVector3 reverseRotateFVector3WithArea(FVector3 vector3, FSize3 size3, Rotation rotationAmount) {
-	switch (rotationAmount) {
-	case Rotation::NINETY: return FVector3(vector3.dy, size3.w - vector3.dx);
-	case Rotation::ONE_EIGHTY: return FVector3(size3.w - vector3.dx, size3.h - vector3.dy);
-	case Rotation::TWO_SEVENTY: return FVector3(size3.h - vector3.dy, vector3.dx);
-	default: return vector3;
-	}
-}
-
 // change to 1 byte later
-// flip then rotate
-struct Orientation {
-	Rotation rotation = Rotation::ZERO;
-	bool flipped = false;
+struct Orientation3d {
+	Orientation3d() : x(1, 0, 0), y(0, 1, 0), z(0, 0, 1) {}
+	Orientation3d(Vector3 x, Vector3 y, Vector3 z) noexcept : x(x), y(y), z(z) { }
+	Orientation3d(bool flip, Vector3 y, Vector3 z) noexcept : x(flip ? z.cross(y) : y.cross(z)), y(y), z(z) { }
+	Orientation3d(Vector3 x, bool flip, Vector3 z) noexcept : x(x), y(flip ? x.cross(z) : z.cross(x)), z(z) { }
+	Orientation3d(Vector3 x, Vector3 y, bool flip) noexcept : x(x), y(y), z(flip ? y.cross(x) : x.cross(y)) { }
 
-	Orientation(int value) noexcept : rotation((Rotation)(value & 0b11)), flipped((value & 0b100) != 0) { }
-	Orientation(Rotation rotation = Rotation::ZERO, bool flipped = false) noexcept : rotation(rotation), flipped(flipped) { }
+	inline std::string toString() const { return "(x:" + fmt::to_string(x) + ", y:" + fmt::to_string(y) + ", z:" + fmt::to_string(z) + ")"; }
 
-	inline std::string toString() const { return "(r:" + std::to_string(rotation) + ", f:" + std::to_string(flipped) + ")"; }
+	// inline void nextOrientation3d() {
+	// 	if (rotation == Rotation3d::ONE_EIGHTY && !flipped) flipped = true;
+	// 	else if (rotation == Rotation3d::TWO_SEVENTY && flipped) flipped = false;
+	// 	else rotate(!flipped);
+	// }
 
-	inline void nextOrientation() {
-		if (rotation == Rotation::ONE_EIGHTY && !flipped) flipped = true;
-		else if (rotation == Rotation::TWO_SEVENTY && flipped) flipped = false;
-		else rotate(!flipped);
-	}
+	// inline void lastOrientation3d() {
+	// 	if (rotation == Rotation3d::ONE_EIGHTY && flipped) flipped = false;
+	// 	else if (rotation == Rotation3d::TWO_SEVENTY && !flipped) flipped = true;
+	// 	else rotate(flipped);
+	// }
 
-	inline void lastOrientation() {
-		if (rotation == Rotation::ONE_EIGHTY && flipped) flipped = false;
-		else if (rotation == Rotation::TWO_SEVENTY && !flipped) flipped = true;
-		else rotate(flipped);
-	}
+	// inline void nextRotation3d() { rotate(true); }
 
-	inline void nextRotation() { rotate(true); }
-
-	inline void lastRotation() { rotate(false); }
+	// inline void lastRotation3d() { rotate(false); }
 
 	inline Vector3 operator*(Vector3 vector3) const noexcept {
-		Vector3 vec(vector3.dx, flipped ? -vector3.dy : vector3.dy);
-		return rotateVector3(vec, rotation);
+		return Vector3(
+			x.dx * vector3.dx + y.dx * vector3.dy + z.dx * vector3.dz,
+			x.dy * vector3.dx + y.dy * vector3.dy + z.dy * vector3.dz,
+			x.dz * vector3.dx + y.dz * vector3.dy + z.dz * vector3.dz
+		);
 	}
 	inline FVector3 operator*(FVector3 vector3) const noexcept {
-		FVector3 vec(vector3.dx, flipped ? -vector3.dy : vector3.dy);
-		return rotateVector3(vec, rotation);
+		return FVector3(
+			x.dx * vector3.dx + y.dx * vector3.dy + z.dx * vector3.dz,
+			x.dy * vector3.dx + y.dy * vector3.dy + z.dy * vector3.dz,
+			x.dz * vector3.dx + y.dz * vector3.dy + z.dz * vector3.dz
+		);
 	}
-	inline Size3 operator*(Size3 size3) const noexcept { return rotateSize3(rotation, size3); }
-	inline FSize3 operator*(FSize3 size3) const noexcept { return rotateSize3(rotation, size3); }
-	inline bool operator==(Orientation other) const noexcept { return this->rotation == other.rotation && this->flipped == other.flipped; }
-	inline bool operator!=(Orientation other) const noexcept { return !(*this == other); }
-	inline void rotate(bool clockWise) { rotation = ::rotate(rotation, clockWise); }
-	inline void flip() { flipped = !flipped; }
-	inline Orientation operator*(Orientation other) const noexcept {
-		return Orientation(addRotations(rotation, flipped ? rotationNeg(other.rotation) : other.rotation), other.flipped ^ flipped);
+	inline Size3 operator*(Size3 size3) const noexcept {
+		return Size3(
+			abs(x.dx * size3.w + y.dx * size3.h + z.dx * size3.d),
+			abs(x.dy * size3.w + y.dy * size3.h + z.dy * size3.d),
+			abs(x.dz * size3.w + y.dz * size3.h + z.dz * size3.d)
+		);
 	}
-	inline const Orientation& operator*=(Orientation other) noexcept {
-		rotation = addRotations(rotation, flipped ? rotationNeg(other.rotation) : other.rotation);
-		flipped ^= other.flipped;
-		return *this;
+	inline FSize3 operator*(FSize3 size3) const noexcept {
+		return FSize3(
+			abs((float)x.dx * size3.w + (float)y.dx * size3.h + (float)z.dx * size3.d),
+			abs((float)x.dy * size3.w + (float)y.dy * size3.h + (float)z.dy * size3.d),
+			abs((float)x.dz * size3.w + (float)y.dz * size3.h + (float)z.dz * size3.d)
+		);
 	}
-	inline Orientation inverse() const noexcept { return Orientation(flipped ? rotation : rotationNeg(rotation), flipped); }
-	inline Orientation relativeTo(Orientation orientation) const noexcept { return (*this) * (orientation.inverse()); }
+	inline bool operator==(Orientation3d other) const noexcept { return this->x == other.x && this->y == other.y && this->z == other.z; }
+	inline bool operator!=(Orientation3d other) const noexcept { return !(*this == other); }
+	// inline void rotate(bool clockWise) { rotation = ::rotate(rotation, clockWise); }
+	inline void flip() { y *= -1; }
+	inline Orientation3d operator*(Orientation3d other) const noexcept { return Orientation3d(other * x, other * y, other * z); }
+	inline const Orientation3d& operator*=(Orientation3d other) noexcept { return *this = (*this) * other; }
+	inline Orientation3d inverse() const noexcept {
+		return Orientation3d(
+			Vector3(x.dx, y.dx, z.dx),
+			Vector3(x.dy, y.dy, z.dy),
+			Vector3(x.dz, y.dz, z.dz)
+		);
+	}
+	inline Orientation3d relativeTo(Orientation3d orientation3d) const noexcept { return (*this) * (orientation3d.inverse()); }
 	inline Vector3 transformVector3WithArea(Vector3 vector3, Size3 size3) const noexcept {
-		Vector3 vec(vector3.dx, flipped ? (size3.h - vector3.dy - 1) : vector3.dy);
-		return rotateVector3WithArea(vec, size3, rotation);
+		Vector3 half = size3.getLargestVector3InArea();
+		Vector3 point = half - (vector3 * 2);
+		return (*this) * half + (*this) * point;
 	}
 	inline Vector3 inverseTransformVector3WithArea(Vector3 vector3, Size3 size3) const noexcept {
 		return inverse().transformVector3WithArea(vector3, size3);
-		// Vector3 vec = reverseRotateVector3WithArea(vector3, size3, rotation);
-		// return Vector3(vec.dx, flipped ? (rotateSize3(rotation, size3).h - vec.dy - 1) : vec.dy);
 	}
 	inline FVector3 transformFVector3WithArea(FVector3 vector3, FSize3 size3) const noexcept {
-		FVector3 vec(vector3.dx, flipped ? (size3.h - vector3.dy) : vector3.dy);
-		return rotateFVector3WithArea(vec, size3, rotation);
+		FVector3 half(size3.w, size3.h, size3.d);
+		FVector3 point = half - (vector3 * 2);
+		return (*this) * half + (*this) * point;
 	}
 	inline FVector3 inverseTransformFVector3WithArea(FVector3 vector3, FSize3 size3) const noexcept {
 		return inverse().transformFVector3WithArea(vector3, size3);
-		// FVector3 vec = reverseRotateVector3WithArea(vector3, size3, rotation);
-		// return FVector3(vec.dx, flipped ? (rotateSize3(rotation, size3).h - vec.dy - 1) : vec.dy);
 	}
+
+	Vector3 x; // | x1 y1 z1 ||x|   |x_1x + y1*y + z1*z|
+	Vector3 y; // | x2 y2 z2 ||y| = |x_2x + y2*y + z2*z| // make negative to flip
+	Vector3 z; // | x3 y3 z3 ||z|   |x_3x + y3*y + z3*z| // up on a block
 };
 
 template <>
-struct fmt::formatter<Orientation> : fmt::formatter<std::string> {
-	auto format(Orientation o, format_context& ctx) const { return formatter<std::string>::format(o.toString(), ctx); }
+struct fmt::formatter<Orientation3d> : fmt::formatter<std::string> {
+	auto format(Orientation3d o, format_context& ctx) const { return formatter<std::string>::format(o.toString(), ctx); }
 };
-*/
+
 #endif /* position3d_h */
