@@ -15,16 +15,8 @@ protected:
 	logic_state_t H = logic_state_t::HIGH;
 	logic_state_t Z = logic_state_t::FLOATING;
 	logic_state_t X = logic_state_t::UNDEFINED;
-	// BlockType loadCircuit(const std::filesystem::path& path);
 	const BlockData* getBlockData(BlockType type);
 };
-
-// BlockType JunctionEvaluatorTest::loadCircuit(const std::filesystem::path& path) {
-// 	CircuitFileManager& circuitFileManager = environment.getCircuitFileManager();
-// 	circuit_id_t circuitId = circuitFileManager.loadFromFile(path.string()).at(0);
-// 	SharedCircuit circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
-// 	return circuit->getBlockType();
-// }
 
 const BlockData* JunctionEvaluatorTest::getBlockData(BlockType type) {
 	const BlockData* blockData = environment.getBackend().getBlockDataManager().getBlockData(type);

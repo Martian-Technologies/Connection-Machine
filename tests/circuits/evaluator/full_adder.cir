@@ -1,0 +1,94 @@
+version_8
+Circuit: "full adder"
+UUID: 48c02244-0e58-4f74-80ad-12b2a154def1
+size: 2x3
+ports:
+	(IN, 0, (-3, -3), <0, 0>, <0.500000, 0.500000>, "", 1)
+	(IN, 1, (-3, -1), <0, 1>, <0.500000, 0.500000>, "", 1)
+	(IN, 2, (-3, 1), <0, 2>, <0.500000, 0.500000>, "", 1)
+	(OUT, 3, (12, -2), <1, 0>, <0.500000, 0.500000>, "", 1)
+	(OUT, 4, (10, -8), <1, 1>, <0.500000, 0.500000>, "", 1)
+blockId 4 SWITCH -3 -3 ZERO
+	(connId:0) (9 0)
+blockId 5 SWITCH -3 -1 ZERO
+	(connId:0) (8 0)
+blockId 6 SWITCH -3 1 ZERO
+	(connId:0) (7 0)
+blockId 7 JUNCTION -1 1 ZERO
+	(connId:0) (6 0) (12 0) (13 0) (26 0) (27 0)
+blockId 8 JUNCTION 0 -1 ZERO
+	(connId:0) (5 0) (11 0) (14 0) (26 0) (27 0)
+blockId 9 JUNCTION 1 -3 ZERO
+	(connId:0) (4 0) (10 0) (15 0) (30 0) (33 0)
+blockId 10 JUNCTION 1 2 ZERO
+	(connId:0) (9 0) (40 0) (41 0) (42 0)
+blockId 11 JUNCTION 0 4 ZERO
+	(connId:0) (8 0) (40 0) (41 0) (42 0)
+blockId 12 JUNCTION -1 6 ZERO
+	(connId:0) (7 0) (40 0) (41 0) (42 0)
+blockId 13 JUNCTION -1 -5 ZERO
+	(connId:0) (7 0) (19 0) (23 0) (24 0)
+blockId 14 JUNCTION 0 -7 ZERO
+	(connId:0) (8 0) (19 0) (22 0) (24 0)
+blockId 15 JUNCTION 1 -9 ZERO
+	(connId:0) (9 0) (22 0) (23 0) (24 0)
+blockId 19 AND 3 -7 ZERO
+	(connId:0) (13 0) (14 0)
+	(connId:1) (25 0)
+blockId 22 AND 3 -9 ZERO
+	(connId:0) (14 0) (15 0)
+	(connId:1) (25 0)
+blockId 23 AND 3 -8 ZERO
+	(connId:0) (13 0) (15 0)
+	(connId:1) (25 0)
+blockId 24 XOR 3 -5 ZERO
+	(connId:0) (13 0) (14 0) (15 0)
+	(connId:1) (36 0)
+blockId 25 OR 5 -8 ZERO
+	(connId:0) (19 1) (22 1) (23 1)
+	(connId:1) (39 0)
+blockId 26 XOR 2 -1 ZERO
+	(connId:0) (7 0) (8 0)
+	(connId:1) (30 0) (33 0)
+blockId 27 AND 2 0 ZERO
+	(connId:0) (7 0) (8 0)
+	(connId:1) (34 0)
+blockId 30 XOR 4 -2 ZERO
+	(connId:0) (9 0) (26 1)
+	(connId:1) (35 0)
+blockId 33 AND 4 -1 ZERO
+	(connId:0) (9 0) (26 1)
+	(connId:1) (34 0)
+blockId 34 OR 6 0 ZERO
+	(connId:0) (27 1) (33 1)
+	(connId:1) (37 0)
+blockId 35 JUNCTION 6 -2 ZERO
+	(connId:0) (30 1) (36 0) (45 0)
+blockId 36 JUNCTION 6 -5 ZERO
+	(connId:0) (24 1) (35 0)
+blockId 37 JUNCTION 8 0 ZERO
+	(connId:0) (34 1) (39 0) (44 0)
+blockId 39 JUNCTION 8 -8 ZERO
+	(connId:0) (25 1) (37 0) (47 0)
+blockId 40 XOR 3 3 ZERO
+	(connId:0) (10 0) (11 0) (12 0)
+	(connId:1) (43 0) (46 0)
+blockId 41 AND 3 4 ZERO
+	(connId:0) (10 0) (11 0) (12 0)
+	(connId:1) (43 0)
+blockId 42 OR 3 5 ZERO
+	(connId:0) (10 0) (11 0) (12 0)
+	(connId:1) (43 0)
+blockId 43 XOR 5 5 ZERO
+	(connId:0) (40 1) (41 1) (42 1)
+	(connId:1) (44 0)
+blockId 44 JUNCTION 8 5 ZERO
+	(connId:0) (37 0) (43 1)
+blockId 45 JUNCTION 10 -2 ZERO
+	(connId:0) (35 0) (46 0) (48 0)
+blockId 46 JUNCTION 10 3 ZERO
+	(connId:0) (40 1) (45 0)
+blockId 47 LIGHT 10 -8 ZERO
+	(connId:0) (39 0)
+blockId 48 LIGHT 12 -2 ZERO
+	(connId:0) (45 0)
