@@ -4,6 +4,12 @@
 
 #include "computerAPI/directoryManager.h"
 
+/*
+
+"Given an infinite number of monkeys hitting keys at random on typewriters for an infinite amount of time, one of them will eventually type out the complete works of Shakespeare."
+
+*/
+
 int main(int argc, char** argv) {
 	DirectoryManager::findDirectories();
 	std::string failingTestcasePath = (DirectoryManager::getConfigDirectory() / "fuzzing" / "failing_testcase.json").string();

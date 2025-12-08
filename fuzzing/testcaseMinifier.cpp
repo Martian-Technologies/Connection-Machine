@@ -184,4 +184,5 @@ std::unique_ptr<FuzzTestcase> TestcaseMinifier::tryRemoveEditActions(const FuzzT
 	// 	}
 	// }
 	// return nullptr;
+	return nullptr;
 }

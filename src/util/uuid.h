@@ -1,8 +1,6 @@
 #ifndef uuid_h
 #define uuid_h
 
-#include <random>
-
 static std::string generate_uuid_v4() {
 	std::random_device rd;
 	std::mt19937 gen(rd());

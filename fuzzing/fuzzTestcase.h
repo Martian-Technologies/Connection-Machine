@@ -1,10 +1,12 @@
 #ifndef fuzzTestcase_h
 #define fuzzTestcase_h
 
+#include "backend/address.h"
 #include "backend/position/position.h"
 #include "backend/container/block/blockDefs.h"
 #include "backend/evaluator/simulator/logicState.h"
 #include "computerAPI/circuits/textParser.h"
+#include "backend/container/block/connectionEnd.h"
 
 #include <nlohmann/json.hpp>
 
@@ -46,6 +48,27 @@ struct RemoveBlockAction {
 	}
 };
 
+struct MoveBlockAction {
+	Position oldPosition;
+	Position newPosition;
+	Orientation orientationOffset;
+	nlohmann::json toJson() const {
+		nlohmann::json j;
+		j["type"] = "MoveBlockAction";
+		j["oldPosition"] = { {"x", oldPosition.x}, {"y", oldPosition.y} };
+		j["newPosition"] = { {"x", newPosition.x}, {"y", newPosition.y} };
+		j["orientationOffset"] = { {"rotation", static_cast<uint8_t>(orientationOffset.rotation)}, {"flipped", orientationOffset.flipped} };
+		return j;
+	}
+	static MoveBlockAction fromJson(const nlohmann::json& j) {
+		MoveBlockAction action;
+		action.oldPosition = Position(j["oldPosition"]["x"], j["oldPosition"]["y"]);
+		action.newPosition = Position(j["newPosition"]["x"], j["newPosition"]["y"]);
+		action.orientationOffset = Orientation(static_cast<Rotation>(j["orientationOffset"]["rotation"]), j["orientationOffset"]["flipped"]);
+		return action;
+	}
+};
+
 struct CreateConnectionAction {
 	Position source;
 	Position destination;
@@ -82,19 +105,80 @@ struct RemoveConnectionAction {
 	}
 };
 
+struct UpdateCircuitIOAction {
+	bool isInput;
+	Vector portOffset;
+	unsigned int bitWidth;
+	connection_end_id_t connectionEndId;
+	nlohmann::json toJson() const {
+		nlohmann::json j;
+		j["type"] = "UpdateCircuitIOAction";
+		j["isInput"] = isInput;
+		j["portOffset"] = { {"dx", portOffset.dx}, {"dy", portOffset.dy} };
+		j["bitWidth"] = bitWidth;
+		j["connectionEndId"] = connectionEndId.get();
+		return j;
+	}
+	static UpdateCircuitIOAction fromJson(const nlohmann::json& j) {
+		UpdateCircuitIOAction action;
+		action.isInput = j["isInput"];
+		action.portOffset = Vector(j["portOffset"]["dx"], j["portOffset"]["dy"]);
+		action.bitWidth = j["bitWidth"];
+		action.connectionEndId = connection_end_id_t(j["connectionEndId"]);
+		return action;
+	}
+};
+struct RemoveCircuitIOAction {
+	connection_end_id_t connectionEndId;
+	nlohmann::json toJson() const {
+		nlohmann::json j;
+		j["type"] = "RemoveCircuitIOAction";
+		j["connectionEndId"] = connectionEndId.get();
+		return j;
+	}
+	static RemoveCircuitIOAction fromJson(const nlohmann::json& j) {
+		RemoveCircuitIOAction action;
+		action.connectionEndId = connection_end_id_t(j["connectionEndId"]);
+		return action;
+	}
+};
+struct ResizeCircuitAction {
+	Size newSize;
+	nlohmann::json toJson() const {
+		nlohmann::json j;
+		j["type"] = "ResizeCircuitAction";
+		j["newSize"] = { {"w", newSize.w}, {"h", newSize.h} };
+		return j;
+	}
+	static ResizeCircuitAction fromJson(const nlohmann::json& j) {
+		ResizeCircuitAction action;
+		action.newSize = Size(j["newSize"]["w"], j["newSize"]["h"]);
+		return action;
+	}
+};
+
 struct SetBlockStateAction {
-	Position position;
+	Address address;
 	logic_state_t state;
 	nlohmann::json toJson() const {
 		nlohmann::json j;
 		j["type"] = "SetBlockStateAction";
-		j["position"] = { {"x", position.x}, {"y", position.y} };
+		j["address"] = nlohmann::json::array();
+		for (int i = 0; i < address.size(); ++i) {
+			Position position = address.getPosition(i);
+			j["address"].push_back({ {"x", position.x} , {"y", position.y} });
+		}
 		j["state"] = static_cast<uint8_t>(state);
 		return j;
 	}
 	static SetBlockStateAction fromJson(const nlohmann::json& j) {
 		SetBlockStateAction action;
-		action.position = Position(j["position"]["x"], j["position"]["y"]);
+		action.address = Address();
+		for (int i = 0; i < j["address"].size(); ++i) {
+			nlohmann::json pos = j["address"][i];
+			Position position = Position(pos["x"], pos["y"]);
+			action.address.addBlockId(position);
+		}
 		action.state = static_cast<logic_state_t>(j["state"]);
 		return action;
 	}
@@ -116,11 +200,23 @@ struct TickEvalAction {
 };
 
 struct FuzzEditAction {
-	std::variant<
+	FuzzEditAction(PlaceBlockAction action, unsigned int circuitIndex) : action(action), circuitIndex(circuitIndex) {}
+	FuzzEditAction(RemoveBlockAction action, unsigned int circuitIndex) : action(action), circuitIndex(circuitIndex) {}
+	FuzzEditAction(MoveBlockAction action, unsigned int circuitIndex) : action(action), circuitIndex(circuitIndex) {}
+	FuzzEditAction(CreateConnectionAction action, unsigned int circuitIndex) : action(action), circuitIndex(circuitIndex) {}
+	FuzzEditAction(RemoveConnectionAction action, unsigned int circuitIndex) : action(action), circuitIndex(circuitIndex) {}
+	FuzzEditAction(UpdateCircuitIOAction action, unsigned int circuitIndex) : action(action), circuitIndex(circuitIndex) {}
+	FuzzEditAction(RemoveCircuitIOAction action, unsigned int circuitIndex) : action(action), circuitIndex(circuitIndex) {}
+	FuzzEditAction(ResizeCircuitAction action, unsigned int circuitIndex) : action(action), circuitIndex(circuitIndex) {}
+	std::variant <
 		PlaceBlockAction,
 		RemoveBlockAction,
+		MoveBlockAction,
 		CreateConnectionAction,
-		RemoveConnectionAction
+		RemoveConnectionAction,
+		UpdateCircuitIOAction,
+		RemoveCircuitIOAction,
+		ResizeCircuitAction
 	> action;
 	unsigned int circuitIndex;
 	nlohmann::json toJson() const {
@@ -132,35 +228,33 @@ struct FuzzEditAction {
 		return j;
 	}
 	static FuzzEditAction fromJson(const nlohmann::json& j) {
-		FuzzEditAction editAction;
-		editAction.circuitIndex = j["circuitIndex"];
+		unsigned int cIndex = j["circuitIndex"];
 		const nlohmann::json& actionJson = j["action"];
 		std::string type = actionJson["type"];
 		if (type == "PlaceBlockAction") {
-			editAction.action = PlaceBlockAction::fromJson(actionJson);
+			return { PlaceBlockAction::fromJson(actionJson), cIndex };
 		} else if (type == "RemoveBlockAction") {
-			editAction.action = RemoveBlockAction::fromJson(actionJson);
+			return { RemoveBlockAction::fromJson(actionJson), cIndex };
+		} else if (type == "MoveBlockAction") {
+			return { MoveBlockAction::fromJson(actionJson), cIndex };
 		} else if (type == "CreateConnectionAction") {
-			editAction.action = CreateConnectionAction::fromJson(actionJson);
+			return { CreateConnectionAction::fromJson(actionJson), cIndex };
 		} else if (type == "RemoveConnectionAction") {
-			editAction.action = RemoveConnectionAction::fromJson(actionJson);
+			return { RemoveConnectionAction::fromJson(actionJson), cIndex };
+		} else if (type == "UpdateCircuitIOAction") {
+			return { UpdateCircuitIOAction::fromJson(actionJson), cIndex };
+		} else if (type == "RemoveCircuitIOAction") {
+			return { RemoveCircuitIOAction::fromJson(actionJson), cIndex };
+		} else if (type == "ResizeCircuitAction") {
+			return { ResizeCircuitAction::fromJson(actionJson), cIndex };
 		}
-		return editAction;
+		logError("Unknown FuzzEditAction {}", "FuzzEditAction::fromJson", j.dump());
 	}
 };
 
-// using FuzzEditAction = std::variant<
-// 	PlaceBlockAction,
-// 	RemoveBlockAction,
-// 	CreateConnectionAction,
-// 	RemoveConnectionAction
-// >;
-
-// using FuzzTestAction = std::variant<
-// 	SetBlockStateAction,
-// 	TickEvalAction
-// >;
 struct FuzzTestAction {
+	FuzzTestAction(SetBlockStateAction action) : action(action) {}
+	FuzzTestAction(TickEvalAction action) : action(action) {}
 	std::variant<
 		SetBlockStateAction,
 		TickEvalAction
@@ -173,14 +267,13 @@ struct FuzzTestAction {
 		return j;
 	}
 	static FuzzTestAction fromJson(const nlohmann::json& j) {
-		FuzzTestAction testAction;
 		std::string type = j["type"];
 		if (type == "SetBlockStateAction") {
-			testAction.action = SetBlockStateAction::fromJson(j);
+			return SetBlockStateAction::fromJson(j);
 		} else if (type == "TickEvalAction") {
-			testAction.action = TickEvalAction::fromJson(j);
+			return TickEvalAction::fromJson(j);
 		}
-		return testAction;
+		logError("Unknown FuzzTestAction {}", "FuzzTestAction::fromJson", j.dump());
 	}
 };
 
@@ -238,16 +331,31 @@ struct FuzzCustomCircuitType {
 	}
 };
 
-// using FuzzBlockType = std::variant<
-// 	FuzzPrimitiveType,
-// 	FuzzBusType,
-// 	FuzzCustomCircuitType
-// >;
+struct FuzzOtherCircuitType {
+	unsigned int circuitIndex;
+	nlohmann::json toJson() const {
+		nlohmann::json j;
+		j["type"] = "FuzzOtherCircuitType";
+		j["circuitIndex"] = circuitIndex;
+		return j;
+	}
+	static FuzzOtherCircuitType fromJson(const nlohmann::json& j) {
+		FuzzOtherCircuitType otherType;
+		otherType.circuitIndex = j["circuitIndex"];
+		return otherType;
+	}
+};
+
 struct FuzzBlockType {
-	std::variant<
+	FuzzBlockType(FuzzPrimitiveType primitiveType) : type(primitiveType) {}
+	FuzzBlockType(FuzzBusType busType) : type(busType) {}
+	FuzzBlockType(FuzzCustomCircuitType customCircuitType) : type(customCircuitType) {}
+	FuzzBlockType(FuzzOtherCircuitType otherCircuitType) : type(otherCircuitType) {}
+	std::variant <
 		FuzzPrimitiveType,
 		FuzzBusType,
-		FuzzCustomCircuitType
+		FuzzCustomCircuitType,
+		FuzzOtherCircuitType
 	> type;
 	nlohmann::json toJson() const {
 		nlohmann::json j;
@@ -257,16 +365,17 @@ struct FuzzBlockType {
 		return j;
 	}
 	static FuzzBlockType fromJson(const nlohmann::json& j) {
-		FuzzBlockType fuzzBlockType;
 		std::string typeStr = j["type"];
 		if (typeStr == "FuzzPrimitiveType") {
-			fuzzBlockType.type = FuzzPrimitiveType::fromJson(j);
+			return FuzzPrimitiveType::fromJson(j);
 		} else if (typeStr == "FuzzBusType") {
-			fuzzBlockType.type = FuzzBusType::fromJson(j);
+			return FuzzBusType::fromJson(j);
 		} else if (typeStr == "FuzzCustomCircuitType") {
-			fuzzBlockType.type = FuzzCustomCircuitType::fromJson(j);
+			return FuzzCustomCircuitType::fromJson(j);
+		} else if (typeStr == "FuzzOtherCircuitType") {
+			return FuzzOtherCircuitType::fromJson(j);
 		}
-		return fuzzBlockType;
+		logError("Unknown FuzzBlockType {}", "FuzzBlockType::fromJson", j.dump());
 	}
 };
 
