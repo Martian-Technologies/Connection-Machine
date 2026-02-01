@@ -162,7 +162,7 @@ public:
 
 	inline std::optional<NBuffer>& getStateBuffer() { return stateBuffer; }
 
-	inline std::vector<simulator_gate_id_t>& getStateSimulatorIds() { return simulatorIds; }
+	inline std::vector<simulator_state_index_t>& getStateSimulatorIds() { return simulatorIds; }
 	inline const phmap::flat_hash_map<Position, size_t>& getBlockStateIndex() const { return blockStateIndex; }
 	inline const phmap::flat_hash_map<Position, PortStateRange>& getPortStateIndex() const { return portStateIndex; }
 
@@ -178,7 +178,7 @@ private:
 	std::optional<NBuffer> stateBuffer;
 	VkDescriptorBufferInfo stateDescriptorBufferInfo;
 
-	std::vector<simulator_gate_id_t> simulatorIds;
+	std::vector<simulator_state_index_t> simulatorIds;
 	phmap::flat_hash_map<Position, size_t> blockStateIndex;
 	phmap::flat_hash_map<Position, PortStateRange> portStateIndex;
 };
