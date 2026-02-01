@@ -1,3 +1,6 @@
+#ifndef logicSimulator_h
+#define logicSimulator_h
+
 #include "logicState.h"
 #include "../evalDefs.h"
 
@@ -15,8 +18,8 @@ public:
 
 	void addGate(eval_gate_id gateId, BlockType blockType);
 	void removeGate(eval_gate_id gateId);
-	void addConnection(const EvalConnection& evalConnection, unsigned int weight);
-	void removeConnection(const EvalConnection& evalConnection, unsigned int weight);
+	void addConnection(const EvalConnection& evalConnection, int weight);
+	void removeConnection(const EvalConnection& evalConnection, int weight);
 	void endEdit();
 
 	// state access
@@ -57,17 +60,47 @@ public:
 	nlohmann::json dumpState() const;
 
 private:
+	enum class PortDirection {
+		INPUT,
+		OUTPUT,
+		BIDDIR
+	};
+	struct PortInfo {
+		PortDirection direction;
+		bool limitedToOneConnection;
+	};
+
+	using SimulatorGateConnectionContainer = std::unordered_map<connection_end_id_t, std::unordered_map<EvalConnectionPoint, unsigned int>>;
+
+	struct SimulatorGate {
+		BlockType type;
+		SimulatorGateConnectionContainer connections;
+
+		std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) {
+			return connections[connectionEndId]; // yes, we want to create an empty map if it doesn't exist
+		}
+	};
+
 	simulator_id_t simulatorId;
 	std::vector<simulator_state_index_t>& dirtySimulatorIds;
 	DataUpdateEventManager& dataUpdateEventManager;
 
+	std::unordered_map<eval_gate_id, SimulatorGate> gates;
+
+	void removeAllGateConnections(eval_gate_id gateId);
+
+	static PortInfo getPortInfo(BlockType blockType, connection_end_id_t connectionEndId);
+	static PortDirection getPortDirection(BlockType blockType, connection_end_id_t connectionEndId) { return getPortInfo(blockType, connectionEndId).direction; }
+	static bool isPortLimitedToOneConnection(BlockType blockType, connection_end_id_t connectionEndId) { return getPortInfo(blockType, connectionEndId).limitedToOneConnection; }
 };
 
 class SimPauseGuard {
 public:
 	SimPauseGuard(LogicSimulator& logicSimulator) : logicSimulator(logicSimulator) {}
-
 	~SimPauseGuard() {}
+
 private:
 	LogicSimulator& logicSimulator;
 };
+
+#endif /* logicSimulator_h */
