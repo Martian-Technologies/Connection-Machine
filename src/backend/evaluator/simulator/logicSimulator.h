@@ -1,6 +1,8 @@
 #ifndef logicSimulator_h
 #define logicSimulator_h
 
+#include "logicGroupRunner.h"
+
 #include "logicState.h"
 #include "../evalDefs.h"
 
@@ -60,6 +62,8 @@ public:
 	nlohmann::json dumpState() const;
 
 private:
+	LogicGroupRunner logicGroupRunner;
+
 	enum class PortDirection {
 		INPUT,
 		OUTPUT,
@@ -92,15 +96,7 @@ private:
 	static PortInfo getPortInfo(BlockType blockType, connection_end_id_t connectionEndId);
 	static PortDirection getPortDirection(BlockType blockType, connection_end_id_t connectionEndId) { return getPortInfo(blockType, connectionEndId).direction; }
 	static bool isPortLimitedToOneConnection(BlockType blockType, connection_end_id_t connectionEndId) { return getPortInfo(blockType, connectionEndId).limitedToOneConnection; }
-};
-
-class SimPauseGuard {
-public:
-	SimPauseGuard(LogicSimulator& logicSimulator) : logicSimulator(logicSimulator) {}
-	~SimPauseGuard() {}
-
-private:
-	LogicSimulator& logicSimulator;
+	logic_state_t getRunnerState_noMux(simulator_state_index_t simulatorStateIndex) const;
 };
 
 #endif /* logicSimulator_h */

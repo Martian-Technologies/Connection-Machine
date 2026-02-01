@@ -325,7 +325,6 @@ void EvalLogicSimulator::processEdits() {
 	// removedConnectionCount += evalLayerState.getRemovedConnections().size();
 	// printCounts();
 	{
-		SimPauseGuard simPauseGuard(logicSimulator);
 		for (auto iter : evalLayerState.getRemovedConnections()) {
 			logicSimulator.removeConnection(iter.first, iter.second);
 		}

@@ -25,14 +25,12 @@ void LogicSimulator::addGate(eval_gate_id gateId, BlockType blockType) {
 	);
 	assert(!gates.contains(gateId) && "Gate already exists in LogicSimulator");
 	gates.emplace(gateId, SimulatorGate { blockType, {} });
-	logInfo("Added gate {} of type {}", "LogicSimulator::addGate", gateId.get(), blocktype_to_string(blockType));
 }
 
 void LogicSimulator::removeGate(eval_gate_id gateId) {
 	assert(gates.contains(gateId) && "Gate does not exist in LogicSimulator");
 	removeAllGateConnections(gateId);
 	gates.erase(gateId);
-	logInfo("Removed gate {}", "LogicSimulator::removeGate", gateId.get());
 }
 
 void LogicSimulator::addConnection(const EvalConnection& evalConnection, int weight) {
@@ -72,16 +70,6 @@ void LogicSimulator::addConnection(const EvalConnection& evalConnection, int wei
 		assert(newWeight <= 1 && "Port on gate A is limited to one connection");
 	}
 	assert(newWeight >= 0 && "Connection weight cannot be negative");
-	logInfo(
-		"{} connection between gate {} port {} and gate {} port {} (new weight {})",
-		"LogicSimulator::addConnection",
-		weight >= 0 ? "Added" : "Removed",
-		evalConnection.connectionPointA.gateId.get(),
-		evalConnection.connectionPointA.connectionEndId.get(),
-		evalConnection.connectionPointB.gateId.get(),
-		evalConnection.connectionPointB.connectionEndId.get(),
-		newWeight
-	);
 	if (newWeight == 0) {
 		gateAConnectionsFromPort.erase(evalConnection.connectionPointB);
 		gateBConnectionsFromPort.erase(evalConnection.connectionPointA);
@@ -97,23 +85,59 @@ void LogicSimulator::removeConnection(const EvalConnection& evalConnection, int 
 
 void LogicSimulator::endEdit() {
 	logInfo("Ended edit session", "LogicSimulator::endEdit");
+
 }
 
 void LogicSimulator::resetStates() {}
+
 void LogicSimulator::setState(simulator_state_index_t simulatorStateIndex, logic_state_t state) {}
-logic_state_t LogicSimulator::getState(simulator_state_index_t simulatorStateIndex) const { return logic_state_t::UNDEFINED; }
+
+logic_state_t LogicSimulator::getState(simulator_state_index_t simulatorStateIndex) const {
+	if (simulatorStateIndex == simulator_state_index_t(0)) {
+		return logic_state_t::LOW;
+	} else if (simulatorStateIndex == simulator_state_index_t(1)) {
+		return logic_state_t::HIGH;
+	} else if (simulatorStateIndex == simulator_state_index_t(2)) {
+		return logic_state_t::FLOATING;
+	} else if (simulatorStateIndex == simulator_state_index_t(3)) {
+		return logic_state_t::UNDEFINED;
+	} else {
+		LogicGroupRunner::ReadingGuard readingGuard = logicGroupRunner.getReadingGuard();
+		return getRunnerState_noMux(simulatorStateIndex);
+	}
+}
+
 std::vector<logic_state_t> LogicSimulator::getStates(const std::vector<simulator_state_index_t>& simulatorStateIndices) const {
-	// Simple implementation using getState for each index
-	// Future implementation will only lock once for efficiency
+	std::optional<LogicGroupRunner::ReadingGuard> readingGuardOpt;
 	std::vector<logic_state_t> states;
 	for (const auto& index : simulatorStateIndices) {
-		states.push_back(getState(index));
+		if (index == simulator_state_index_t(0)) {
+			states.push_back(logic_state_t::LOW);
+			continue;
+		} else if (index == simulator_state_index_t(1)) {
+			states.push_back(logic_state_t::HIGH);
+			continue;
+		} else if (index == simulator_state_index_t(2)) {
+			states.push_back(logic_state_t::FLOATING);
+			continue;
+		} else if (index == simulator_state_index_t(3)) {
+			states.push_back(logic_state_t::UNDEFINED);
+			continue;
+		}
+		if (!readingGuardOpt.has_value()) {
+			readingGuardOpt.emplace(logicGroupRunner.getReadingGuard());
+		}
+		states.push_back(getRunnerState_noMux(index));
 	}
 	return states;
 }
 
+logic_state_t LogicSimulator::getRunnerState_noMux(simulator_state_index_t simulatorStateIndex) const {
+	return logicGroupRunner.getState(simulatorStateIndex);
+}
+
 std::optional<simulator_state_index_t> LogicSimulator::getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const {
-	return simulator_state_index_t(1);
+	return simulator_state_index_t(2);
 }
 void LogicSimulator::setRunning(bool running) {}
 bool LogicSimulator::isRunning() const { return false; }
@@ -207,4 +231,6 @@ LogicSimulator::PortInfo LogicSimulator::getPortInfo(BlockType blockType, connec
 		default:
 			assert(false && "Unknown block type in getPortInfo");
 	}
+	assert(false && "Unreachable code in getPortInfo");
+	return PortInfo { PortDirection::INPUT, false };
 }
