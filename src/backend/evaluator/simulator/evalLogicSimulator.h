@@ -57,8 +57,8 @@ public:
 	double getTickrate() const { return logicSimulator.getTargetTickrate(); }
 	void increaseTickrateSeq();
 	void decreaseTickrateSeq();
-	void setUseTickrate(bool useTickrate) { logicSimulator.setTickrateLimiter(useTickrate); }
-	bool getUseTickrate() const { return logicSimulator.isTickrateLimiterEnabled(); }
+	void setUseTickrate(bool useTickrate) { logicSimulator.setUseTickrateLimiter(useTickrate); }
+	bool getUseTickrate() const { return logicSimulator.getUseTickrateLimiter(); }
 	double getRealTickrate() const { return logicSimulator.getAverageTickrate(); }
 
 	// --------------- Other ---------------

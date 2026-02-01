@@ -19,7 +19,7 @@ EvalLogicSimulator::EvalLogicSimulator(
 	const EvalLayerState& evalLayerState = circuit->getEvaluator().getEvaluatorInternal().getLayerRunner().getOutputLayer();
 
 	for (std::pair<eval_gate_id, EvalGate> pair : evalLayerState.getGates()) {
-		logicSimulator.addGate(getBlockType(pair.second.type));
+		logicSimulator.addGate(pair.first, getBlockType(pair.second.type));
 	}
 	for (std::pair<eval_gate_id, EvalGate> pair : evalLayerState.getGates()) {
 		for (std::pair<connection_end_id_t, std::unordered_set<EvalConnectionPoint>> connectionsPair : pair.second.connections) {
@@ -29,32 +29,14 @@ EvalLogicSimulator::EvalLogicSimulator(
 					(otherConnectionPoint.gateId > pair.second.gateId) ||
 					(otherConnectionPoint.gateId == pair.second.gateId && otherConnectionPoint.connectionEndId.get() > connectionsPair.first.get())
 				) {
-					auto gateAIdIter = gateIdMapping.find(pair.first);
-					if (gateAIdIter == gateIdMapping.end()) {
-						logError(
-							"Failed to get sim gate id from eval id {}",
-							"EvalLogicSimulator::EvalLogicSimulator",
-							pair.first
-						);
-						continue;
-					}
-					auto gateBIdIter = gateIdMapping.find(otherConnectionPoint.gateId);
-					if (gateBIdIter == gateIdMapping.end()) {
-						logError(
-							"Failed to get sim gate id from eval id {}",
-							"EvalLogicSimulator::EvalLogicSimulator",
-							otherConnectionPoint.gateId
-						);
-						continue;
-					}
 					unsigned int weight = evalLayerState.getConnectionWeight(EvalConnection(
 						EvalConnectionPoint(pair.first, connectionsPair.first),
 						otherConnectionPoint
 					));
-					// tmp need to repeat the inputs for logicSimulator
-					for (unsigned int i = 0; i < weight; i++) {
-						logicSimulator.makeConnection(gateAIdIter->second, connectionsPair.first, gateBIdIter->second, otherConnectionPoint.connectionEndId);
-					}
+					logicSimulator.addConnection(EvalConnection(
+						EvalConnectionPoint(pair.first, connectionsPair.first),
+						otherConnectionPoint
+					), weight);
 				}
 			}
 		}
@@ -76,23 +58,20 @@ void EvalLogicSimulator::setState(const Address& address, logic_state_t state) {
 	std::lock_guard lock(mux);
 	std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> connectionPoints = evaluatorInternal.mapFromAddressToBottomConnectionPoints(address);
 	if (!std::holds_alternative<EvalConnectionPoint>(connectionPoints)) return;
-	auto iter2 = gateIdMapping.find(std::get<EvalConnectionPoint>(connectionPoints).gateId);
-	if (iter2 == gateIdMapping.end()) {
-		logError("Failed to set sim id", "EvalLogicSimulator::setState");
+	std::optional<simulator_state_index_t> simulatorStateIndex = getSimulatorStateIndex_noMux(std::get<EvalConnectionPoint>(connectionPoints));
+	if (!simulatorStateIndex.has_value()) {
+		logError("Could not find simulator state index for address: {}", "EvalLogicSimulator", address.toString());
 		return;
 	}
-	setState(iter2->second, state);
+	setState(simulatorStateIndex.value(), state);
 }
 
 logic_state_t EvalLogicSimulator::getState(const Address& address) const {
 	std::lock_guard lock(mux);
 	std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> connectionPoints = evaluatorInternal.mapFromAddressToBottomConnectionPoints(address);
 	if (!std::holds_alternative<EvalConnectionPoint>(connectionPoints)) return logic_state_t::UNDEFINED;
-	auto iter2 = gateIdMapping.find(std::get<EvalConnectionPoint>(connectionPoints).gateId);
-	if (iter2 == gateIdMapping.end()) {
-		return logic_state_t::UNDEFINED;
-	}
-	return getState(iter2->second);
+	simulator_state_index_t simulatorStateIndex = getSimulatorStateIndex_noMux(std::get<EvalConnectionPoint>(connectionPoints)).value_or(3);
+	return getState(simulatorStateIndex);
 }
 
 std::variant<logic_state_t, std::vector<logic_state_t>> EvalLogicSimulator::getPinState(const Address& address) {
@@ -354,7 +333,7 @@ void EvalLogicSimulator::processEdits() {
 			logicSimulator.removeGate(iter.first);
 		}
 		for (auto iter : evalLayerState.getAddedGates()) {
-			logicSimulator.addGate(iter.first, iter.second);
+			logicSimulator.addGate(iter.first, getBlockType(iter.second));
 		}
 		for (auto iter : evalLayerState.getAddedConnections()) {
 			logicSimulator.addConnection(iter.first, iter.second);
