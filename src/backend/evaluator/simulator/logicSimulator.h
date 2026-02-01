@@ -1,9 +1,15 @@
 #include "logicState.h"
+#include "../evalDefs.h"
 
 class LogicSimulator {
 public:
-	LogicSimulator(simulator_id_t simulatorId, std::vector<simulator_state_index_t>& dirtySimulatorIds, DataUpdateEventManager& dataUpdateEventManager) :
-		simulatorId(simulatorId), dirtySimulatorIds(dirtySimulatorIds), dataUpdateEventManager(dataUpdateEventManager) {};
+	LogicSimulator(
+		simulator_id_t simulatorId,
+		std::vector<simulator_state_index_t>& dirtySimulatorIds,
+		DataUpdateEventManager& dataUpdateEventManager
+	) : simulatorId(simulatorId),
+		dirtySimulatorIds(dirtySimulatorIds),
+		dataUpdateEventManager(dataUpdateEventManager) {};
 
 	// circuit editing
 

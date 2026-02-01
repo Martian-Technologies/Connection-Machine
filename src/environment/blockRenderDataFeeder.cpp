@@ -4,6 +4,7 @@
 #include "backend/backend.h"
 #include "gpu/freetype/freetype.h"
 #include "gpu/mainRenderer.h"
+#include "backend/settings/settings.h"
 
 BlockRenderDataFeeder::BlockRenderDataFeeder(Backend& backend) : backend(backend), dataUpdateEventReceiver(backend.getDataUpdateEventManager()) {
 	dataUpdateEventReceiver.linkFunction("newBlockType", std::bind(&BlockRenderDataFeeder::newBlockTypeUpdate, this, std::placeholders::_1));
