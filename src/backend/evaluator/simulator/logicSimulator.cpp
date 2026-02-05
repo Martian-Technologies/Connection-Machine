@@ -1,4 +1,5 @@
 #include "logicSimulator.h"
+#include "simulatorGateGroup.h"
 
 void LogicSimulator::addGate(eval_gate_id gateId, BlockType blockType) {
 	assert(
@@ -47,9 +48,9 @@ void LogicSimulator::addConnection(const EvalConnection& evalConnection, int wei
 	// validate connection directions
 
 	assert(
-		(gateAPortDirection == PortDirection::OUTPUT && (gateBPortDirection == PortDirection::INPUT || gateBPortDirection == PortDirection::BIDDIR)) ||
-		(gateAPortDirection == PortDirection::INPUT && (gateBPortDirection == PortDirection::OUTPUT || gateBPortDirection == PortDirection::BIDDIR)) ||
-		(gateAPortDirection == PortDirection::BIDDIR && (gateBPortDirection == PortDirection::INPUT || gateBPortDirection == PortDirection::OUTPUT))
+		(gateAPortDirection == PortDirection::OUTPUT && (gateBPortDirection == PortDirection::INPUT || gateBPortDirection == PortDirection::BIDIRECTIONAL)) ||
+		(gateAPortDirection == PortDirection::INPUT && (gateBPortDirection == PortDirection::OUTPUT || gateBPortDirection == PortDirection::BIDIRECTIONAL)) ||
+		(gateAPortDirection == PortDirection::BIDIRECTIONAL && (gateBPortDirection == PortDirection::INPUT || gateBPortDirection == PortDirection::OUTPUT))
 	);
 
 	std::unordered_map<EvalConnectionPoint, unsigned int>& gateAConnectionsFromPort = gateA.getConnectionsFromPort(evalConnection.connectionPointA.connectionEndId);
@@ -84,8 +85,15 @@ void LogicSimulator::removeConnection(const EvalConnection& evalConnection, int 
 }
 
 void LogicSimulator::endEdit() {
-	logInfo("Ended edit session", "LogicSimulator::endEdit");
-
+	const std::unordered_map<simulator_state_index_t, simulator_state_index_t> remapping = runGrouping();
+	for (const auto& [oldIndex, newIndex] : remapping) {
+		dirtySimulatorIds.push_back(oldIndex);
+	}
+	{
+		LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
+		logicGroupRunner.moveStates(remapping);
+		logicGroupRunner.setSimGroups(compileGroups());
+	}
 }
 
 void LogicSimulator::resetStates() {}
@@ -214,7 +222,7 @@ LogicSimulator::PortInfo LogicSimulator::getPortInfo(BlockType blockType, connec
 		case BlockType::JUNCTION_H:
 		case BlockType::JUNCTION_X:
 			if (connectionEndId == 0) {
-				return PortInfo { PortDirection::BIDDIR, false };
+				return PortInfo { PortDirection::BIDIRECTIONAL, false };
 			}
 			assert(false && "Invalid connection end ID for junction block type");
 			break;
