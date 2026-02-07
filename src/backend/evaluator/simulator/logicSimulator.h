@@ -3,11 +3,10 @@
 
 #include "logicGroupRunner.h"
 
+#include "simulatorDefs.h"
 #include "logicState.h"
 #include "../evalDefs.h"
 
-class gate_group_id_t;
-class gate_index_in_group_t;
 class CompiledGateGroup;
 
 class LogicSimulator {
@@ -70,14 +69,12 @@ private:
 	std::vector<simulator_state_index_t>& dirtySimulatorIds;
 	DataUpdateEventManager& dataUpdateEventManager;
 
-	using SimulatorGateConnectionContainer = std::unordered_map<connection_end_id_t, std::unordered_map<EvalConnectionPoint, unsigned int>>;
-
 	struct SimulatorGate {
 		BlockType type;
-		SimulatorGateConnectionContainer connections;
-		std::optional<gate_group_id_t> inputGroupId;
-		std::optional<gate_group_id_t> outputGroupId;
-		gate_index_in_group_t indexInOutputGroup;
+		std::unordered_map<
+			connection_end_id_t,
+			std::unordered_map<EvalConnectionPoint, unsigned int>
+		> connections;
 
 		std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) {
 			return connections[connectionEndId]; // yes, we want to create an empty map if it doesn't exist
@@ -86,21 +83,6 @@ private:
 
 	std::unordered_map<eval_gate_id, SimulatorGate> gates;
 
-	class SimulatorGateGroup {
-	public:
-		SimulatorGateGroup() {}
-		~SimulatorGateGroup() = default;
-		bool operator==(const SimulatorGateGroup& o) const = default;
-	private:
-		std::vector<eval_gate_id> gateStatesToCollect;
-		std::vector<eval_gate_id> gatesToCompute;
-	};
-
-	IdProvider<gate_group_id_t> gateGroupIdProvider { 0 };
-	std::unordered_map<gate_group_id_t, SimulatorGateGroup> groups;
-	std::unordered_set<gate_group_id_t> dirtyGroups;
-	std::unordered_set<eval_gate_id> ungroupedGates;
-
 	LogicGroupRunner logicGroupRunner;
 
 	enum class PortDirection {
@@ -108,6 +90,12 @@ private:
 		OUTPUT,
 		BIDIRECTIONAL
 	};
+
+	enum class ConnectionDirection {
+		AtoB,
+		BtoA,
+	};
+
 	struct PortInfo {
 		PortDirection direction;
 		bool limitedToOneConnection;
@@ -123,11 +111,20 @@ private:
 	static PortDirection getPortDirection(BlockType blockType, connection_end_id_t connectionEndId) { return getPortInfo(blockType, connectionEndId).direction; }
 	static bool isPortLimitedToOneConnection(BlockType blockType, connection_end_id_t connectionEndId) { return getPortInfo(blockType, connectionEndId).limitedToOneConnection; }
 
-	gate_group_id_t makeGroup();
-	void deleteGroup(gate_group_id_t groupId);
-	void mergeGroups(gate_group_id_t groupId1, gate_group_id_t groupId2);
-	void dirtyGroup(gate_group_id_t groupId);
+	BlockType getBlockType(eval_gate_id gateId) const;
+	PortDirection getConnectionPointDirection(const EvalConnectionPoint& evalConnectionPoint) const;
+	ConnectionDirection getConnectionDirection(const EvalConnection& evalConnection) const;
+
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compileGroups() const;
+
+	static bool isJunction(BlockType blockType) {
+		return (
+			blockType == BlockType::JUNCTION ||
+			blockType == BlockType::JUNCTION_X ||
+			blockType == BlockType::JUNCTION_H ||
+			blockType == BlockType::JUNCTION_L
+		);
+	}
 };
 
 #endif /* logicSimulator_h */

@@ -1,5 +1,5 @@
 #include "logicSimulator.h"
-#include "simulatorGateGroup.h"
+#include "compiledGateGroup.h"
 
 void LogicSimulator::addGate(eval_gate_id gateId, BlockType blockType) {
 	assert(
@@ -58,15 +58,29 @@ void LogicSimulator::addConnection(const EvalConnection& evalConnection, int wei
 
 	// validate single-connection ports
 
-	unsigned int currentWeight = 0;
+	unsigned int oldWeight = 0;
 	if (gateAConnectionsFromPort.contains(evalConnection.connectionPointB)) {
-		currentWeight = gateAConnectionsFromPort.at(evalConnection.connectionPointB);
+		oldWeight = gateAConnectionsFromPort.at(evalConnection.connectionPointB);
 	}
 	assert(
 		(!gateBConnectionsFromPort.contains(evalConnection.connectionPointA)) ||
-		(currentWeight == gateBConnectionsFromPort.at(evalConnection.connectionPointA))
+		(oldWeight == gateBConnectionsFromPort.at(evalConnection.connectionPointA))
 	);
-	int newWeight = static_cast<int>(currentWeight) + weight;
+	int newWeight = static_cast<int>(oldWeight) + weight;
+
+	BlockType destinationGateType = BlockType::NONE;
+	if (gateAPortDirection == PortDirection::OUTPUT) {
+		destinationGateType = gateBType;
+	} else if (gateBPortDirection == PortDirection::OUTPUT) {
+		destinationGateType = gateAType;
+	} else {
+		assert(false && "Both ports are bidirectional in addConnection");
+	}
+
+	if (destinationGateType == BlockType::XOR || destinationGateType == BlockType::XNOR) {
+		newWeight = newWeight % 2; // XOR/XNOR gates only care about odd/even number of connections
+	}
+
 	if (gateAPortInfo.limitedToOneConnection) {
 		assert(newWeight <= 1 && "Port on gate A is limited to one connection");
 	}
@@ -92,7 +106,7 @@ void LogicSimulator::endEdit() {
 	{
 		LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
 		logicGroupRunner.moveStates(remapping);
-		logicGroupRunner.setSimGroups(compileGroups());
+		logicGroupRunner.setGroups(compileGroups());
 	}
 }
 
@@ -173,6 +187,9 @@ void LogicSimulator::removeAllGateConnections(eval_gate_id gateId) {
 	std::vector<std::pair<EvalConnection, unsigned int>> connectionsToRemove;
 	for (const auto& [connectionEndId, connectionsMap] : simulatorGate.connections) {
 		for (const auto& [evalConnectionPoint, weight] : connectionsMap) {
+			if (evalConnectionPoint.gateId == gateId && evalConnectionPoint.connectionEndId > connectionEndId) {
+				continue; // to avoid processing the same connection twice, we only process it from one end
+			}
 			connectionsToRemove.emplace_back(EvalConnection(EvalConnectionPoint(gateId, connectionEndId), evalConnectionPoint), weight);
 		}
 	}
@@ -241,4 +258,40 @@ LogicSimulator::PortInfo LogicSimulator::getPortInfo(BlockType blockType, connec
 	}
 	assert(false && "Unreachable code in getPortInfo");
 	return PortInfo { PortDirection::INPUT, false };
+}
+
+BlockType LogicSimulator::getBlockType(eval_gate_id gateId) const {
+	return gates.at(gateId).type;
+}
+
+LogicSimulator::PortDirection LogicSimulator::getConnectionPointDirection(const EvalConnectionPoint& evalConnectionPoint) const {
+	return getPortDirection(getBlockType(evalConnectionPoint.gateId), evalConnectionPoint.connectionEndId);
+}
+
+LogicSimulator::ConnectionDirection LogicSimulator::getConnectionDirection(
+	const EvalConnection& evalConnection
+) const {
+	PortDirection portADirection = getConnectionPointDirection(evalConnection.connectionPointA);
+	if (portADirection == PortDirection::OUTPUT) {
+		return ConnectionDirection::AtoB;
+	} else if (portADirection == PortDirection::INPUT) {
+		return ConnectionDirection::BtoA;
+	}
+
+	PortDirection portBDirection = getConnectionPointDirection(evalConnection.connectionPointB);
+	if (portBDirection == PortDirection::OUTPUT) {
+		return ConnectionDirection::BtoA;
+	} else if (portBDirection == PortDirection::INPUT) {
+		return ConnectionDirection::AtoB;
+	}
+
+	assert(false && "Both ports are bidirectional in getConnectionDirection");
+	return ConnectionDirection::AtoB; // to silence compiler warning
+}
+
+std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGroups() const {
+	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups;
+	IdProvider<gate_group_id_t> newGroupIdProvider { 1 };
+	gate_group_id_t displayGroupId = gate_group_id_t(0);
+
 }

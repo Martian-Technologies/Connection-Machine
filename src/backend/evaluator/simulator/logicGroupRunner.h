@@ -1,11 +1,11 @@
 #ifndef logicGroupRunner_h
 #define logicGroupRunner_h
 
+#include "simulatorDefs.h"
 #include "../evalDefs.h"
 #include "logicState.h"
 
 class CompiledGateGroup;
-class gate_group_id_t;
 
 class LogicGroupRunner {
 	friend class EditingGuard;
@@ -50,7 +50,7 @@ public:
 	void setState(simulator_state_index_t simulatorStateIndex, logic_state_t state);
 
 	void moveStates(const std::unordered_map<simulator_state_index_t, simulator_state_index_t>& remapping);
-	void setSimGroups(const std::unordered_map<gate_group_id_t, CompiledGateGroup>& simGroups);
+	void setGroups(const std::unordered_map<gate_group_id_t, CompiledGateGroup>& simGroups);
 
 private:
 	mutable std::shared_mutex mainMutex;
