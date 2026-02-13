@@ -5,29 +5,20 @@
 
 class CompiledGateGroup {
 public:
-	using FetchGroup = std::pair<gate_group_id_t, std::vector<std::pair<r_vec_index, w_vec_index>>>;
-	using Junction = std::pair<r_vec_index, std::vector<r_vec_index>>;
-	using Gate = std::tuple<w_vec_index, BlockType, std::vector<r_vec_index>>;
-
 	CompiledGateGroup(
-		std::vector<FetchGroup> fetchGroups,
-		std::vector<Junction> junctions,
-		std::vector<Gate> gates
-	) : fetchGroups(std::move(fetchGroups)),
-		junctions(std::move(junctions)),
-		gates(std::move(gates)),
-		totalRVecSize(fetchGroups.size() + junctions.size()),
-		totalWVecSize(gates.size())
-	{}
+		std::vector<SimulatorGate> gates,
+		std::vector<EvalConnectionPoint> pullConnectionPoints,
+		std::vector<EvalConnectionPoint> publishConnectionPoints
+	) : gates(std::move(gates)),
+		pullConnectionPoints(std::move(pullConnectionPoints)),
+		publishConnectionPoints(std::move(publishConnectionPoints)) {};
 	~CompiledGateGroup() = default;
 	bool operator==(const CompiledGateGroup& o) const = default;
 
 private:
-	std::vector<FetchGroup> fetchGroups;
-	std::vector<Junction> junctions;
-	std::vector<Gate> gates;
-	unsigned int totalRVecSize;
-	unsigned int totalWVecSize;
+	std::vector<SimulatorGate> gates;
+	std::vector<EvalConnectionPoint> pullConnectionPoints;
+	std::vector<EvalConnectionPoint> publishConnectionPoints;
 };
 
 #endif /* compiledGateGroup_h */

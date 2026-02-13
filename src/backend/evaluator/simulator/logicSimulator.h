@@ -69,18 +69,6 @@ private:
 	std::vector<simulator_state_index_t>& dirtySimulatorIds;
 	DataUpdateEventManager& dataUpdateEventManager;
 
-	struct SimulatorGate {
-		BlockType type;
-		std::unordered_map<
-			connection_end_id_t,
-			std::unordered_map<EvalConnectionPoint, unsigned int>
-		> connections;
-
-		std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) {
-			return connections[connectionEndId]; // yes, we want to create an empty map if it doesn't exist
-		}
-	};
-
 	std::unordered_map<eval_gate_id, SimulatorGate> gates;
 
 	LogicGroupRunner logicGroupRunner;
@@ -116,6 +104,8 @@ private:
 	ConnectionDirection getConnectionDirection(const EvalConnection& evalConnection) const;
 
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compileGroups() const;
+
+	bool isJunction(eval_gate_id gateId) const { return isJunction(getBlockType(gateId)); }
 
 	static bool isJunction(BlockType blockType) {
 		return (

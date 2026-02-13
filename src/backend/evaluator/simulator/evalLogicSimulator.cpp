@@ -217,15 +217,15 @@ std::optional<simulator_state_index_t> EvalLogicSimulator::getSimulatorStateInde
 
 SimulatorStateIndexVecVariant EvalLogicSimulator::getVirtualConnectionSimulatorId(const Address& address, virtual_connection_id_t virtualConnectionId) const {
 	std::lock_guard lock(mux);
-	if (virtualConnectionId != 0) return 3;
+	if (virtualConnectionId != 0) return simulator_state_index_t(3);
 	std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> evalConnectionPoints = evaluatorInternal.mapFromAddressToBottomConnectionPoints(address);
 	if (std::holds_alternative<EvalConnectionPoint>(evalConnectionPoints)) {
 		EvalConnectionPoint evalConnectionPoint = std::get<EvalConnectionPoint>(evalConnectionPoints);
-		return getSimulatorStateIndex_noMux(evalConnectionPoint).value_or(3);
+		return getSimulatorStateIndex_noMux(evalConnectionPoint).value_or(simulator_state_index_t(3));
 	}
 	std::vector<simulator_state_index_t> outputSimulatorIds;
 	for (EvalConnectionPoint evalConnectionPoint : std::get<std::vector<EvalConnectionPoint>>(evalConnectionPoints)) {
-		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndex_noMux(evalConnectionPoint).value_or(3);
+		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndex_noMux(evalConnectionPoint).value_or(simulator_state_index_t(3));
 		outputSimulatorIds.push_back(simulatorStateIndex);
 	}
 	return outputSimulatorIds;
@@ -238,19 +238,19 @@ SimulatorStateIndexVecVariant EvalLogicSimulator::getPinSimulatorId(const Addres
 		EvalConnectionPoint evalConnectionPoint = std::get<EvalConnectionPoint>(evalConnectionPoints);
 		if (evalConnectionPoint.isNull()) {
 			logError("Failed to get bottom connection point.", "EvalLogicSimulator::getPinSimulatorId");
-			return 0;
+			return simulator_state_index_t(0);
 		}
-		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndexConsideringOutput_noMux(evalConnectionPoint).value_or(0);
+		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndexConsideringOutput_noMux(evalConnectionPoint).value_or(simulator_state_index_t(0));
 		return simulatorStateIndex;
 	}
 	std::vector<simulator_state_index_t> outputSimulatorIds;
 	for (EvalConnectionPoint evalConnectionPoint : std::get<std::vector<EvalConnectionPoint>>(evalConnectionPoints)) {
 		if (evalConnectionPoint.isNull()) {
 			logError("Failed to get bottom connection point.", "EvalLogicSimulator::getPinSimulatorId");
-			outputSimulatorIds.push_back(3);
+			outputSimulatorIds.push_back(simulator_state_index_t(3));
 			continue;
 		}
-		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndexConsideringOutput_noMux(evalConnectionPoint).value_or(3);
+		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndexConsideringOutput_noMux(evalConnectionPoint).value_or(simulator_state_index_t(3));
 		outputSimulatorIds.push_back(simulatorStateIndex);
 	}
 	return outputSimulatorIds;
@@ -417,14 +417,14 @@ std::optional<simulator_state_index_t> EvalLogicSimulator::getSimulatorStateInde
 }
 
 SimulatorStateIndexVecVariant EvalLogicSimulator::getVirtualConnectionSimulatorId_noMux(const Address& address, virtual_connection_id_t virtualConnectionId) const {
-	if (virtualConnectionId != 0) return 3;
+	if (virtualConnectionId != 0) return simulator_state_index_t(3);
 	std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> evalConnectionPoints = evaluatorInternal.mapFromAddressToBottomConnectionPoints(address);
 	if (std::holds_alternative<EvalConnectionPoint>(evalConnectionPoints)) {
-		return getSimulatorStateIndex_noMux(std::get<EvalConnectionPoint>(evalConnectionPoints)).value_or(3);
+		return getSimulatorStateIndex_noMux(std::get<EvalConnectionPoint>(evalConnectionPoints)).value_or(simulator_state_index_t(3));
 	}
 	std::vector<simulator_state_index_t> outputSimulatorIds;
 	for (EvalConnectionPoint evalConnectionPoint : std::get<std::vector<EvalConnectionPoint>>(evalConnectionPoints)) {
-		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndex_noMux(evalConnectionPoint).value_or(3);
+		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndex_noMux(evalConnectionPoint).value_or(simulator_state_index_t(3));
 		outputSimulatorIds.push_back(simulatorStateIndex);
 	}
 	return outputSimulatorIds;
@@ -436,19 +436,19 @@ SimulatorStateIndexVecVariant EvalLogicSimulator::getPinSimulatorId_noMux(const 
 		EvalConnectionPoint evalConnectionPoint = std::get<EvalConnectionPoint>(evalConnectionPoints);
 		if (evalConnectionPoint.isNull()) {
 			logError("Failed to get bottom connection point.", "EvalLogicSimulator::getPinSimulatorId");
-			return 0;
+			return simulator_state_index_t(0);
 		}
-		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndexConsideringOutput_noMux(evalConnectionPoint).value_or(0);
+		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndexConsideringOutput_noMux(evalConnectionPoint).value_or(simulator_state_index_t(0));
 		return simulatorStateIndex;
 	}
 	std::vector<simulator_state_index_t> outputSimulatorIds;
 	for (EvalConnectionPoint evalConnectionPoint : std::get<std::vector<EvalConnectionPoint>>(evalConnectionPoints)) {
 		if (evalConnectionPoint.isNull()) {
 			logError("Failed to get bottom connection point.", "EvalLogicSimulator::getPinSimulatorId");
-			outputSimulatorIds.push_back(3);
+			outputSimulatorIds.push_back(simulator_state_index_t(3));
 			continue;
 		}
-		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndexConsideringOutput_noMux(evalConnectionPoint).value_or(3);
+		simulator_state_index_t simulatorStateIndex = getSimulatorStateIndexConsideringOutput_noMux(evalConnectionPoint).value_or(simulator_state_index_t(3));
 		outputSimulatorIds.push_back(simulatorStateIndex);
 	}
 	return outputSimulatorIds;
@@ -473,7 +473,7 @@ std::pair<simulator_state_index_t, simulator_state_index_t> EvalLogicSimulator::
 	std::optional<simulator_state_index_t> pinStateIndexOpt = getSimulatorStateIndexConsideringOutput_noMux(connectionPoint);
 	if (!nonPinStateIndexOpt.has_value() || !pinStateIndexOpt.has_value()) {
 		logError("Failed to get sim state indices.", "EvalLogicSimulator::getPinAndNotPinSimulatorId");
-		return {3, 3};
+		return {simulator_state_index_t(3), simulator_state_index_t(3)};
 	}
 	return {pinStateIndexOpt.value(), nonPinStateIndexOpt.value()};
 }

@@ -24,6 +24,18 @@ struct simulator_state_index_t {
     }
 };
 
+struct SimulatorGate {
+    BlockType type;
+    std::unordered_map<
+        connection_end_id_t,
+        std::unordered_map<EvalConnectionPoint, unsigned int>
+    > connections;
+
+    std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) {
+        return connections[connectionEndId];
+    }
+};
+
 typedef std::variant<simulator_state_index_t, std::vector<simulator_state_index_t>> SimulatorStateIndexVecVariant;
 
 #endif /* simulatorDefs_h */

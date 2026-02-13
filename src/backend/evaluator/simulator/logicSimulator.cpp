@@ -293,5 +293,16 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups;
 	IdProvider<gate_group_id_t> newGroupIdProvider { 1 };
 	gate_group_id_t displayGroupId = gate_group_id_t(0);
+	std::unordered_set<eval_gate_id> ungroupedGates = {};
+	for (const auto& [gateId, simulatorGate] : gates) {
+		ungroupedGates.insert(gateId);
+	}
+	while (ungroupedGates.size() != 0) {
+		eval_gate_id gateId = *ungroupedGates.begin();
+		if (isJunction(gateId)) {
+			continue;
+		}
+		// walk back then walk forward
 
+	}
 }
