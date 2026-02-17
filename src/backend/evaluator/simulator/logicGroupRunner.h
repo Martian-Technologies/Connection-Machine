@@ -46,10 +46,9 @@ public:
 	EditingGuard getEditingGuard() { return EditingGuard(*this); }
 	ReadingGuard getReadingGuard() const { return ReadingGuard(*this); }
 
-	logic_state_t getState(simulator_state_index_t simulatorStateIndex) const;
-	void setState(simulator_state_index_t simulatorStateIndex, logic_state_t state);
+	logic_state_t getState(simulator_state_reference simulatorStateIndex) const;
+	void setState(simulator_state_reference simulatorStateIndex, logic_state_t state);
 
-	void moveStates(const std::unordered_map<simulator_state_index_t, simulator_state_index_t>& remapping);
 	void setGroups(const std::unordered_map<gate_group_id_t, CompiledGateGroup>& simGroups);
 
 private:

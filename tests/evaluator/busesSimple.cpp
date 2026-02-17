@@ -155,9 +155,9 @@ TEST_F(BusesSimpleEvaluatorTest, BusEndsHaveSameSimulatorIds) {
 	SimulatorStateIndexVecVariant bus2OutputSimulatorId = simulator->getPinSimulatorId(bus2Pos + *(bus2Data->getConnectionVector(2)));
 	SimulatorStateIndexVecVariant bus3OutputSimulatorId = simulator->getPinSimulatorId(bus3Pos + *(bus2Data->getConnectionVector(2)));
 
-	ASSERT_TRUE(std::holds_alternative<std::vector<simulator_state_index_t>>(bus1OutputSimulatorId));
-	ASSERT_TRUE(std::holds_alternative<std::vector<simulator_state_index_t>>(bus2OutputSimulatorId));
-	ASSERT_TRUE(std::holds_alternative<std::vector<simulator_state_index_t>>(bus3OutputSimulatorId));
-	EXPECT_EQ(std::get<std::vector<simulator_state_index_t>>(bus1OutputSimulatorId), std::get<std::vector<simulator_state_index_t>>(bus2OutputSimulatorId));
-	EXPECT_EQ(std::get<std::vector<simulator_state_index_t>>(bus2OutputSimulatorId), std::get<std::vector<simulator_state_index_t>>(bus3OutputSimulatorId));
+	ASSERT_TRUE(std::holds_alternative<std::vector<simulator_state_reference>>(bus1OutputSimulatorId));
+	ASSERT_TRUE(std::holds_alternative<std::vector<simulator_state_reference>>(bus2OutputSimulatorId));
+	ASSERT_TRUE(std::holds_alternative<std::vector<simulator_state_reference>>(bus3OutputSimulatorId));
+	EXPECT_EQ(std::get<std::vector<simulator_state_reference>>(bus1OutputSimulatorId), std::get<std::vector<simulator_state_reference>>(bus2OutputSimulatorId));
+	EXPECT_EQ(std::get<std::vector<simulator_state_reference>>(bus2OutputSimulatorId), std::get<std::vector<simulator_state_reference>>(bus3OutputSimulatorId));
 }

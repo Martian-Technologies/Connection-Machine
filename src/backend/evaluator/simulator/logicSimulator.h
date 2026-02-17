@@ -13,7 +13,7 @@ class LogicSimulator {
 public:
 	LogicSimulator(
 		simulator_id_t simulatorId,
-		std::vector<simulator_state_index_t>& dirtySimulatorIds,
+		std::vector<simulator_state_reference>& dirtySimulatorIds,
 		DataUpdateEventManager& dataUpdateEventManager
 	) : simulatorId(simulatorId),
 		dirtySimulatorIds(dirtySimulatorIds),
@@ -30,10 +30,10 @@ public:
 	// state access
 
 	void resetStates();
-	void setState(simulator_state_index_t simulatorStateIndex, logic_state_t state);
-	logic_state_t getState(simulator_state_index_t simulatorStateIndex) const;
-	std::vector<logic_state_t> getStates(const std::vector<simulator_state_index_t>& simulatorStateIndices) const;
-	std::optional<simulator_state_index_t> getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const;
+	void setState(simulator_state_reference simulatorStateIndex, logic_state_t state);
+	logic_state_t getState(simulator_state_reference simulatorStateIndex) const;
+	std::vector<logic_state_t> getStates(const std::vector<simulator_state_reference>& simulatorStateIndices) const;
+	std::optional<simulator_state_reference> getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const;
 
 	// controls
 
@@ -66,7 +66,7 @@ public:
 
 private:
 	simulator_id_t simulatorId;
-	std::vector<simulator_state_index_t>& dirtySimulatorIds;
+	std::vector<simulator_state_reference>& dirtySimulatorIds;
 	DataUpdateEventManager& dataUpdateEventManager;
 
 	std::unordered_map<eval_gate_id, SimulatorGate> gates;
@@ -91,9 +91,9 @@ private:
 
 	void removeAllGateConnections(eval_gate_id gateId);
 
-	logic_state_t getRunnerState_noMux(simulator_state_index_t simulatorStateIndex) const;
+	logic_state_t getRunnerState_noMux(simulator_state_reference simulatorStateIndex) const;
 
-	std::unordered_map<simulator_state_index_t, simulator_state_index_t> runGrouping();
+	std::unordered_map<simulator_state_reference, simulator_state_reference> runGrouping();
 
 	static PortInfo getPortInfo(BlockType blockType, connection_end_id_t connectionEndId);
 	static PortDirection getPortDirection(BlockType blockType, connection_end_id_t connectionEndId) { return getPortInfo(blockType, connectionEndId).direction; }

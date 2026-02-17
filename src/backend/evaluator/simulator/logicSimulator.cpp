@@ -99,29 +99,22 @@ void LogicSimulator::removeConnection(const EvalConnection& evalConnection, int 
 }
 
 void LogicSimulator::endEdit() {
-	const std::unordered_map<simulator_state_index_t, simulator_state_index_t> remapping = runGrouping();
-	for (const auto& [oldIndex, newIndex] : remapping) {
-		dirtySimulatorIds.push_back(oldIndex);
-	}
-	{
-		LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
-		logicGroupRunner.moveStates(remapping);
-		logicGroupRunner.setGroups(compileGroups());
-	}
+	LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
+	logicGroupRunner.setGroups(compileGroups());
 }
 
 void LogicSimulator::resetStates() {}
 
-void LogicSimulator::setState(simulator_state_index_t simulatorStateIndex, logic_state_t state) {}
+void LogicSimulator::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {}
 
-logic_state_t LogicSimulator::getState(simulator_state_index_t simulatorStateIndex) const {
-	if (simulatorStateIndex == simulator_state_index_t(0)) {
+logic_state_t LogicSimulator::getState(simulator_state_reference simulatorStateIndex) const {
+	if (simulatorStateIndex == simulator_state_reference(0)) {
 		return logic_state_t::LOW;
-	} else if (simulatorStateIndex == simulator_state_index_t(1)) {
+	} else if (simulatorStateIndex == simulator_state_reference(1)) {
 		return logic_state_t::HIGH;
-	} else if (simulatorStateIndex == simulator_state_index_t(2)) {
+	} else if (simulatorStateIndex == simulator_state_reference(2)) {
 		return logic_state_t::FLOATING;
-	} else if (simulatorStateIndex == simulator_state_index_t(3)) {
+	} else if (simulatorStateIndex == simulator_state_reference(3)) {
 		return logic_state_t::UNDEFINED;
 	} else {
 		LogicGroupRunner::ReadingGuard readingGuard = logicGroupRunner.getReadingGuard();
@@ -129,20 +122,20 @@ logic_state_t LogicSimulator::getState(simulator_state_index_t simulatorStateInd
 	}
 }
 
-std::vector<logic_state_t> LogicSimulator::getStates(const std::vector<simulator_state_index_t>& simulatorStateIndices) const {
+std::vector<logic_state_t> LogicSimulator::getStates(const std::vector<simulator_state_reference>& simulatorStateIndices) const {
 	std::optional<LogicGroupRunner::ReadingGuard> readingGuardOpt;
 	std::vector<logic_state_t> states;
 	for (const auto& index : simulatorStateIndices) {
-		if (index == simulator_state_index_t(0)) {
+		if (index == simulator_state_reference(0)) {
 			states.push_back(logic_state_t::LOW);
 			continue;
-		} else if (index == simulator_state_index_t(1)) {
+		} else if (index == simulator_state_reference(1)) {
 			states.push_back(logic_state_t::HIGH);
 			continue;
-		} else if (index == simulator_state_index_t(2)) {
+		} else if (index == simulator_state_reference(2)) {
 			states.push_back(logic_state_t::FLOATING);
 			continue;
-		} else if (index == simulator_state_index_t(3)) {
+		} else if (index == simulator_state_reference(3)) {
 			states.push_back(logic_state_t::UNDEFINED);
 			continue;
 		}
@@ -154,12 +147,12 @@ std::vector<logic_state_t> LogicSimulator::getStates(const std::vector<simulator
 	return states;
 }
 
-logic_state_t LogicSimulator::getRunnerState_noMux(simulator_state_index_t simulatorStateIndex) const {
+logic_state_t LogicSimulator::getRunnerState_noMux(simulator_state_reference simulatorStateIndex) const {
 	return logicGroupRunner.getState(simulatorStateIndex);
 }
 
-std::optional<simulator_state_index_t> LogicSimulator::getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const {
-	return simulator_state_index_t(2);
+std::optional<simulator_state_reference> LogicSimulator::getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const {
+	return simulator_state_reference(2);
 }
 void LogicSimulator::setRunning(bool running) {}
 bool LogicSimulator::isRunning() const { return false; }
@@ -305,4 +298,5 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 		// walk back then walk forward
 
 	}
+	return {};
 }

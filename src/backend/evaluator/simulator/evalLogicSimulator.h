@@ -29,9 +29,9 @@ public:
 	void resetStates() { logicSimulator.resetStates(); }
 
 	// Simulator Id State
-	void setState(simulator_state_index_t id, logic_state_t state) { logicSimulator.setState(id, state); }
-	logic_state_t getState(simulator_state_index_t id) const { return logicSimulator.getState(id); }
-	std::vector<logic_state_t> getStates(const std::vector<simulator_state_index_t>& ids) const { return logicSimulator.getStates(ids); }
+	void setState(simulator_state_reference id, logic_state_t state) { logicSimulator.setState(id, state); }
+	logic_state_t getState(simulator_state_reference id) const { return logicSimulator.getState(id); }
+	std::vector<logic_state_t> getStates(const std::vector<simulator_state_reference>& ids) const { return logicSimulator.getStates(ids); }
 
 	// Address State
 	void setState(const Address& address, logic_state_t state);
@@ -63,7 +63,7 @@ public:
 
 	// --------------- Other ---------------
 
-	std::optional<simulator_state_index_t> getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const;
+	std::optional<simulator_state_reference> getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const;
 
 	SimulatorStateIndexVecVariant getVirtualConnectionSimulatorId(const Address& address, virtual_connection_id_t virtualConnectionId) const;
 	SimulatorStateIndexVecVariant getPinSimulatorId(const Address& address) const;
@@ -82,13 +82,13 @@ private:
 	SimulatorStateIndexVecVariant getVirtualConnectionSimulatorId_noMux(const Address& address, virtual_connection_id_t virtualConnectionId) const;
 	SimulatorStateIndexVecVariant getPinSimulatorId_noMux(const Address& address) const;
 	std::pair<SimulatorStateIndexVecVariant, SimulatorStateIndexVecVariant> getPinAndNotPinSimulatorId_noMux(std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> connectionPoints) const;
-	std::pair<simulator_state_index_t, simulator_state_index_t> getPinAndNotPinSimulatorId_noMux(EvalConnectionPoint connectionPoint) const;
-	std::optional<simulator_state_index_t> getSimulatorStateIndex_noMux(EvalConnectionPoint evalConnectionPoint) const;
-	std::optional<simulator_state_index_t> getSimulatorStateIndexConsideringOutput_noMux(EvalConnectionPoint evalConnectionPoint) const;
+	std::pair<simulator_state_reference, simulator_state_reference> getPinAndNotPinSimulatorId_noMux(EvalConnectionPoint connectionPoint) const;
+	std::optional<simulator_state_reference> getSimulatorStateIndex_noMux(EvalConnectionPoint evalConnectionPoint) const;
+	std::optional<simulator_state_reference> getSimulatorStateIndexConsideringOutput_noMux(EvalConnectionPoint evalConnectionPoint) const;
 
 	mutable std::mutex mux;
 
-	std::vector<simulator_state_index_t> dirtySimulatorIds;
+	std::vector<simulator_state_reference> dirtySimulatorIds;
 	LogicSimulator logicSimulator;
 	const CircuitManager& circuitManager;
 	const EvaluatorInternal& evaluatorInternal;

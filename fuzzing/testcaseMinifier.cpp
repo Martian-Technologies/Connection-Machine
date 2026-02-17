@@ -130,8 +130,8 @@ std::unique_ptr<FuzzTestcase> TestcaseMinifier::tryRemoveEditActions(const FuzzT
 	tSimulator->resetStates();
 	rSimulator.resetStates();
 
-	std::vector<simulator_state_index_t> simulatorIdsTest;
-	std::vector<simulator_state_index_t> simulatorIdsRef;
+	std::vector<simulator_state_reference> simulatorIdsTest;
+	std::vector<simulator_state_reference> simulatorIdsRef;
 	std::unordered_map<block_id_t, Position> blockIdToPosition;
 
 	BlockDataManager& blockDataManager = environment.getBackend().getBlockDataManager();
@@ -141,8 +141,8 @@ std::unique_ptr<FuzzTestcase> TestcaseMinifier::tryRemoveEditActions(const FuzzT
 		if (block == nullptr) continue;
 		Position pos = block->getPosition();
 		blockIdToPosition[blockId] = pos;
-		simulatorIdsTest.push_back(std::get<simulator_state_index_t>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
-		simulatorIdsRef.push_back(std::get<simulator_state_index_t>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
+		simulatorIdsTest.push_back(std::get<simulator_state_reference>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
+		simulatorIdsRef.push_back(std::get<simulator_state_reference>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
 		const BlockData* blockData = blockDataManager.getBlockData(block->type());
 		if (blockData == nullptr) continue;
 		if (blockData->isDefaultData()) {
@@ -153,14 +153,14 @@ std::unique_ptr<FuzzTestcase> TestcaseMinifier::tryRemoveEditActions(const FuzzT
 				}
 				std::optional<Position> portPositionOpt = block->getConnectionPosition(connectionId);
 				Position portPosition = portPositionOpt.value();
-				std::variant<simulator_state_index_t, std::vector<simulator_state_index_t>> simIdTest = tSimulator->getPinSimulatorId(portPosition);
-				std::variant<simulator_state_index_t, std::vector<simulator_state_index_t>> simIdRef = rSimulator.getPinSimulatorId(portPosition);
-				if (std::holds_alternative<simulator_state_index_t>(simIdTest) && std::holds_alternative<simulator_state_index_t>(simIdRef)) {
-					simulatorIdsTest.push_back(std::get<simulator_state_index_t>(simIdTest));
-					simulatorIdsRef.push_back(std::get<simulator_state_index_t>(simIdRef));
-				} else if (std::holds_alternative<std::vector<simulator_state_index_t>>(simIdTest) && std::holds_alternative<std::vector<simulator_state_index_t>>(simIdRef)) {
-					std::vector<simulator_state_index_t>& vecTest = std::get<std::vector<simulator_state_index_t>>(simIdTest);
-					std::vector<simulator_state_index_t>& vecRef = std::get<std::vector<simulator_state_index_t>>(simIdRef);
+				std::variant<simulator_state_reference, std::vector<simulator_state_reference>> simIdTest = tSimulator->getPinSimulatorId(portPosition);
+				std::variant<simulator_state_reference, std::vector<simulator_state_reference>> simIdRef = rSimulator.getPinSimulatorId(portPosition);
+				if (std::holds_alternative<simulator_state_reference>(simIdTest) && std::holds_alternative<simulator_state_reference>(simIdRef)) {
+					simulatorIdsTest.push_back(std::get<simulator_state_reference>(simIdTest));
+					simulatorIdsRef.push_back(std::get<simulator_state_reference>(simIdRef));
+				} else if (std::holds_alternative<std::vector<simulator_state_reference>>(simIdTest) && std::holds_alternative<std::vector<simulator_state_reference>>(simIdRef)) {
+					std::vector<simulator_state_reference>& vecTest = std::get<std::vector<simulator_state_reference>>(simIdTest);
+					std::vector<simulator_state_reference>& vecRef = std::get<std::vector<simulator_state_reference>>(simIdRef);
 					if (vecTest.size() != vecRef.size()) {
 						return outputTestcase;
 					}

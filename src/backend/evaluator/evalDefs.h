@@ -98,6 +98,18 @@ struct fmt::formatter<EvalConnection> : fmt::formatter<std::string> {
 	}
 };
 
+struct SimulatorGate {
+    BlockType type;
+    std::unordered_map<
+        connection_end_id_t,
+        std::unordered_map<EvalConnectionPoint, unsigned int>
+    > connections;
+
+    std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) {
+        return connections[connectionEndId.get()];
+    }
+};
+
 class Evaluator;
 
 #endif /* evalDefs_h */
