@@ -15,15 +15,15 @@ public:
 	bool operator==(const CompiledGateGroup& o) const = default;
 
 	std::string toString() const {
-		std::string result = "CompiledGateGroup { gates: [\n";
+		std::string result = "CompiledGateGroup:\n";
 		for (const auto& gate : gates) {
-			result += std::to_string(getEvalGateType(gate.type)) + ", ";
+			result += "\t" + blocktype_to_string(gate.type) + ", ";
 		}
-		result += "\n], pullConnectionPoints: [\n";
+		result += "\npullConnectionPoints:\n";
 		for (const auto& pullConnectionPoint : pullConnectionPoints) {
-			result += fmt::to_string(pullConnectionPoint) + ", ";
+			result += "\t" + fmt::to_string(pullConnectionPoint) + ", ";
 		}
-		result += "\n] }";
+		result += "\n";
 		return result;
 	}
 
