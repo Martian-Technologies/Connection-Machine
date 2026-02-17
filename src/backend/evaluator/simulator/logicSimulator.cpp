@@ -69,12 +69,26 @@ void LogicSimulator::addConnection(const EvalConnection& evalConnection, int wei
 	int newWeight = static_cast<int>(oldWeight) + weight;
 
 	BlockType destinationGateType = BlockType::NONE;
-	if (gateAPortDirection == PortDirection::OUTPUT) {
+	// if (gateAPortDirection == PortDirection::OUTPUT) {
+	// 	destinationGateType = gateBType;
+	// } else if (gateAPortDirection == PortDirection::INPUT) {
+	// 	destinationGateType = gateAType;
+	// } else { // gateAPortDirection == PortDirection::BIDIRECTIONAL
+	// 	if (gateBPortDirection == PortDirection::OUTPUT) {
+	// 		destinationGateType = gateAType;
+	// 	} else if (gateBPortDirection == PortDirection::INPUT) {
+	// 		destinationGateType = gateBType;
+	// 	} else { // gateBPortDirection == PortDirection::BIDIRECTIONAL
+	// 		assert(false && "Cannot determine destination gate type for connection between two bidirectional ports");
+	// 	}
+	// }
+	ConnectionDirection connectionDirection = getConnectionDirection(evalConnection);
+	if (connectionDirection == ConnectionDirection::AtoB) {
 		destinationGateType = gateBType;
-	} else if (gateBPortDirection == PortDirection::OUTPUT) {
+	} else if (connectionDirection == ConnectionDirection::BtoA) {
 		destinationGateType = gateAType;
 	} else {
-		assert(false && "Both ports are bidirectional in addConnection");
+		assert(false && "Invalid connection direction");
 	}
 
 	if (destinationGateType == BlockType::XOR || destinationGateType == BlockType::XNOR) {
@@ -286,19 +300,23 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups;
 	IdProvider<gate_group_id_t> newGroupIdProvider { 0 };
 	std::unordered_set<eval_gate_id> ungroupedGates = {};
+	std::unordered_set<eval_gate_id> ungroupedJunctions = {};
 	for (const auto& [gateId, simulatorGate] : gates) {
-		ungroupedGates.insert(gateId);
+		if (isJunction(gateId)) {
+			ungroupedJunctions.insert(gateId);
+		} else {
+			ungroupedGates.insert(gateId);
+		}
 	}
 	while (ungroupedGates.size() != 0) {
 		logInfo("{} ungrouped gates remaining", "LogicSimulator::compileGroups()", ungroupedGates.size());
 		eval_gate_id gateId = *ungroupedGates.begin();
-		if (isJunction(gateId)) {
-			continue;
-		}
+		assert(!isJunction(gateId) && "Expected gate, got junction in compileGroups");
 		// walk back then walk forward
 		std::unordered_set<EvalConnectionPoint> backPlane;
 		std::unordered_set<EvalConnectionPoint> visitedOutputConnectionPoints;
 
+		ungroupedGates.erase(gateId);
 		std::unordered_set<eval_gate_id> groupGateIds = { gateId };
 		std::vector<eval_gate_id> toVisit = { gateId };
 		while (toVisit.size() > 0) {
@@ -344,6 +362,7 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 					if (groupGateIds.contains(otherGateId)) continue; // already in the group
 					if (isJunction(otherGateId)) {
 						groupGateIds.insert(otherGateId);
+						ungroupedJunctions.erase(otherGateId);
 						// walk forward again because the instant value calculated for the junction will be used to calculate the state of the gates the junction connects into
 						const SimulatorGate& junctionGate = gates.at(otherGateId);
 						connection_end_id_t connectionEndId = connection_end_id_t(0);
@@ -356,22 +375,36 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 							eval_gate_id junctionOtherGateId = junctionOtherGateConnectionPoint.gateId;
 							if (groupGateIds.contains(junctionOtherGateId)) continue; // already in the group
 							groupGateIds.insert(junctionOtherGateId);
+							ungroupedGates.erase(junctionOtherGateId);
 							toVisit.push_back(junctionOtherGateId);
 						}
 					} else {
 						groupGateIds.insert(otherGateId);
+						ungroupedGates.erase(otherGateId);
 						toVisit.push_back(otherGateId);
 					}
 				}
 			}
 		}
 		std::vector<SimulatorGate> groupedGates;
-		std::vector<EvalConnectionPoint> visitedOutputConnectionPointsVec(visitedOutputConnectionPoints.begin(), visitedOutputConnectionPoints.end());
+		std::vector<EvalConnectionPoint> pullConnectionPoints;
 		for (eval_gate_id groupGateId : groupGateIds) {
 			groupedGates.push_back(gates.at(groupGateId));
-			ungroupedGates.erase(groupGateId);
 		}
-		compiledGroups[newGroupIdProvider.getNewId()] = CompiledGateGroup(groupedGates, visitedOutputConnectionPointsVec);
+		for (const EvalConnectionPoint& visitedOutputConnectionPoint : visitedOutputConnectionPoints) {
+			if (!groupGateIds.contains(visitedOutputConnectionPoint.gateId)) {
+				pullConnectionPoints.push_back(visitedOutputConnectionPoint);
+			}
+		}
+		compiledGroups[newGroupIdProvider.getNewId()] = CompiledGateGroup(groupedGates, pullConnectionPoints);
+	}
+	if (ungroupedJunctions.size() > 0) {
+		std::vector<SimulatorGate> junctionGates;
+		for (eval_gate_id junctionGateId : ungroupedJunctions) {
+			junctionGates.push_back(gates.at(junctionGateId));
+		}
+		CompiledGateGroup junctionGroup(junctionGates, {}); // no pull connection points because these junctions are only going to be computed on getState;
+		compiledGroups[newGroupIdProvider.getNewId()] = junctionGroup;
 	}
 	return compiledGroups;
 }
