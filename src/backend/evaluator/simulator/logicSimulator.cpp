@@ -284,19 +284,94 @@ LogicSimulator::ConnectionDirection LogicSimulator::getConnectionDirection(
 
 std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGroups() const {
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups;
-	IdProvider<gate_group_id_t> newGroupIdProvider { 1 };
-	gate_group_id_t displayGroupId = gate_group_id_t(0);
+	IdProvider<gate_group_id_t> newGroupIdProvider { 0 };
 	std::unordered_set<eval_gate_id> ungroupedGates = {};
 	for (const auto& [gateId, simulatorGate] : gates) {
 		ungroupedGates.insert(gateId);
 	}
 	while (ungroupedGates.size() != 0) {
+		logInfo("{} ungrouped gates remaining", "LogicSimulator::compileGroups()", ungroupedGates.size());
 		eval_gate_id gateId = *ungroupedGates.begin();
 		if (isJunction(gateId)) {
 			continue;
 		}
 		// walk back then walk forward
+		std::unordered_set<EvalConnectionPoint> backPlane;
+		std::unordered_set<EvalConnectionPoint> visitedOutputConnectionPoints;
 
+		std::unordered_set<eval_gate_id> groupGateIds = { gateId };
+		std::vector<eval_gate_id> toVisit = { gateId };
+		while (toVisit.size() > 0) {
+			eval_gate_id currentGateId = toVisit.back();
+			toVisit.pop_back();
+			const SimulatorGate& currentGate = gates.at(currentGateId);
+			// step 1. walk back through the circuit and create a "back plane" of all the output connection points that contribute to calculating the state of the current gate
+			for (const auto& [connectionEndId, connectionsMap] : currentGate.connections) {
+				PortDirection portDirection = getPortDirection(currentGate.type, connectionEndId);
+				if (portDirection != PortDirection::INPUT) continue; // we only want to walk back
+				for (const auto& [evalConnectionPoint, weight] : connectionsMap) {
+					if (weight == 0) continue;
+					eval_gate_id otherGateId = evalConnectionPoint.gateId;
+					if (visitedOutputConnectionPoints.contains(evalConnectionPoint)) continue;
+					visitedOutputConnectionPoints.insert(evalConnectionPoint);
+					if (isJunction(otherGateId)) {
+						// walk back again from the junction because junctions are dumb and arent real and i wanna kms
+						const SimulatorGate& junctionGate = gates.at(otherGateId);
+						connection_end_id_t connectionEndId = connection_end_id_t(0);
+						if (!junctionGate.hasConnectionsFromPort(connectionEndId)) continue;
+						const std::unordered_map<EvalConnectionPoint, unsigned int>& junctionConnections = junctionGate.getConnectionsFromPort(connectionEndId);
+						for (const auto& [junctionOtherGateConnectionPoint, junctionConnectionWeight] : junctionConnections) {
+							if (junctionConnectionWeight == 0) continue;
+							PortDirection junctionOtherGatePortDirection = getConnectionPointDirection(junctionOtherGateConnectionPoint);
+							if (junctionOtherGatePortDirection != PortDirection::OUTPUT) continue; // we only want to walk back
+							backPlane.insert(junctionOtherGateConnectionPoint);
+						}
+					} else {
+						backPlane.insert(evalConnectionPoint);
+					}
+				}
+			}
+			// step 2. walk forward through the circuit and note down any gates that the current back plane contributes to calculating the state of
+			for (const auto& backPlaneConnectionPoint : backPlane) {
+				// go through all the outputs of the connection point
+				eval_gate_id backPlaneGateId = backPlaneConnectionPoint.gateId;
+				const SimulatorGate& backPlaneGate = gates.at(backPlaneGateId);
+				if (!backPlaneGate.hasConnectionsFromPort(backPlaneConnectionPoint.connectionEndId)) continue;
+				const std::unordered_map<EvalConnectionPoint, unsigned int>& backPlaneGateConnections = backPlaneGate.getConnectionsFromPort(backPlaneConnectionPoint.connectionEndId);
+				for (const auto& [otherConnectionPoint, weight] : backPlaneGateConnections) {
+					if (weight == 0) continue;
+					eval_gate_id otherGateId = otherConnectionPoint.gateId;
+					if (groupGateIds.contains(otherGateId)) continue; // already in the group
+					if (isJunction(otherGateId)) {
+						groupGateIds.insert(otherGateId);
+						// walk forward again because the instant value calculated for the junction will be used to calculate the state of the gates the junction connects into
+						const SimulatorGate& junctionGate = gates.at(otherGateId);
+						connection_end_id_t connectionEndId = connection_end_id_t(0);
+						if (!junctionGate.hasConnectionsFromPort(connectionEndId)) continue;
+						const std::unordered_map<EvalConnectionPoint, unsigned int>& junctionConnections = junctionGate.getConnectionsFromPort(connectionEndId);
+						for (const auto& [junctionOtherGateConnectionPoint, junctionConnectionWeight] : junctionConnections) {
+							if (junctionConnectionWeight == 0) continue;
+							PortDirection junctionOtherGatePortDirection = getConnectionPointDirection(junctionOtherGateConnectionPoint);
+							if (junctionOtherGatePortDirection != PortDirection::INPUT) continue; // we only want to walk forward
+							eval_gate_id junctionOtherGateId = junctionOtherGateConnectionPoint.gateId;
+							if (groupGateIds.contains(junctionOtherGateId)) continue; // already in the group
+							groupGateIds.insert(junctionOtherGateId);
+							toVisit.push_back(junctionOtherGateId);
+						}
+					} else {
+						groupGateIds.insert(otherGateId);
+						toVisit.push_back(otherGateId);
+					}
+				}
+			}
+		}
+		std::vector<SimulatorGate> groupedGates;
+		std::vector<EvalConnectionPoint> visitedOutputConnectionPointsVec(visitedOutputConnectionPoints.begin(), visitedOutputConnectionPoints.end());
+		for (eval_gate_id groupGateId : groupGateIds) {
+			groupedGates.push_back(gates.at(groupGateId));
+			ungroupedGates.erase(groupGateId);
+		}
+		compiledGroups[newGroupIdProvider.getNewId()] = CompiledGateGroup(groupedGates, visitedOutputConnectionPointsVec);
 	}
-	return {};
+	return compiledGroups;
 }

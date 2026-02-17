@@ -107,7 +107,13 @@ struct SimulatorGate {
 
     std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) {
         return connections[connectionEndId.get()];
-    }
+	}
+	bool hasConnectionsFromPort(connection_end_id_t connectionEndId) const {
+		return connections.contains(connectionEndId.get());
+	}
+	const std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) const {
+		return connections.at(connectionEndId.get());
+	}
 };
 
 class Evaluator;
