@@ -132,6 +132,11 @@ template <class T>
 concept IdType = is_id_v<T>;
 
 template <IdType IdT>
+inline std::string to_string(const IdT& id) {
+	return std::to_string(id.get());
+}
+
+template <IdType IdT>
 class IdProvider {
 public:
 	using id_type = std::remove_cv_t<IdT>;

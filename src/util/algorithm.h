@@ -1,7 +1,24 @@
 #ifndef algorithm_h
 #define algorithm_h
 
-#include <numeric>
+// Type traits to detect member functions
+template <typename T, typename = void>
+struct has_toString : std::false_type {};
+
+template <typename T>
+struct has_toString<T, std::void_t<decltype(std::declval<const T&>().toString())>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_to_string : std::false_type {};
+
+template <typename T>
+struct has_to_string<T, std::void_t<decltype(std::declval<const T&>().to_string())>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_std_to_string : std::false_type {};
+
+template <typename T>
+struct has_std_to_string<T, std::void_t<decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
 
 template <class Iterator, class T>
 inline bool contains(Iterator firstIter, Iterator lastIter, const T& value) {
@@ -86,6 +103,21 @@ inline std::string to_string(const std::vector<T>& vec) {
 	return result;
 }
 
+template <typename T>
+inline std::string to_string(const std::unordered_set<T>& set) {
+	std::string result = "{";
+	size_t i = 0;
+	for (const auto& value : set) {
+		result += to_string(value);
+		if (i < set.size() - 1) {
+			result += ", ";
+		}
+		i++;
+	}
+	result += "}";
+	return result;
+}
+
 template <typename... Ts>
 inline std::string to_string(const std::variant<Ts...>& var) {
 	return std::visit([](const auto& value) {
@@ -95,7 +127,18 @@ inline std::string to_string(const std::variant<Ts...>& var) {
 
 template <typename T>
 inline std::string to_string(const T& value) {
-	return std::to_string(value);
+	if constexpr (has_toString<T>::value) {
+		return value.toString();
+	} else if constexpr (has_to_string<T>::value) {
+		return value.to_string();
+	} else if constexpr (has_std_to_string<T>::value) {
+		return std::to_string(value);
+	} else if constexpr (std::is_same_v<T, std::string>) {
+		return value;
+	} else {
+		static_assert(has_std_to_string<T>::value, "Type has no toString(), to_string(), or std::to_string support");
+		return {};
+	}
 }
 
 template <typename T>

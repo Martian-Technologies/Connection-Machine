@@ -38,6 +38,8 @@ struct EvalConnectionPoint {
 	connection_end_id_t connectionEndId;
 
 	bool operator==(EvalConnectionPoint other) const { return gateId == other.gateId && connectionEndId == other.connectionEndId; }
+
+	std::string toString() const { return "(" + std::to_string(gateId) + ", " + std::to_string(connectionEndId) + ")"; }
 };
 
 template <>
@@ -99,7 +101,8 @@ struct fmt::formatter<EvalConnection> : fmt::formatter<std::string> {
 };
 
 struct SimulatorGate {
-    BlockType type;
+	eval_gate_id id;
+	BlockType type;
     std::unordered_map<
         connection_end_id_t,
         std::unordered_map<EvalConnectionPoint, unsigned int>

@@ -13,6 +13,9 @@
 #include <utility>
 #include <chrono>
 
+#include <numeric>
+#include <type_traits>
+
 #include <array>
 #include <condition_variable>
 #include <list>
