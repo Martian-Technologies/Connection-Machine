@@ -1,5 +1,6 @@
 #include "logicSimulator.h"
 #include "compiledGateGroup.h"
+#include "util/algorithm.h"
 
 void LogicSimulator::addGate(eval_gate_id gateId, BlockType blockType) {
 	assert(
@@ -25,7 +26,7 @@ void LogicSimulator::addGate(eval_gate_id gateId, BlockType blockType) {
 		blockType == BlockType::TRISTATE_BUFFER
 	);
 	assert(!gates.contains(gateId) && "Gate already exists in LogicSimulator");
-	gates.emplace(gateId, SimulatorGate { blockType, {} });
+	gates.emplace(gateId, SimulatorGate { gateId, blockType, {} });
 }
 
 void LogicSimulator::removeGate(eval_gate_id gateId) {
@@ -309,7 +310,7 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 		}
 	}
 	while (ungroupedGates.size() != 0) {
-		logInfo("{} ungrouped gates remaining", "LogicSimulator::compileGroups()", ungroupedGates.size());
+		logInfo("{} ungrouped gates remaining", "LogicSimulator::compileGroups", ungroupedGates.size());
 		eval_gate_id gateId = *ungroupedGates.begin();
 		assert(!isJunction(gateId) && "Expected gate, got junction in compileGroups");
 		// walk back then walk forward
@@ -342,6 +343,8 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 							if (junctionConnectionWeight == 0) continue;
 							PortDirection junctionOtherGatePortDirection = getConnectionPointDirection(junctionOtherGateConnectionPoint);
 							if (junctionOtherGatePortDirection != PortDirection::OUTPUT) continue; // we only want to walk back
+							if (visitedOutputConnectionPoints.contains(junctionOtherGateConnectionPoint)) continue;
+							visitedOutputConnectionPoints.insert(junctionOtherGateConnectionPoint);
 							backPlane.insert(junctionOtherGateConnectionPoint);
 						}
 					} else {
@@ -386,8 +389,13 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 				}
 			}
 		}
+		gate_group_id_t gateGroupId = newGroupIdProvider.getNewId();
 		std::vector<SimulatorGate> groupedGates;
 		std::vector<EvalConnectionPoint> pullConnectionPoints;
+		logInfo("----------------------------------------------------------", "LogicSimulator::compileGroups");
+		logInfo("Group {}", "LogicSimulator::compileGroups", gateGroupId);
+		logInfo("Group gates: {}", "LogicSimulator::compileGroups", to_string(groupGateIds));
+		logInfo("Visited output connection points: {}", "LogicSimulator::compileGroups", to_string(visitedOutputConnectionPoints));
 		for (eval_gate_id groupGateId : groupGateIds) {
 			groupedGates.push_back(gates.at(groupGateId));
 		}
@@ -396,7 +404,7 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 				pullConnectionPoints.push_back(visitedOutputConnectionPoint);
 			}
 		}
-		compiledGroups[newGroupIdProvider.getNewId()] = CompiledGateGroup(groupedGates, pullConnectionPoints);
+		compiledGroups[gateGroupId] = CompiledGateGroup(groupedGates, pullConnectionPoints);
 	}
 	if (ungroupedJunctions.size() > 0) {
 		std::vector<SimulatorGate> junctionGates;

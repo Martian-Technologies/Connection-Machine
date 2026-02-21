@@ -17,7 +17,7 @@ public:
 	std::string toString() const {
 		std::string result = "CompiledGateGroup:\n";
 		for (const auto& gate : gates) {
-			result += "\t" + blocktype_to_string(gate.type) + ", ";
+			result += "\t" + blocktype_to_string(gate.type) + "(" + std::to_string(gate.id) + "), ";
 		}
 		result += "\npullConnectionPoints:\n";
 		for (const auto& pullConnectionPoint : pullConnectionPoints) {
