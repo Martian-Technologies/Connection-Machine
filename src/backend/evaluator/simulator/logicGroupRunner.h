@@ -5,7 +5,7 @@
 #include "../evalDefs.h"
 #include "logicState.h"
 
-class CompiledGateGroup;
+class LinkedGateGroup;
 
 class LogicGroupRunner {
 	friend class EditingGuard;
@@ -49,7 +49,7 @@ public:
 	logic_state_t getState(simulator_state_reference simulatorStateIndex) const;
 	void setState(simulator_state_reference simulatorStateIndex, logic_state_t state);
 
-	void setGroups(const std::unordered_map<gate_group_id_t, CompiledGateGroup>& simGroups);
+	void setGroups(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups);
 
 private:
 	mutable std::shared_mutex mainMutex;

@@ -117,6 +117,10 @@ struct SimulatorGate {
 	const std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) const {
 		return connections.at(connectionEndId.get());
 	}
+
+	bool operator==(const SimulatorGate& other) const {
+		return id == other.id && type == other.type && connections == other.connections;
+	}
 };
 
 class Evaluator;

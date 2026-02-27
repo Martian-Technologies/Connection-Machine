@@ -1,6 +1,7 @@
 #ifndef logicSimulator_h
 #define logicSimulator_h
 
+#include "groupLinker.h"
 #include "logicGroupRunner.h"
 
 #include "simulatorDefs.h"
@@ -71,6 +72,7 @@ private:
 
 	std::unordered_map<eval_gate_id, SimulatorGate> gates;
 
+	GroupLinker groupLinker;
 	LogicGroupRunner logicGroupRunner;
 
 	enum class PortDirection {

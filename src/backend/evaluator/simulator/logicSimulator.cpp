@@ -1,5 +1,5 @@
 #include "logicSimulator.h"
-#include "compiledGateGroup.h"
+#include "gateGroup.h"
 #include "util/algorithm.h"
 
 void LogicSimulator::addGate(eval_gate_id gateId, BlockType blockType) {
@@ -115,7 +115,9 @@ void LogicSimulator::removeConnection(const EvalConnection& evalConnection, int 
 
 void LogicSimulator::endEdit() {
 	LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
-	logicGroupRunner.setGroups(compileGroups());
+	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups = compileGroups();
+	std::unordered_map<gate_group_id_t, LinkedGateGroup> linkedGroups = groupLinker.linkGroups(compiledGroups);
+	logicGroupRunner.setGroups(linkedGroups);
 }
 
 void LogicSimulator::resetStates() {}
