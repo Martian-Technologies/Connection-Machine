@@ -30,9 +30,10 @@ struct CompiledGateGroup {
 };
 
 struct LinkedGateGroup {
+	LinkedGateGroup() = default;
 	LinkedGateGroup(
 		std::vector<SimulatorGate> gates,
-		std::vector<std::pair<gate_group_id_t, std::vector<w_vec_index>>> pullConnectionPointsByGroup,
+		std::unordered_map<EvalConnectionPoint, std::pair<gate_group_id_t, w_vec_index>> pullConnectionPointsByGroup,
 		std::vector<EvalConnectionPoint> pushConnectionPoints
 	) : gates(std::move(gates)),
 		pullConnectionPointsByGroup(std::move(pullConnectionPointsByGroup)),
@@ -41,17 +42,15 @@ struct LinkedGateGroup {
 	std::string toString() const {
 		std::string result = "LinkedGateGroup:\n";
 		for (const auto& gate : gates) {
-			result += "\t" + blocktype_to_string(gate.type) + "(" + std::to_string(gate.id) + "), ";
+			result += "\t" + blocktype_to_string(gate.type) + "(" + to_string(gate.id) + "), ";
 		}
 		result += "\npullConnectionPointsByGroup:\n";
-		for (const auto& [groupId, pullConnectionPoints] : pullConnectionPointsByGroup) {
-			result += "\tGroup " + std::to_string(groupId) + ": ";
-			for (const auto& pullConnectionPoint : pullConnectionPoints) {
-				result += fmt::to_string(pullConnectionPoint) + ", ";
-			}
-			result += "\n";
+		for (const auto& [connectionPoint, groupAndIndices] : pullConnectionPointsByGroup) {
+			result += "\tGroup " + to_string(groupAndIndices.first) + " index " + to_string(groupAndIndices.second) + ": ";
+			result += fmt::to_string(connectionPoint) + ", ";
 		}
-		result += "pushConnectionPoints:\n";
+		result += "\n";
+		result += "pushConnectionPoints (calculated every tick):\n";
 		for (const auto& pushConnectionPoint : pushConnectionPoints) {
 			result += "\t" + fmt::to_string(pushConnectionPoint) + ", ";
 		}
@@ -59,7 +58,7 @@ struct LinkedGateGroup {
 		return result;
 	}
 	std::vector<SimulatorGate> gates;
-	std::vector<std::pair<gate_group_id_t, std::vector<w_vec_index>>> pullConnectionPointsByGroup;
+	std::unordered_map<EvalConnectionPoint, std::pair<gate_group_id_t, w_vec_index>> pullConnectionPointsByGroup;
 	std::vector<EvalConnectionPoint> pushConnectionPoints;
 };
 

@@ -3,7 +3,6 @@
 
 #include "util/id.h"
 
-DECLARE_ID_TYPE(r_vec_index, unsigned int);
 DECLARE_ID_TYPE(w_vec_index, unsigned int);
 DECLARE_ID_TYPE(simulator_id_t, unsigned int);
 DECLARE_ID_TYPE(gate_group_id_t, unsigned int);

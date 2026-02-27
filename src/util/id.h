@@ -204,6 +204,7 @@ public:
 	using id_type = std::remove_cv_t<IdT>;
 	using rep = typename id_traits<id_type>::rep;
 
+	constexpr LinearIdProvider() : nextId(0) { }
 	constexpr LinearIdProvider(rep initialValue) : nextId(initialValue) { }
 
 	constexpr id_type getNewId() { return id_type(nextId++); }
