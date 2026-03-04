@@ -43,20 +43,20 @@ std::unordered_map<gate_group_id_t, LinkedGateGroup> GroupLinker::linkGroups(con
 		}
 	}
 
-	std::unordered_map<EvalConnectionPoint, std::pair<gate_group_id_t, w_vec_index>> pushConnectionPointToGroupIdAndIndex;
-	std::unordered_map<gate_group_id_t, LinearIdProvider<w_vec_index>> groupIdToNewPullConnectionPointIndexProvider;
+	std::unordered_map<EvalConnectionPoint, std::pair<gate_group_id_t, unsigned int>> pushConnectionPointToGroupIdAndIndex;
+	std::unordered_map<gate_group_id_t, unsigned int> groupIdToNewPullConnectionPointIndexProvider;
 	for (const auto& connectionPoint : allConnectionPointsToBePushed) {
 		eval_gate_id gateId = connectionPoint.gateId;
 		connection_end_id_t connectionEndId = connectionPoint.connectionEndId;
 		gate_group_id_t groupId = gateIdToGroupId.at(gateId);
-		w_vec_index newIndex = groupIdToNewPullConnectionPointIndexProvider[groupId].getNewId();
+		unsigned int newIndex = groupIdToNewPullConnectionPointIndexProvider[groupId]++;
 		pushConnectionPointToGroupIdAndIndex[connectionPoint] = { groupId, newIndex };
 		linkedGroups.at(groupId).pushConnectionPoints.push_back(connectionPoint);
 	}
 
 	for (const auto& [groupId, simGroup] : simGroups) {
 		for (const EvalConnectionPoint& connectionPoint : simGroup.pullConnectionPoints) {
-			std::pair<gate_group_id_t, w_vec_index> groupIdAndIndex = pushConnectionPointToGroupIdAndIndex.at(connectionPoint);
+			std::pair<gate_group_id_t, unsigned int> groupIdAndIndex = pushConnectionPointToGroupIdAndIndex.at(connectionPoint);
 			linkedGroups.at(groupId).pullConnectionPointsByGroup[connectionPoint] = groupIdAndIndex;
 		}
 	}

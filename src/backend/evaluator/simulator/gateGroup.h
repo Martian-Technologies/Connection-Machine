@@ -33,11 +33,13 @@ struct LinkedGateGroup {
 	LinkedGateGroup() = default;
 	LinkedGateGroup(
 		std::vector<SimulatorGate> gates,
-		std::unordered_map<EvalConnectionPoint, std::pair<gate_group_id_t, w_vec_index>> pullConnectionPointsByGroup,
+		std::unordered_map<EvalConnectionPoint, std::pair<gate_group_id_t, unsigned int>> pullConnectionPointsByGroup,
 		std::vector<EvalConnectionPoint> pushConnectionPoints
 	) : gates(std::move(gates)),
 		pullConnectionPointsByGroup(std::move(pullConnectionPointsByGroup)),
 		pushConnectionPoints(std::move(pushConnectionPoints)) {}
+
+	bool operator==(const LinkedGateGroup& o) const = default;
 
 	std::string toString() const {
 		std::string result = "LinkedGateGroup:\n";
@@ -46,7 +48,7 @@ struct LinkedGateGroup {
 		}
 		result += "\npullConnectionPointsByGroup:\n";
 		for (const auto& [connectionPoint, groupAndIndices] : pullConnectionPointsByGroup) {
-			result += "\tGroup " + to_string(groupAndIndices.first) + " index " + to_string(groupAndIndices.second) + ": ";
+			result += "\tGroup " + to_string(groupAndIndices.first) + " index " + std::to_string(groupAndIndices.second) + ": ";
 			result += fmt::to_string(connectionPoint) + ", ";
 		}
 		result += "\n";
@@ -58,7 +60,7 @@ struct LinkedGateGroup {
 		return result;
 	}
 	std::vector<SimulatorGate> gates;
-	std::unordered_map<EvalConnectionPoint, std::pair<gate_group_id_t, w_vec_index>> pullConnectionPointsByGroup;
+	std::unordered_map<EvalConnectionPoint, std::pair<gate_group_id_t, unsigned int>> pullConnectionPointsByGroup;
 	std::vector<EvalConnectionPoint> pushConnectionPoints;
 };
 

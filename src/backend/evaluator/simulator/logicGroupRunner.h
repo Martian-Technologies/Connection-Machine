@@ -7,6 +7,24 @@
 
 class LinkedGateGroup;
 
+class RunnableGateGroup {
+public:
+	RunnableGateGroup() = default;
+	RunnableGateGroup(const LinkedGateGroup& linkedGateGroup);
+	logic_state_t getState(unsigned int pullIndex) const {
+		return publishedStates[pullIndex];
+	}
+	logic_state_t getState(EvalConnectionPoint connectionPoint);
+	bool isEmpty() const { return empty; }
+private:
+	bool empty = true;
+	std::vector<logic_state_t> dataField;
+	std::vector<logic_state_t> publishedStates;
+	std::vector<unsigned int> pullDataBytecode;
+	std::vector<unsigned int> calculateGatesBytecode;
+	std::unordered_map<EvalConnectionPoint, std::vector<unsigned int>> fetchInstructionsForConnectionPoint;
+};
+
 class LogicGroupRunner {
 	friend class EditingGuard;
 	friend class ReadingGuard;
@@ -50,10 +68,12 @@ public:
 	void setState(simulator_state_reference simulatorStateIndex, logic_state_t state);
 
 	void setGroups(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups);
+	void setGroup(gate_group_id_t groupId, const LinkedGateGroup& simGroup);
 
 private:
 	mutable std::shared_mutex mainMutex;
-
+	std::vector<LinkedGateGroup> groupsCache;
+	std::vector<RunnableGateGroup> runnableGroups;
 };
 
 #endif /* logicGroupRunner_h */

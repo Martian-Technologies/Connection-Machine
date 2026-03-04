@@ -1,0 +1,63 @@
+#include "simBlockData.h"
+
+SimBlockData::PortInfo SimBlockData::getPortInfo(BlockType blockType, connection_end_id_t connectionEndId) {
+    switch (blockType) {
+		case BlockType::AND:
+		case BlockType::OR:
+		case BlockType::XOR:
+		case BlockType::NAND:
+		case BlockType::NOR:
+		case BlockType::XNOR:
+			if (connectionEndId == 0) {
+				return PortInfo { PortDirection::INPUT, false };
+			} else if (connectionEndId == 1) {
+				return PortInfo { PortDirection::OUTPUT, false };
+			}
+			assert(false && "Invalid connection end ID for gate block type");
+			break;
+		case BlockType::BUFFER:
+		case BlockType::NOT:
+			if (connectionEndId == 0) {
+				return PortInfo { PortDirection::INPUT, true };
+			} else if (connectionEndId == 1) {
+				return PortInfo { PortDirection::OUTPUT, false };
+			}
+			assert(false && "Invalid connection end ID for buffer/not block type");
+			break;
+		case BlockType::BUTTON:
+		case BlockType::TICK_BUTTON:
+		case BlockType::SWITCH:
+		case BlockType::CONSTANT_OFF:
+		case BlockType::CONSTANT_ON:
+		case BlockType::CONSTANT_Z:
+		case BlockType::CONSTANT_X:
+			if (connectionEndId == 0) {
+				return PortInfo { PortDirection::OUTPUT, false };
+			}
+			assert(false && "Invalid connection end ID for constant block type");
+			break;
+		case BlockType::JUNCTION:
+		case BlockType::JUNCTION_L:
+		case BlockType::JUNCTION_H:
+		case BlockType::JUNCTION_X:
+			if (connectionEndId == 0) {
+				return PortInfo { PortDirection::BIDIRECTIONAL, false };
+			}
+			assert(false && "Invalid connection end ID for junction block type");
+			break;
+		case BlockType::TRISTATE_BUFFER:
+			if (connectionEndId == 0) {
+				return PortInfo { PortDirection::INPUT, true };
+			} else if (connectionEndId == 1) {
+				return PortInfo { PortDirection::INPUT, true };
+			} else if (connectionEndId == 2) {
+				return PortInfo { PortDirection::OUTPUT, false };
+			}
+			assert(false && "Invalid connection end ID for tristate buffer block type");
+			break;
+		default:
+			assert(false && "Unknown block type in getPortInfo");
+	}
+	assert(false && "Unreachable code in getPortInfo");
+	return PortInfo { PortDirection::INPUT, false };
+}

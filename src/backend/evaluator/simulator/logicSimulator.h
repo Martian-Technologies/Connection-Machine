@@ -4,6 +4,7 @@
 #include "groupLinker.h"
 #include "logicGroupRunner.h"
 
+#include "simBlockData.h"
 #include "simulatorDefs.h"
 #include "logicState.h"
 #include "../evalDefs.h"
@@ -75,20 +76,9 @@ private:
 	GroupLinker groupLinker;
 	LogicGroupRunner logicGroupRunner;
 
-	enum class PortDirection {
-		INPUT,
-		OUTPUT,
-		BIDIRECTIONAL
-	};
-
 	enum class ConnectionDirection {
 		AtoB,
 		BtoA,
-	};
-
-	struct PortInfo {
-		PortDirection direction;
-		bool limitedToOneConnection;
 	};
 
 	void removeAllGateConnections(eval_gate_id gateId);
@@ -97,12 +87,8 @@ private:
 
 	std::unordered_map<simulator_state_reference, simulator_state_reference> runGrouping();
 
-	static PortInfo getPortInfo(BlockType blockType, connection_end_id_t connectionEndId);
-	static PortDirection getPortDirection(BlockType blockType, connection_end_id_t connectionEndId) { return getPortInfo(blockType, connectionEndId).direction; }
-	static bool isPortLimitedToOneConnection(BlockType blockType, connection_end_id_t connectionEndId) { return getPortInfo(blockType, connectionEndId).limitedToOneConnection; }
-
 	BlockType getBlockType(eval_gate_id gateId) const;
-	PortDirection getConnectionPointDirection(const EvalConnectionPoint& evalConnectionPoint) const;
+	SimBlockData::PortDirection getConnectionPointDirection(const EvalConnectionPoint& evalConnectionPoint) const;
 	ConnectionDirection getConnectionDirection(const EvalConnection& evalConnection) const;
 
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compileGroups() const;
