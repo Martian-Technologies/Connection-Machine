@@ -110,11 +110,16 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			continue;
 		}
 		bool hasOutput = false;
-		connection_end_id_t connectionEndId = connection_end_id_t(0);
-		for (const auto& [connectionPoint, weight] : gate.getConnectionsFromPort(connectionEndId)) {
-			InputOutput direction = gate.getDirection(connectionEndId, connectionPoint);
+		bool hasInput = false;
+		for (const auto& [connectionPoint, weight] : gate.getConnectionsFromPort(connection_end_id_t(0))) {
+			InputOutput direction = gate.getDirection(connection_end_id_t(0), connectionPoint);
 			if (direction == InputOutput::OUTPUT) {
 				hasOutput = true;
+			}
+			if (direction == InputOutput::INPUT) {
+				hasInput = true;
+			}
+			if (hasOutput && hasInput) {
 				break;
 			}
 		}
@@ -123,18 +128,55 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			continue;
 		}
 		calculateGatesBytecode[0]++;
+		if (!hasInput) { // junctions with no inputs are treated as constants
+			BlockType blockTypeEquivalent = BlockType::NONE;
+			if (gate.type == BlockType::JUNCTION) {
+				blockTypeEquivalent = BlockType::CONSTANT_Z;
+			} else if (gate.type == BlockType::JUNCTION_H) {
+				blockTypeEquivalent = BlockType::CONSTANT_ON;
+			} else if (gate.type == BlockType::JUNCTION_L) {
+				blockTypeEquivalent = BlockType::CONSTANT_OFF;
+			} else if (gate.type == BlockType::JUNCTION_X) {
+				blockTypeEquivalent = BlockType::CONSTANT_X;
+			}
+			assert(blockTypeEquivalent != BlockType::NONE && "Unknown junction type");
+			calculateGatesBytecode.push_back(static_cast<unsigned int>(blockTypeEquivalent)); // block type
+			calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
+			continue;
+		}
+
+		// junctions with one or more inputs
 		calculateGatesBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
 		unsigned int numInputsIndex = calculateGatesBytecode.size();
 		calculateGatesBytecode.push_back(0); // num inputs, will be filled in later
-		for (const auto& [connectionPoint, weight] : gate.getConnectionsFromPort(connectionEndId)) {
-			InputOutput direction = gate.getDirection(connectionEndId, connectionPoint);
+		for (const auto& [connectionPoint, weight] : gate.getConnectionsFromPort(connection_end_id_t(0))) {
+			InputOutput direction = gate.getDirection(connection_end_id_t(0), connectionPoint);
 			if (direction != InputOutput::INPUT) {
 				continue;
 			}
 			calculateGatesBytecode[numInputsIndex]++;
 			calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(connectionPoint));
 		}
-		calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(EvalConnectionPoint{ gate.id, connection_end_id_t(0) }));
+		calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
+	}
+	for (const SimulatorGate& gate : linkedGateGroup.gates) { // calculate non-junctions
+		if (isJunction(gate.type)) {
+			continue;
+		}
+		calculateGatesBytecode[0]++;
+		if (gate.type == BlockType::BUFFER || gate.type == BlockType::NOT) {
+			// check if the gate has an input
+			const auto& connectionsFromPort = gate.getConnectionsFromPort(connection_end_id_t(0));
+			if (connectionsFromPort.size() == 0) {
+				// treat as constant X
+				calculateGatesBytecode.push_back(static_cast<unsigned int>(BlockType::CONSTANT_X)); // block type
+			} else {
+				assert(connectionsFromPort.size() == 1 && "Buffer/Not gates should have at most one input");
+				calculateGatesBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
+				calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(connectionsFromPort.begin()->first));
+			}
+			calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
+		}
 	}
 
 	logInfo("Group ID: {}", "RunnableGateGroup::RunnableGateGroup", groupId);
