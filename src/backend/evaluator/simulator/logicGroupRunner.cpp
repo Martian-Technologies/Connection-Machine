@@ -1,6 +1,7 @@
 #include "logicGroupRunner.h"
 #include "gateGroup.h"
 #include "simBlockData.h"
+#include "util/algorithm.h"
 
 using namespace SimBlockData;
 
@@ -42,7 +43,7 @@ void LogicGroupRunner::setGroup(gate_group_id_t groupId, const LinkedGateGroup& 
 	while (runnableGroups.size() <= groupId.get()) {
 		runnableGroups.emplace_back();
 	}
-	runnableGroups[groupId.get()] = RunnableGateGroup(simGroup);
+	runnableGroups[groupId.get()] = RunnableGateGroup(simGroup, groupId);
 }
 
 namespace {
@@ -75,7 +76,7 @@ namespace {
 
 }
 
-RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup) {
+RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gate_group_id_t groupId) {
 	empty = false;
 	std::unordered_map<EvalConnectionPoint, unsigned int> pulledConnectionPointToDataFieldIndex;
 	std::unordered_map<gate_group_id_t, std::vector<std::pair<unsigned int, EvalConnectionPoint>>> pullIndicesToPullFromGroups;
@@ -94,34 +95,53 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup) {
 		pullDataBytecode[0]++;
 	}
 
+	for (EvalConnectionPoint pushConnectionPoint : linkedGateGroup.pushConnectionPoints) {
+		publishedStateDataFieldIndices.push_back(dataFieldAllocator.getIndex(pushConnectionPoint));
+	}
+
 	std::unordered_map<eval_gate_id, SimulatorGate> gates;
 	for (const SimulatorGate& gate : linkedGateGroup.gates) {
 		gates[gate.id] = gate;
 	}
 
-	calculateGatesBytecode.push_back(linkedGateGroup.gates.size()); // num gates
+	calculateGatesBytecode.push_back(0); // num gates, will be filled in later
 	for (const SimulatorGate& gate : linkedGateGroup.gates) { // calculate junctions
 		if (!isJunction(gate.type)) {
 			continue;
 		}
+		bool hasOutput = false;
+		connection_end_id_t connectionEndId = connection_end_id_t(0);
+		for (const auto& [connectionPoint, weight] : gate.getConnectionsFromPort(connectionEndId)) {
+			InputOutput direction = gate.getDirection(connectionEndId, connectionPoint);
+			if (direction == InputOutput::OUTPUT) {
+				hasOutput = true;
+				break;
+			}
+		}
+		if (!hasOutput) {
+			// no calculation needed for junctions without outputs during tick, instead they are computed on fetch
+			continue;
+		}
+		calculateGatesBytecode[0]++;
 		calculateGatesBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
 		unsigned int numInputsIndex = calculateGatesBytecode.size();
 		calculateGatesBytecode.push_back(0); // num inputs, will be filled in later
-		connection_end_id_t connectionEndId = connection_end_id_t(0);
 		for (const auto& [connectionPoint, weight] : gate.getConnectionsFromPort(connectionEndId)) {
-			ConnectionDirection connectionDirection = getConnectionDirection(
-				gates.at(connectionPoint.gateId).type,
-				connectionPoint.connectionEndId,
-				gate.type,
-				connectionEndId
-			);
-			if (connectionDirection != ConnectionDirection::AtoB) {
+			InputOutput direction = gate.getDirection(connectionEndId, connectionPoint);
+			if (direction != InputOutput::INPUT) {
 				continue;
 			}
 			calculateGatesBytecode[numInputsIndex]++;
 			calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(connectionPoint));
 		}
+		calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(EvalConnectionPoint{ gate.id, connection_end_id_t(0) }));
 	}
+
+	logInfo("Group ID: {}", "RunnableGateGroup::RunnableGateGroup", groupId);
+	logInfo("dataField size: {}", "RunnableGateGroup::RunnableGateGroup", dataFieldAllocator.size());
+	logInfo("pullBytecode: {}", "RunnableGateGroup::RunnableGateGroup", to_string(pullDataBytecode));
+	logInfo("calculateBytecode: {}", "RunnableGateGroup::RunnableGateGroup", to_string(calculateGatesBytecode));
+	logInfo("publishedStateDataFieldIndices: {}", "RunnableGateGroup::RunnableGateGroup", to_string(publishedStateDataFieldIndices));
 
 	dataField.resize(dataFieldAllocator.size());
 }

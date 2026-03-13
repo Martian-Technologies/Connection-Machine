@@ -20,6 +20,9 @@ struct has_std_to_string : std::false_type {};
 template <typename T>
 struct has_std_to_string<T, std::void_t<decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
 
+template <typename T>
+inline std::string to_string(const T& value);
+
 template <class Iterator, class T>
 inline bool contains(Iterator firstIter, Iterator lastIter, const T& value) {
 	while (firstIter != lastIter) {

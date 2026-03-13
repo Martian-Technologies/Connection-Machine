@@ -4,6 +4,11 @@
 #include "../evalDefs.h"
 
 namespace SimBlockData {
+	enum class InputOutput {
+		INPUT,
+		OUTPUT
+	};
+
 	enum class PortDirection {
 		INPUT,
 		OUTPUT,
@@ -20,23 +25,23 @@ namespace SimBlockData {
 		bool limitedToOneConnection;
 	};
 
-	static PortInfo getPortInfo(
+	PortInfo getPortInfo(
 		BlockType blockType,
 		connection_end_id_t connectionEndId
 	);
-	static PortDirection getPortDirection(
+	inline PortDirection getPortDirection(
 		BlockType blockType,
 		connection_end_id_t connectionEndId
 	) {
 		return getPortInfo(blockType, connectionEndId).direction;
 	}
-	static bool isPortLimitedToOneConnection(
+	inline bool isPortLimitedToOneConnection(
 		BlockType blockType,
 		connection_end_id_t connectionEndId
 	) {
 		return getPortInfo(blockType, connectionEndId).limitedToOneConnection;
 	}
-	static ConnectionDirection getConnectionDirection(
+	ConnectionDirection getConnectionDirection(
 		BlockType blockTypeA,
 		connection_end_id_t connectionEndIdA,
 		BlockType blockTypeB,

@@ -3,7 +3,6 @@
 
 #include "backend/address.h"
 #include "backend/blockData/blockData.h"
-#include "simulator/simulatorDefs.h"
 
 DECLARE_ID_TYPE(simulator_id_t, unsigned int);
 DECLARE_ID_TYPE(eval_gate_id, unsigned int);
@@ -12,22 +11,6 @@ typedef unsigned int EvalGateType;
 
 inline EvalGateType getEvalGateType(BlockType blockType) { return (EvalGateType)blockType; }
 inline BlockType getBlockType(EvalGateType evalGateType) { return (BlockType)evalGateType; }
-
-struct SimulatorMappingUpdate {
-	SimulatorMappingUpdate(Position position, const SimulatorStateIndexVecVariant& simulatorIds) : position(position), simulatorIds(simulatorIds) {}
-	SimulatorMappingUpdate(Position position, std::optional<virtual_connection_id_t> virtualConnectionId, const SimulatorStateIndexVecVariant& simulatorIds) :
-		position(position), virtualConnectionId(virtualConnectionId), simulatorIds(simulatorIds) {}
-	Position position;
-	std::optional<virtual_connection_id_t> virtualConnectionId = std::nullopt;
-	SimulatorStateIndexVecVariant simulatorIds;
-};
-
-typedef std::function<void(const std::vector<SimulatorMappingUpdate>&)> SimulatorMappingUpdateListenerFunction;
-
-struct SimulatorMappingUpdateListener {
-	Address address;
-	std::function<void(const std::vector<SimulatorMappingUpdate>&)> callback;
-};
 
 struct EvalConnectionPoint {
 	EvalConnectionPoint(eval_gate_id gateId, connection_end_id_t connectionEndId) : gateId(gateId), connectionEndId(connectionEndId) { }
@@ -97,29 +80,6 @@ struct fmt::formatter<EvalConnection> : fmt::formatter<std::string> {
 			"(" + fmt::to_string(evalConnection.connectionPointA) + ", " + fmt::to_string(evalConnection.connectionPointB) + ")",
 			ctx
 		);
-	}
-};
-
-struct SimulatorGate {
-	eval_gate_id id;
-	BlockType type;
-    std::unordered_map<
-        connection_end_id_t,
-        std::unordered_map<EvalConnectionPoint, unsigned int>
-    > connections;
-
-    std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) {
-        return connections[connectionEndId.get()];
-	}
-	bool hasConnectionsFromPort(connection_end_id_t connectionEndId) const {
-		return connections.contains(connectionEndId.get());
-	}
-	const std::unordered_map<EvalConnectionPoint, unsigned int>& getConnectionsFromPort(connection_end_id_t connectionEndId) const {
-		return connections.at(connectionEndId.get());
-	}
-
-	bool operator==(const SimulatorGate& other) const {
-		return id == other.id && type == other.type && connections == other.connections;
 	}
 };
 

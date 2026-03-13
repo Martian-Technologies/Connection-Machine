@@ -105,9 +105,23 @@ void LogicSimulator::addConnection(const EvalConnection& evalConnection, int wei
 	if (newWeight == 0) {
 		gateAConnectionsFromPort.erase(evalConnection.connectionPointB);
 		gateBConnectionsFromPort.erase(evalConnection.connectionPointA);
+		if (gateAPortDirection == PortDirection::BIDIRECTIONAL) {
+			gateA.directionsOfBidirectionalPorts[evalConnection.connectionPointA.connectionEndId].erase(evalConnection.connectionPointB);
+		} else if (gateBPortDirection == PortDirection::BIDIRECTIONAL) {
+			gateB.directionsOfBidirectionalPorts[evalConnection.connectionPointB.connectionEndId].erase(evalConnection.connectionPointA);
+		}
 	} else {
 		gateAConnectionsFromPort[evalConnection.connectionPointB] = static_cast<unsigned int>(newWeight);
 		gateBConnectionsFromPort[evalConnection.connectionPointA] = static_cast<unsigned int>(newWeight);
+		if (oldWeight == 0) {
+			if (gateAPortDirection == PortDirection::BIDIRECTIONAL) {
+				InputOutput direction = (gateBPortDirection == PortDirection::OUTPUT) ? InputOutput::INPUT : InputOutput::OUTPUT;
+				gateA.directionsOfBidirectionalPorts[evalConnection.connectionPointA.connectionEndId][evalConnection.connectionPointB] = direction;
+			} else if (gateBPortDirection == PortDirection::BIDIRECTIONAL) {
+				InputOutput direction = (gateAPortDirection == PortDirection::OUTPUT) ? InputOutput::INPUT : InputOutput::OUTPUT;
+				gateB.directionsOfBidirectionalPorts[evalConnection.connectionPointB.connectionEndId][evalConnection.connectionPointA] = direction;
+			}
+		}
 	}
 }
 

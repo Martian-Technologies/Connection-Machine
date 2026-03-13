@@ -10,16 +10,16 @@ class LinkedGateGroup;
 class RunnableGateGroup {
 public:
 	RunnableGateGroup() = default;
-	RunnableGateGroup(const LinkedGateGroup& linkedGateGroup);
+	RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gate_group_id_t groupId);
 	logic_state_t getState(unsigned int pullIndex) const {
-		return publishedStates[pullIndex];
+		return dataField[publishedStateDataFieldIndices[pullIndex]];
 	}
 	logic_state_t getState(EvalConnectionPoint connectionPoint);
 	bool isEmpty() const { return empty; }
 private:
 	bool empty = true;
 	std::vector<logic_state_t> dataField;
-	std::vector<logic_state_t> publishedStates;
+	std::vector<unsigned int> publishedStateDataFieldIndices;
 	std::vector<unsigned int> pullDataBytecode;
 	std::vector<unsigned int> calculateGatesBytecode;
 	std::unordered_map<EvalConnectionPoint, std::vector<unsigned int>> fetchInstructionsForConnectionPoint;
