@@ -214,27 +214,6 @@ BlockType LogicSimulator::getBlockType(eval_gate_id gateId) const {
 	return gates.at(gateId).type;
 }
 
-LogicSimulator::ConnectionDirection LogicSimulator::getConnectionDirection(
-	const EvalConnection& evalConnection
-) const {
-	PortDirection portADirection = getConnectionPointDirection(evalConnection.connectionPointA);
-	if (portADirection == PortDirection::OUTPUT) {
-		return ConnectionDirection::AtoB;
-	} else if (portADirection == PortDirection::INPUT) {
-		return ConnectionDirection::BtoA;
-	}
-
-	PortDirection portBDirection = getConnectionPointDirection(evalConnection.connectionPointB);
-	if (portBDirection == PortDirection::OUTPUT) {
-		return ConnectionDirection::BtoA;
-	} else if (portBDirection == PortDirection::INPUT) {
-		return ConnectionDirection::AtoB;
-	}
-
-	assert(false && "Both ports are bidirectional in getConnectionDirection");
-	return ConnectionDirection::AtoB; // to silence compiler warning
-}
-
 std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGroups() const {
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups;
 	IdProvider<gate_group_id_t> newGroupIdProvider { 0 };
@@ -353,8 +332,4 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 		compiledGroups[newGroupIdProvider.getNewId()] = junctionGroup;
 	}
 	return compiledGroups;
-}
-
-PortDirection LogicSimulator::getConnectionPointDirection(const EvalConnectionPoint& evalConnectionPoint) const {
-	return getPortDirection(getBlockType(evalConnectionPoint.gateId), evalConnectionPoint.connectionEndId);
 }

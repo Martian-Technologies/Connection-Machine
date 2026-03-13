@@ -76,11 +76,6 @@ private:
 	GroupLinker groupLinker;
 	LogicGroupRunner logicGroupRunner;
 
-	enum class ConnectionDirection {
-		AtoB,
-		BtoA,
-	};
-
 	void removeAllGateConnections(eval_gate_id gateId);
 
 	logic_state_t getRunnerState_noMux(simulator_state_reference simulatorStateIndex) const;
@@ -88,8 +83,20 @@ private:
 	std::unordered_map<simulator_state_reference, simulator_state_reference> runGrouping();
 
 	BlockType getBlockType(eval_gate_id gateId) const;
-	SimBlockData::PortDirection getConnectionPointDirection(const EvalConnectionPoint& evalConnectionPoint) const;
-	ConnectionDirection getConnectionDirection(const EvalConnection& evalConnection) const;
+	SimBlockData::PortDirection getConnectionPointDirection(const EvalConnectionPoint& evalConnectionPoint) const {
+		return SimBlockData::getPortDirection(
+			getBlockType(evalConnectionPoint.gateId),
+			evalConnectionPoint.connectionEndId
+		);
+	}
+	SimBlockData::ConnectionDirection getConnectionDirection(const EvalConnection& evalConnection) const {
+		return SimBlockData::getConnectionDirection(
+			getBlockType(evalConnection.connectionPointA.gateId),
+			evalConnection.connectionPointA.connectionEndId,
+			getBlockType(evalConnection.connectionPointB.gateId),
+			evalConnection.connectionPointB.connectionEndId
+		);
+	}
 
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compileGroups() const;
 

@@ -1,7 +1,10 @@
 #include "simBlockData.h"
 
-SimBlockData::PortInfo SimBlockData::getPortInfo(BlockType blockType, connection_end_id_t connectionEndId) {
-    switch (blockType) {
+SimBlockData::PortInfo SimBlockData::getPortInfo(
+	BlockType blockType,
+	connection_end_id_t connectionEndId
+) {
+	switch (blockType) {
 		case BlockType::AND:
 		case BlockType::OR:
 		case BlockType::XOR:
@@ -60,4 +63,28 @@ SimBlockData::PortInfo SimBlockData::getPortInfo(BlockType blockType, connection
 	}
 	assert(false && "Unreachable code in getPortInfo");
 	return PortInfo { PortDirection::INPUT, false };
+}
+
+SimBlockData::ConnectionDirection SimBlockData::getConnectionDirection(
+	BlockType blockTypeA,
+	connection_end_id_t connectionEndIdA,
+	BlockType blockTypeB,
+	connection_end_id_t connectionEndIdB
+) {
+	PortDirection portADirection = SimBlockData::getPortDirection(blockTypeA, connectionEndIdA);
+	if (portADirection == PortDirection::OUTPUT) {
+		return ConnectionDirection::AtoB;
+	} else if (portADirection == PortDirection::INPUT) {
+		return ConnectionDirection::BtoA;
+	}
+
+	PortDirection portBDirection = SimBlockData::getPortDirection(blockTypeB, connectionEndIdB);
+	if (portBDirection == PortDirection::OUTPUT) {
+		return ConnectionDirection::BtoA;
+	} else if (portBDirection == PortDirection::INPUT) {
+		return ConnectionDirection::AtoB;
+	}
+
+	assert(false && "Both ports are bidirectional in getConnectionDirection");
+	return ConnectionDirection::AtoB; // to silence compiler warning
 }

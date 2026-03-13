@@ -1,5 +1,8 @@
 #include "logicGroupRunner.h"
 #include "gateGroup.h"
+#include "simBlockData.h"
+
+using namespace SimBlockData;
 
 logic_state_t LogicGroupRunner::getState(simulator_state_reference simulatorStateIndex) const {
 	return logic_state_t::UNDEFINED;
@@ -48,21 +51,45 @@ namespace {
 	}
 }
 
+namespace {
+
+	template <class T>
+	class Indexer {
+	public:
+		unsigned int getIndex(const T& value) {
+			auto it = valueToIndex.find(value);
+			if (it != valueToIndex.end()) {
+				return it->second;
+			}
+			unsigned int index = nextIndex++;
+			valueToIndex[value] = index;
+			return index;
+		}
+		unsigned int size() const {
+			return valueToIndex.size();
+		}
+	private:
+		std::unordered_map<T, unsigned int> valueToIndex;
+		unsigned int nextIndex = 0;
+	};
+
+}
+
 RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup) {
 	empty = false;
-	std::unordered_map<EvalConnectionPoint, unsigned int> pullConnectionPointToPullIndex;
+	std::unordered_map<EvalConnectionPoint, unsigned int> pulledConnectionPointToDataFieldIndex;
 	std::unordered_map<gate_group_id_t, std::vector<std::pair<unsigned int, EvalConnectionPoint>>> pullIndicesToPullFromGroups;
 	for (const auto& [connectionPoint, groupIdAndIndex] : linkedGateGroup.pullConnectionPointsByGroup) {
 		pullIndicesToPullFromGroups[groupIdAndIndex.first].push_back({ groupIdAndIndex.second, connectionPoint });
 	}
 	pullDataBytecode.push_back(0); // num groups
-	unsigned int pullIndexCounter = 0;
+	Indexer<EvalConnectionPoint> dataFieldAllocator;
 	for (const auto& [groupId, pullIndicesAndConnectionPoints] : pullIndicesToPullFromGroups) {
 		pullDataBytecode.push_back(groupId.get()); // group id
 		pullDataBytecode.push_back(pullIndicesAndConnectionPoints.size()); // num connection points to pull from in this group
 		for (const auto& [pullIndex, connectionPoint] : pullIndicesAndConnectionPoints) {
 			pullDataBytecode.push_back(pullIndex); // pull index within the group
-			pullConnectionPointToPullIndex[connectionPoint] = pullIndexCounter++;
+			dataFieldAllocator.getIndex(connectionPoint); // always +1, so we don't need to store the index for the pull phase
 		}
 		pullDataBytecode[0]++;
 	}
@@ -78,6 +105,23 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup) {
 			continue;
 		}
 		calculateGatesBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
-		
+		unsigned int numInputsIndex = calculateGatesBytecode.size();
+		calculateGatesBytecode.push_back(0); // num inputs, will be filled in later
+		connection_end_id_t connectionEndId = connection_end_id_t(0);
+		for (const auto& [connectionPoint, weight] : gate.getConnectionsFromPort(connectionEndId)) {
+			ConnectionDirection connectionDirection = getConnectionDirection(
+				gates.at(connectionPoint.gateId).type,
+				connectionPoint.connectionEndId,
+				gate.type,
+				connectionEndId
+			);
+			if (connectionDirection != ConnectionDirection::AtoB) {
+				continue;
+			}
+			calculateGatesBytecode[numInputsIndex]++;
+			calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(connectionPoint));
+		}
 	}
+
+	dataField.resize(dataFieldAllocator.size());
 }
