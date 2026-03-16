@@ -57,6 +57,7 @@ namespace {
 	template <class T>
 	class Indexer {
 	public:
+		Indexer(unsigned int& nextIndex) : nextIndex(nextIndex) { }
 		unsigned int getIndex(const T& value) {
 			auto it = valueToIndex.find(value);
 			if (it != valueToIndex.end()) {
@@ -69,9 +70,12 @@ namespace {
 		unsigned int size() const {
 			return valueToIndex.size();
 		}
+		bool contains(const T& value) const {
+			return valueToIndex.contains(value);
+		}
 	private:
 		std::unordered_map<T, unsigned int> valueToIndex;
-		unsigned int nextIndex = 0;
+		unsigned int& nextIndex;
 	};
 
 }
@@ -80,23 +84,26 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 	empty = false;
 	std::unordered_map<EvalConnectionPoint, unsigned int> pulledConnectionPointToDataFieldIndex;
 	std::unordered_map<gate_group_id_t, std::vector<std::pair<unsigned int, EvalConnectionPoint>>> pullIndicesToPullFromGroups;
-	for (const auto& [connectionPoint, groupIdAndIndex] : linkedGateGroup.pullConnectionPointsByGroup) {
+	for (const auto& [connectionPoint, groupIdAndIndex] : linkedGateGroup.pullConnectionPoints) {
 		pullIndicesToPullFromGroups[groupIdAndIndex.first].push_back({ groupIdAndIndex.second, connectionPoint });
 	}
 	pullDataBytecode.push_back(0); // num groups
-	Indexer<EvalConnectionPoint> dataFieldAllocator;
+	unsigned int dataFieldAllocator = 0;
+	Indexer<EvalConnectionPoint> allocEvalConnectionPointsMain(dataFieldAllocator);
+	Indexer<EvalConnectionPoint> allocEvalConnectionPointsReserved(dataFieldAllocator);
+
 	for (const auto& [groupId, pullIndicesAndConnectionPoints] : pullIndicesToPullFromGroups) {
 		pullDataBytecode.push_back(groupId.get()); // group id
 		pullDataBytecode.push_back(pullIndicesAndConnectionPoints.size()); // num connection points to pull from in this group
 		for (const auto& [pullIndex, connectionPoint] : pullIndicesAndConnectionPoints) {
 			pullDataBytecode.push_back(pullIndex); // pull index within the group
-			dataFieldAllocator.getIndex(connectionPoint); // always +1, so we don't need to store the index for the pull phase
+			allocEvalConnectionPointsMain.getIndex(connectionPoint); // always +1, so we don't need to store the index for the pull phase
 		}
 		pullDataBytecode[0]++;
 	}
 
 	for (EvalConnectionPoint pushConnectionPoint : linkedGateGroup.pushConnectionPoints) {
-		publishedStateDataFieldIndices.push_back(dataFieldAllocator.getIndex(pushConnectionPoint));
+		publishedStateDataFieldIndices.push_back(allocEvalConnectionPointsMain.getIndex(pushConnectionPoint));
 	}
 
 	std::unordered_map<eval_gate_id, SimulatorGate> gates;
@@ -104,9 +111,13 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 		gates[gate.id] = gate;
 	}
 
+	std::unordered_set<eval_gate_id> internalNonJunctionGates;
 	calculateGatesBytecode.push_back(0); // num gates, will be filled in later
+	std::vector<unsigned int> copyOldStatesBytecode;
+	std::vector<unsigned int> simulateBytecode;
 	for (const SimulatorGate& gate : linkedGateGroup.gates) { // calculate junctions
 		if (!isJunction(gate.type)) {
+			internalNonJunctionGates.insert(gate.id);
 			continue;
 		}
 		bool hasOutput = false;
@@ -141,7 +152,7 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			}
 			assert(blockTypeEquivalent != BlockType::NONE && "Unknown junction type");
 			calculateGatesBytecode.push_back(static_cast<unsigned int>(blockTypeEquivalent)); // block type
-			calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
+			calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
 			continue;
 		}
 
@@ -155,35 +166,94 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 				continue;
 			}
 			calculateGatesBytecode[numInputsIndex]++;
-			calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(connectionPoint));
+			calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(connectionPoint));
 		}
-		calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
+		calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
 	}
+	std::unordered_set<eval_gate_id> nonJunctionGatesWhoseStateGotWritten;
 	for (const SimulatorGate& gate : linkedGateGroup.gates) { // calculate non-junctions
 		if (isJunction(gate.type)) {
 			continue;
 		}
+
+		for (const auto& [connectionEndId, connectionsFromPort] : gate.connections) {
+			for (const auto& [connectionPoint, weight] : connectionsFromPort) {
+				if (gate.getDirection(connectionEndId, connectionPoint) == InputOutput::OUTPUT) {
+					continue;
+				}
+				if (!internalNonJunctionGates.contains(connectionPoint.gateId)) {
+					// external gates are already fixed at the pull phase
+					// and if it's a junction, we *want* the new state already
+					continue;
+				}
+				if (!nonJunctionGatesWhoseStateGotWritten.contains(connectionPoint.gateId)) {
+					// for gates which will be simulated after this gate, we can still access
+					// their old state directly
+					continue;
+				}
+				if (allocEvalConnectionPointsReserved.contains(connectionPoint)) {
+					continue;
+				}
+				// at this point, connectionPoint is an output of a gate that is internal to the group and had its state written to before we simulate this gate, which means we need to copy its state at the start of the tick before we simulate anything else
+				// copyOldStatesBytecode runs after junctions, but before any non-junction gates
+				logInfo("Adding to copyOldStatesBytecode for gate {}, connection point {}", "RunnableGateGroup::RunnableGateGroup", connectionPoint.gateId, connectionPoint.connectionEndId);
+				copyOldStatesBytecode.push_back(BlockType::BUFFER); // use a buffer to copy the state
+				copyOldStatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(connectionPoint)); // source
+				copyOldStatesBytecode.push_back(allocEvalConnectionPointsReserved.getIndex(connectionPoint)); // destination
+				calculateGatesBytecode[0]++;
+			}
+		}
+
 		calculateGatesBytecode[0]++;
 		if (gate.type == BlockType::BUFFER || gate.type == BlockType::NOT) {
 			// check if the gate has an input
 			const auto& connectionsFromPort = gate.getConnectionsFromPort(connection_end_id_t(0));
 			if (connectionsFromPort.size() == 0) {
 				// treat as constant X
-				calculateGatesBytecode.push_back(static_cast<unsigned int>(BlockType::CONSTANT_X)); // block type
+				simulateBytecode.push_back(static_cast<unsigned int>(BlockType::CONSTANT_X)); // block type
 			} else {
 				assert(connectionsFromPort.size() == 1 && "Buffer/Not gates should have at most one input");
-				calculateGatesBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
-				calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(connectionsFromPort.begin()->first));
+				simulateBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
+				unsigned int index = allocEvalConnectionPointsReserved.contains(connectionsFromPort.begin()->first) ? allocEvalConnectionPointsReserved.getIndex(connectionsFromPort.begin()->first) : allocEvalConnectionPointsMain.getIndex(connectionsFromPort.begin()->first);
+				simulateBytecode.push_back(index);
 			}
-			calculateGatesBytecode.push_back(dataFieldAllocator.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
+			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(1) }));
+			nonJunctionGatesWhoseStateGotWritten.insert(gate.id);
+		} else if (gate.type == BlockType::AND || gate.type == BlockType::OR || gate.type == BlockType::XOR || gate.type == BlockType::NAND || gate.type == BlockType::NOR || gate.type == BlockType::XNOR) {
+			const auto& connectionsFromPort = gate.getConnectionsFromPort(connection_end_id_t(0));
+			if (connectionsFromPort.size() == 0) {
+				simulateBytecode.push_back(static_cast<unsigned int>(BlockType::CONSTANT_OFF)); // block type
+				simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(1) }));
+				nonJunctionGatesWhoseStateGotWritten.insert(gate.id);
+				continue;
+			}
+			simulateBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
+			unsigned int numInputsIndex = simulateBytecode.size();
+			simulateBytecode.push_back(0); // num inputs, will be filled in later
+			for (const auto& [connectionPoint, weight] : connectionsFromPort) {
+				InputOutput direction = gate.getDirection(connection_end_id_t(0), connectionPoint);
+				if (direction != InputOutput::INPUT) {
+					continue;
+				}
+				simulateBytecode[numInputsIndex]++;
+				unsigned int index = allocEvalConnectionPointsReserved.contains(connectionPoint) ? allocEvalConnectionPointsReserved.getIndex(connectionPoint) : allocEvalConnectionPointsMain.getIndex(connectionPoint);
+				simulateBytecode.push_back(index);
+			}
+			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(1) }));
+			nonJunctionGatesWhoseStateGotWritten.insert(gate.id);
+		} else {
+			assert(false && "Unsupported gate type in logic group");
 		}
 	}
 
+	calculateGatesBytecode.insert(calculateGatesBytecode.end(), copyOldStatesBytecode.begin(), copyOldStatesBytecode.end());
+	calculateGatesBytecode.insert(calculateGatesBytecode.end(), simulateBytecode.begin(), simulateBytecode.end());
+
+	dataField.resize(dataFieldAllocator);
+
 	logInfo("Group ID: {}", "RunnableGateGroup::RunnableGateGroup", groupId);
-	logInfo("dataField size: {}", "RunnableGateGroup::RunnableGateGroup", dataFieldAllocator.size());
+	logInfo("dataField size: {}", "RunnableGateGroup::RunnableGateGroup", dataField.size());
 	logInfo("pullBytecode: {}", "RunnableGateGroup::RunnableGateGroup", to_string(pullDataBytecode));
 	logInfo("calculateBytecode: {}", "RunnableGateGroup::RunnableGateGroup", to_string(calculateGatesBytecode));
 	logInfo("publishedStateDataFieldIndices: {}", "RunnableGateGroup::RunnableGateGroup", to_string(publishedStateDataFieldIndices));
-
-	dataField.resize(dataFieldAllocator.size());
 }

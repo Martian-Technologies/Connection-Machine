@@ -57,7 +57,7 @@ std::unordered_map<gate_group_id_t, LinkedGateGroup> GroupLinker::linkGroups(con
 	for (const auto& [groupId, simGroup] : simGroups) {
 		for (const EvalConnectionPoint& connectionPoint : simGroup.pullConnectionPoints) {
 			std::pair<gate_group_id_t, unsigned int> groupIdAndIndex = pushConnectionPointToGroupIdAndIndex.at(connectionPoint);
-			linkedGroups.at(groupId).pullConnectionPointsByGroup[connectionPoint] = groupIdAndIndex;
+			linkedGroups.at(groupId).pullConnectionPoints[connectionPoint] = groupIdAndIndex;
 		}
 	}
 
