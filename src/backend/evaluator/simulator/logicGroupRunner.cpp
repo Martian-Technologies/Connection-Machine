@@ -17,6 +17,9 @@ void LogicGroupRunner::setState(simulator_state_reference simulatorStateIndex, l
 }
 
 simulator_state_reference LogicGroupRunner::getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const {
+	if (!connectionPointToSimulatorStateIndex.contains(evalConnectionPoint)) {
+		return simulator_state_reference(3); // UNDEFINED
+	}
 	return connectionPointToSimulatorStateIndex.at(evalConnectionPoint);
 }
 
@@ -105,8 +108,7 @@ namespace {
 
 }
 
-RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gate_group_id_t groupId) {
-	empty = false;
+RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gate_group_id_t groupId) : groupId(groupId), empty(false) {
 	std::unordered_map<EvalConnectionPoint, unsigned int> pulledConnectionPointToDataFieldIndex;
 	std::unordered_map<gate_group_id_t, std::vector<std::pair<unsigned int, EvalConnectionPoint>>> pullIndicesToPullFromGroups;
 	for (const auto& [connectionPoint, groupIdAndIndex] : linkedGateGroup.pullConnectionPoints) {
@@ -266,6 +268,12 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			}
 			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(1) }));
 			nonJunctionGatesWhoseStateGotWritten.insert(gate.id);
+		} else if (gate.type == BlockType::CONSTANT_OFF || gate.type == BlockType::CONSTANT_ON || gate.type == BlockType::CONSTANT_X || gate.type == BlockType::CONSTANT_Z) {
+			simulateBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
+			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
+			continue;
+		} else if (gate.type == BlockType::BUTTON || gate.type == BlockType::SWITCH) {
+			allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }); // allocate data field index for the button/switch state, even though it won't be used in simulateBytecode because buttons/switches are controlled externally, not simulated
 		} else {
 			assert(false && "Unsupported gate type in logic group");
 		}
@@ -281,4 +289,8 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 	logInfo("pullBytecode: {}", "RunnableGateGroup::RunnableGateGroup", to_string(pullDataBytecode));
 	logInfo("calculateBytecode: {}", "RunnableGateGroup::RunnableGateGroup", to_string(calculateGatesBytecode));
 	logInfo("publishedStateDataFieldIndices: {}", "RunnableGateGroup::RunnableGateGroup", to_string(publishedStateDataFieldIndices));
+}
+
+logic_state_t RunnableGateGroup::getState(EvalConnectionPoint connectionPoint) const {
+	return (logic_state_t)(groupId.get() % 4);
 }

@@ -26,6 +26,7 @@ private:
 	std::vector<unsigned int> pullDataBytecode;
 	std::vector<unsigned int> calculateGatesBytecode;
 	std::unordered_map<EvalConnectionPoint, std::vector<unsigned int>> fetchInstructionsForConnectionPoint;
+	gate_group_id_t groupId;
 };
 
 class LogicGroupRunner {
