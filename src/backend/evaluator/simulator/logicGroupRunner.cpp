@@ -6,11 +6,28 @@
 using namespace SimBlockData;
 
 logic_state_t LogicGroupRunner::getState(simulator_state_reference simulatorStateIndex) const {
-	return logic_state_t::UNDEFINED;
+	EvalConnectionPoint connectionPoint = simulatorStateIndexToConnectionPoint.at(simulatorStateIndex);
+	gate_group_id_t groupId = gateIdToGroupId.at(connectionPoint.gateId);
+	const RunnableGateGroup& group = runnableGroups[groupId.get()];
+	return group.getState(connectionPoint);
 }
 
 void LogicGroupRunner::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {
 	logError("setState not implemented", "LogicGroupRunner::setState");
+}
+
+simulator_state_reference LogicGroupRunner::getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const {
+	return connectionPointToSimulatorStateIndex.at(evalConnectionPoint);
+}
+
+simulator_state_reference LogicGroupRunner::getSimulatorStateIndex_mut(EvalConnectionPoint evalConnectionPoint) {
+	if (connectionPointToSimulatorStateIndex.contains(evalConnectionPoint)) {
+		return connectionPointToSimulatorStateIndex[evalConnectionPoint];
+	}
+	simulator_state_reference newIndex = stateIndexProvider.getNewId();
+	connectionPointToSimulatorStateIndex[evalConnectionPoint] = newIndex;
+	simulatorStateIndexToConnectionPoint[newIndex] = evalConnectionPoint;
+	return newIndex;
 }
 
 void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups) {
@@ -44,6 +61,14 @@ void LogicGroupRunner::setGroup(gate_group_id_t groupId, const LinkedGateGroup& 
 		runnableGroups.emplace_back();
 	}
 	runnableGroups[groupId.get()] = RunnableGateGroup(simGroup, groupId);
+	for (const SimulatorGate& gate : simGroup.gates) {
+		gateIdToGroupId[gate.id] = groupId;
+		const std::vector<connection_end_id_t>& outputPorts = SimBlockData::getOutputPorts(gate.type);
+		for (connection_end_id_t outputPort : outputPorts) {
+			EvalConnectionPoint connectionPoint { gate.id, outputPort };
+			getSimulatorStateIndex_mut(connectionPoint);
+		}
+	}
 }
 
 namespace {

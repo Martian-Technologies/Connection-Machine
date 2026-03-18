@@ -47,6 +47,7 @@ namespace SimBlockData {
 		BlockType blockTypeB,
 		connection_end_id_t connectionEndIdB
 	);
+	inline const std::vector<connection_end_id_t>& getOutputPorts(BlockType blockType);
 };
 
 #endif

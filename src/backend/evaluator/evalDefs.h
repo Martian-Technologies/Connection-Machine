@@ -13,7 +13,8 @@ inline EvalGateType getEvalGateType(BlockType blockType) { return (EvalGateType)
 inline BlockType getBlockType(EvalGateType evalGateType) { return (BlockType)evalGateType; }
 
 struct EvalConnectionPoint {
-	EvalConnectionPoint(eval_gate_id gateId, connection_end_id_t connectionEndId) : gateId(gateId), connectionEndId(connectionEndId) { }
+	EvalConnectionPoint() = default;
+	EvalConnectionPoint(eval_gate_id gateId, connection_end_id_t connectionEndId) : gateId(gateId), connectionEndId(connectionEndId) {}
 	static inline EvalConnectionPoint null() { return EvalConnectionPoint(0, 0); }
 	bool isNull() const { return gateId == 0; }
 

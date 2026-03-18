@@ -185,7 +185,7 @@ logic_state_t LogicSimulator::getRunnerState_noMux(simulator_state_reference sim
 }
 
 std::optional<simulator_state_reference> LogicSimulator::getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const {
-	return simulator_state_reference(2);
+	return logicGroupRunner.getSimulatorStateIndex(evalConnectionPoint);
 }
 void LogicSimulator::setRunning(bool running) {}
 bool LogicSimulator::isRunning() const { return false; }
