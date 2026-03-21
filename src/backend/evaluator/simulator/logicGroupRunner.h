@@ -75,6 +75,10 @@ public:
 	void setGroups(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups);
 	void setGroup(gate_group_id_t groupId, const LinkedGateGroup& simGroup);
 
+	const RunnableGateGroup& getGroup(gate_group_id_t groupId) const {
+		return runnableGroups[groupId.get()];
+	}
+
 private:
 	mutable std::shared_mutex mainMutex;
 	std::vector<LinkedGateGroup> groupsCache;

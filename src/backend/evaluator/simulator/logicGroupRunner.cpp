@@ -7,8 +7,12 @@ using namespace SimBlockData;
 
 logic_state_t LogicGroupRunner::getState(simulator_state_reference simulatorStateIndex) const {
 	EvalConnectionPoint connectionPoint = simulatorStateIndexToConnectionPoint.at(simulatorStateIndex);
+	if (!gateIdToGroupId.contains(connectionPoint.gateId)) {
+		return logic_state_t::UNDEFINED;
+	}
 	gate_group_id_t groupId = gateIdToGroupId.at(connectionPoint.gateId);
 	const RunnableGateGroup& group = runnableGroups[groupId.get()];
+	group.runPull(*this);
 	return group.getState(connectionPoint);
 }
 
@@ -161,12 +165,9 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 				break;
 			}
 		}
-		if (!hasOutput) {
-			// no calculation needed for junctions without outputs during tick, instead they are computed on fetch
-			continue;
-		}
-		calculateGatesBytecode[0]++;
-		if (!hasInput) { // junctions with no inputs are treated as constants
+
+		if (!hasInput) {
+			// junctions with no inputs are treated as constants
 			BlockType blockTypeEquivalent = BlockType::NONE;
 			if (gate.type == BlockType::JUNCTION) {
 				blockTypeEquivalent = BlockType::CONSTANT_Z;
@@ -178,29 +179,50 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 				blockTypeEquivalent = BlockType::CONSTANT_X;
 			}
 			assert(blockTypeEquivalent != BlockType::NONE && "Unknown junction type");
-			calculateGatesBytecode.push_back(static_cast<unsigned int>(blockTypeEquivalent)); // block type
-			calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
-			continue;
-		}
-
-		// junctions with one or more inputs
-		calculateGatesBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
-		unsigned int numInputsIndex = calculateGatesBytecode.size();
-		calculateGatesBytecode.push_back(0); // num inputs, will be filled in later
-		for (const auto& [connectionPoint, weight] : gate.getConnectionsFromPort(connection_end_id_t(0))) {
-			InputOutput direction = gate.getDirection(connection_end_id_t(0), connectionPoint);
-			if (direction != InputOutput::INPUT) {
-				continue;
+			if (hasOutput){
+				calculateGatesBytecode[0]++;
+				calculateGatesBytecode.push_back(static_cast<unsigned int>(blockTypeEquivalent)); // block type
+				calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
 			}
-			calculateGatesBytecode[numInputsIndex]++;
-			calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(connectionPoint));
+			fetchInstructionsForConnectionPoint[EvalConnectionPoint { gate.id, connection_end_id_t(0) }] = { static_cast<unsigned int>(blockTypeEquivalent) };
+		} else {
+			// junctions with one or more inputs
+			if (hasOutput) {
+				calculateGatesBytecode[0]++;
+				calculateGatesBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
+			}
+			fetchInstructionsForConnectionPoint[EvalConnectionPoint { gate.id, connection_end_id_t(0) }] = { static_cast<unsigned int>(gate.type), 0 };
+			unsigned int numInputsIndex = calculateGatesBytecode.size();
+			if (hasOutput) {
+				calculateGatesBytecode.push_back(0); // num inputs, will be filled in later
+			}
+			for (const auto& [connectionPoint, weight] : gate.getConnectionsFromPort(connection_end_id_t(0))) {
+				InputOutput direction = gate.getDirection(connection_end_id_t(0), connectionPoint);
+				if (direction != InputOutput::INPUT) {
+					continue;
+				}
+				if (hasOutput){
+					calculateGatesBytecode[numInputsIndex]++;
+					calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(connectionPoint));
+				}
+				fetchInstructionsForConnectionPoint[EvalConnectionPoint { gate.id, connection_end_id_t(0) }][1]++;
+				fetchInstructionsForConnectionPoint[connectionPoint].push_back(allocEvalConnectionPointsMain.getIndex(connectionPoint));
+			}
+			if (hasOutput){
+				calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
+			}
 		}
-		calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
 	}
 	std::unordered_set<eval_gate_id> nonJunctionGatesWhoseStateGotWritten;
 	for (const SimulatorGate& gate : linkedGateGroup.gates) { // calculate non-junctions
 		if (isJunction(gate.type)) {
 			continue;
+		}
+
+		const std::vector<connection_end_id_t>& outputPorts = SimBlockData::getOutputPorts(gate.type);
+		for (connection_end_id_t outputPort : outputPorts) {
+			EvalConnectionPoint connectionPoint { gate.id, outputPort };
+			fetchInstructionsForConnectionPoint[connectionPoint] = { static_cast<unsigned int>(BlockType::BUFFER), allocEvalConnectionPointsMain.getIndex(connectionPoint) };
 		}
 
 		for (const auto& [connectionEndId, connectionsFromPort] : gate.connections) {
@@ -292,5 +314,78 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 }
 
 logic_state_t RunnableGateGroup::getState(EvalConnectionPoint connectionPoint) const {
-	return (logic_state_t)(groupId.get() % 4);
+	if (empty) {
+		return logic_state_t::UNDEFINED;
+	}
+	const std::vector<unsigned int>& fetchInstructions = fetchInstructionsForConnectionPoint.at(connectionPoint);
+	BlockType blockType = static_cast<BlockType>(fetchInstructions[0]);
+	if (blockType == BlockType::BUFFER) {
+		unsigned int index = fetchInstructions[1];
+		return dataField[index];
+	} else if (blockType == BlockType::CONSTANT_OFF) {
+		return logic_state_t::LOW;
+	} else if (blockType == BlockType::CONSTANT_ON) {
+		return logic_state_t::HIGH;
+	} else if (blockType == BlockType::CONSTANT_X) {
+		return logic_state_t::UNDEFINED;
+	} else if (blockType == BlockType::CONSTANT_Z) {
+		return logic_state_t::FLOATING;
+	} else if (isJunction(blockType)) {
+		unsigned int numInputs = fetchInstructions[1];
+		logic_state_t result = logic_state_t::FLOATING;
+		for (unsigned int i = 0; i < numInputs; i++) {
+			unsigned int index = fetchInstructions[2 + i];
+			logic_state_t inputState = dataField[index];
+			if (inputState == logic_state_t::UNDEFINED) {
+				return logic_state_t::UNDEFINED;
+			} else if (inputState == logic_state_t::HIGH) {
+				if (result == logic_state_t::LOW) {
+					return logic_state_t::UNDEFINED;
+				}
+				result = logic_state_t::HIGH;
+			} else if (inputState == logic_state_t::LOW) {
+				if (result == logic_state_t::HIGH) {
+					return logic_state_t::UNDEFINED;
+				}
+				result = logic_state_t::LOW;
+			}
+		}
+		if (result == logic_state_t::FLOATING) {
+			// if there are no inputs, the junction is treated as a constant, so we return the appropriate constant value based on the junction type
+			if (blockType == BlockType::JUNCTION) {
+				return logic_state_t::FLOATING;
+			} else if (blockType == BlockType::JUNCTION_H) {
+				return logic_state_t::HIGH;
+			} else if (blockType == BlockType::JUNCTION_L) {
+				return logic_state_t::LOW;
+			} else if (blockType == BlockType::JUNCTION_X) {
+				return logic_state_t::UNDEFINED;
+			} else {
+				assert(false && "Unknown junction type");
+				return logic_state_t::UNDEFINED;
+			}
+		}
+		return result;
+	} else {
+		assert(false && "Unsupported block type in getState");
+		return logic_state_t::UNDEFINED;
+	}
+}
+
+void RunnableGateGroup::runPull(const LogicGroupRunner& runner) const {
+	if (empty) {
+		return;
+	}
+	unsigned int bytecodeIndex = 0;
+	unsigned int numGroups = pullDataBytecode[bytecodeIndex++];
+	for (unsigned int i = 0; i < numGroups; i++) {
+		gate_group_id_t groupId(pullDataBytecode[bytecodeIndex++]);
+		const RunnableGateGroup& group = runner.getGroup(groupId);
+		unsigned int numPulls = pullDataBytecode[bytecodeIndex++];
+		for (unsigned int j = 0; j < numPulls; j++) {
+			unsigned int pullIndex = pullDataBytecode[bytecodeIndex++];
+			logic_state_t pulledState = group.getState(pullIndex);
+			dataField[j] = pulledState;
+		}
+	}
 }
