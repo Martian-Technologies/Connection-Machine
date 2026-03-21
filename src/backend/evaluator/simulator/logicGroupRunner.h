@@ -88,7 +88,7 @@ private:
 	std::unordered_map<EvalConnectionPoint, simulator_state_reference> connectionPointToSimulatorStateIndex;
 
 	simulator_state_reference getSimulatorStateIndex_mut(EvalConnectionPoint evalConnectionPoint);
-	LinearIdProvider<simulator_state_reference> stateIndexProvider;
+	LinearIdProvider<simulator_state_reference> stateIndexProvider { 4 };
 };
 
 #endif /* logicGroupRunner_h */
