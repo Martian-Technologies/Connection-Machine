@@ -5,6 +5,17 @@
 
 using namespace SimBlockData;
 
+namespace {
+	void eraseGateMappings(
+		std::unordered_map<eval_gate_id, gate_group_id_t>& gateIdToGroupId,
+		const LinkedGateGroup& simGroup
+	) {
+		for (const SimulatorGate& gate : simGroup.gates) {
+			gateIdToGroupId.erase(gate.id);
+		}
+	}
+}
+
 logic_state_t LogicGroupRunner::getState(simulator_state_reference simulatorStateIndex) const {
 	EvalConnectionPoint connectionPoint = simulatorStateIndexToConnectionPoint.at(simulatorStateIndex);
 	if (!gateIdToGroupId.contains(connectionPoint.gateId)) {
@@ -38,6 +49,16 @@ simulator_state_reference LogicGroupRunner::getSimulatorStateIndex_mut(EvalConne
 }
 
 void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups) {
+	for (gate_group_id_t groupId : range(gate_group_id_t(0), gate_group_id_t(groupsCache.size()))) {
+		if (groupsCache[groupId.get()].gates.empty()) {
+			continue;
+		}
+		auto it = simGroups.find(groupId);
+		if (it == simGroups.end() || groupsCache[groupId.get()] != it->second) {
+			eraseGateMappings(gateIdToGroupId, groupsCache[groupId.get()]);
+		}
+	}
+
 	for (const auto& [groupId, simGroup] : simGroups) {
 		setGroup(groupId, simGroup);
 	}

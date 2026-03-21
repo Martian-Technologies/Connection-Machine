@@ -5,7 +5,7 @@
 #include "../evalDefs.h"
 #include "logicState.h"
 
-class LinkedGateGroup;
+struct LinkedGateGroup;
 class LogicGroupRunner;
 
 class RunnableGateGroup {

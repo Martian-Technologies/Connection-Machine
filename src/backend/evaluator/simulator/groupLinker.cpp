@@ -1,12 +1,21 @@
 #include "groupLinker.h"
 
+namespace {
+	void eraseGateMappings(
+		std::unordered_map<eval_gate_id, gate_group_id_t>& gateIdToGroupId,
+		const std::vector<SimulatorGate>& gates
+	) {
+		for (const SimulatorGate& gate : gates) {
+			gateIdToGroupId.erase(gate.id);
+		}
+	}
+}
+
 std::unordered_map<gate_group_id_t, LinkedGateGroup> GroupLinker::linkGroups(const std::unordered_map<gate_group_id_t, CompiledGateGroup>& simGroups) {
 	// remove groups that got deleted (before remapping, since gates may have moved)
 	for (auto it = simGroupsCopy.begin(); it != simGroupsCopy.end(); ) {
 		if (simGroups.find(it->first) == simGroups.end()) {
-			for (const SimulatorGate& gate : it->second.gates) {
-				gateIdToGroupId.erase(gate.id);
-			}
+			eraseGateMappings(gateIdToGroupId, it->second.gates);
 			it = simGroupsCopy.erase(it);
 		} else {
 			++it;
@@ -21,6 +30,7 @@ std::unordered_map<gate_group_id_t, LinkedGateGroup> GroupLinker::linkGroups(con
 			if (oldSimGroup == simGroup) {
 				continue; // group didn't change, skip
 			}
+			eraseGateMappings(gateIdToGroupId, oldSimGroup.gates);
 		}
 		for (const SimulatorGate& gate : simGroup.gates) {
 			gateIdToGroupId[gate.id] = groupId;
