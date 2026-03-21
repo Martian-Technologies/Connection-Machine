@@ -373,9 +373,7 @@ logic_state_t RunnableGateGroup::getState(EvalConnectionPoint connectionPoint) c
 		}
 		if (result == logic_state_t::FLOATING) {
 			// if there are no inputs, the junction is treated as a constant, so we return the appropriate constant value based on the junction type
-			if (blockType == BlockType::JUNCTION) {
-				return logic_state_t::FLOATING;
-			} else if (blockType == BlockType::JUNCTION_H) {
+			if (blockType == BlockType::JUNCTION_H) {
 				return logic_state_t::HIGH;
 			} else if (blockType == BlockType::JUNCTION_L) {
 				return logic_state_t::LOW;
