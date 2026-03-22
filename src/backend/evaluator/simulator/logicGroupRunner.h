@@ -15,7 +15,8 @@ public:
 	logic_state_t getState(unsigned int pullIndex) const {
 		return dataField[publishedStateDataFieldIndices[pullIndex]];
 	}
-	logic_state_t getState(EvalConnectionPoint connectionPoint) const;
+	logic_state_t getState(const LogicGroupRunner& runner, EvalConnectionPoint connectionPoint) const;
+	logic_state_t getStaticState(EvalConnectionPoint connectionPoint) const;
 	bool isEmpty() const { return empty; }
 	void runPull(const LogicGroupRunner& runner) const;
 	void runTick() const;
@@ -69,6 +70,7 @@ public:
 	ReadingGuard getReadingGuard() const { return ReadingGuard(*this); }
 
 	logic_state_t getState(simulator_state_reference simulatorStateIndex) const;
+	logic_state_t getStaticState(EvalConnectionPoint connectionPoint) const;
 	void setState(simulator_state_reference simulatorStateIndex, logic_state_t state);
 	simulator_state_reference getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const;
 

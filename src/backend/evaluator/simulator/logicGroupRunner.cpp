@@ -24,7 +24,7 @@ logic_state_t LogicGroupRunner::getState(simulator_state_reference simulatorStat
 	gate_group_id_t groupId = gateIdToGroupId.at(connectionPoint.gateId);
 	const RunnableGateGroup& group = runnableGroups[groupId.get()];
 	group.runPull(*this);
-	return group.getState(connectionPoint);
+	return group.getState(*this, connectionPoint);
 }
 
 void LogicGroupRunner::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {
@@ -136,6 +136,7 @@ namespace {
 RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gate_group_id_t groupId) : groupId(groupId), empty(false) {
 	std::unordered_map<EvalConnectionPoint, unsigned int> pulledConnectionPointToDataFieldIndex;
 	std::unordered_map<gate_group_id_t, std::vector<std::pair<unsigned int, EvalConnectionPoint>>> pullIndicesToPullFromGroups;
+	std::vector<std::pair<unsigned int, logic_state_t>> dataVectorInitializers;
 	for (const auto& [connectionPoint, groupIdAndIndex] : linkedGateGroup.pullConnectionPoints) {
 		pullIndicesToPullFromGroups[groupIdAndIndex.first].push_back({ groupIdAndIndex.second, connectionPoint });
 	}
@@ -227,7 +228,14 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 					calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(connectionPoint));
 				}
 				fetchInstructionsForConnectionPoint[EvalConnectionPoint { gate.id, connection_end_id_t(0) }][1]++;
-				fetchInstructionsForConnectionPoint[connectionPoint].push_back(allocEvalConnectionPointsMain.getIndex(connectionPoint));
+				if (allocEvalConnectionPointsMain.contains(connectionPoint)) {
+					fetchInstructionsForConnectionPoint[EvalConnectionPoint { gate.id, connection_end_id_t(0) }].push_back(0);
+					fetchInstructionsForConnectionPoint[EvalConnectionPoint { gate.id, connection_end_id_t(0) }].push_back(allocEvalConnectionPointsMain.getIndex(connectionPoint));
+				} else {
+					fetchInstructionsForConnectionPoint[EvalConnectionPoint { gate.id, connection_end_id_t(0) }].push_back(1);
+					fetchInstructionsForConnectionPoint[EvalConnectionPoint { gate.id, connection_end_id_t(0) }].push_back(connectionPoint.gateId.get());
+					fetchInstructionsForConnectionPoint[EvalConnectionPoint { gate.id, connection_end_id_t(0) }].push_back(connectionPoint.connectionEndId.get());
+				}
 			}
 			if (hasOutput){
 				calculateGatesBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
@@ -289,7 +297,14 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			}
 			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(1) }));
 			nonJunctionGatesWhoseStateGotWritten.insert(gate.id);
-		} else if (gate.type == BlockType::AND || gate.type == BlockType::OR || gate.type == BlockType::XOR || gate.type == BlockType::NAND || gate.type == BlockType::NOR || gate.type == BlockType::XNOR) {
+		} else if (
+			gate.type == BlockType::AND ||
+			gate.type == BlockType::OR ||
+			gate.type == BlockType::XOR ||
+			gate.type == BlockType::NAND ||
+			gate.type == BlockType::NOR ||
+			gate.type == BlockType::XNOR
+		) {
 			const auto& connectionsFromPort = gate.getConnectionsFromPort(connection_end_id_t(0));
 			if (connectionsFromPort.size() == 0) {
 				simulateBytecode.push_back(static_cast<unsigned int>(BlockType::CONSTANT_OFF)); // block type
@@ -311,9 +326,28 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			}
 			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(1) }));
 			nonJunctionGatesWhoseStateGotWritten.insert(gate.id);
-		} else if (gate.type == BlockType::CONSTANT_OFF || gate.type == BlockType::CONSTANT_ON || gate.type == BlockType::CONSTANT_X || gate.type == BlockType::CONSTANT_Z) {
+		} else if (
+			gate.type == BlockType::CONSTANT_OFF ||
+			gate.type == BlockType::CONSTANT_ON ||
+			gate.type == BlockType::CONSTANT_X ||
+			gate.type == BlockType::CONSTANT_Z
+		) {
 			simulateBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
 			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
+			logic_state_t defaultState;;
+			if (gate.type == BlockType::CONSTANT_OFF) {
+				defaultState = logic_state_t::LOW;
+			} else if (gate.type == BlockType::CONSTANT_ON) {
+				defaultState = logic_state_t::HIGH;
+			} else if (gate.type == BlockType::CONSTANT_X) {
+				defaultState = logic_state_t::UNDEFINED;
+			} else if (gate.type == BlockType::CONSTANT_Z) {
+				defaultState = logic_state_t::FLOATING;
+			}
+			dataVectorInitializers.push_back({
+				allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }),
+				defaultState
+			});
 			continue;
 		} else if (gate.type == BlockType::BUTTON || gate.type == BlockType::SWITCH) {
 			allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }); // allocate data field index for the button/switch state, even though it won't be used in simulateBytecode because buttons/switches are controlled externally, not simulated
@@ -327,6 +361,10 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 
 	dataField.resize(dataFieldAllocator);
 
+	for (const auto& [dataFieldIndex, state] : dataVectorInitializers) {
+		dataField[dataFieldIndex] = state;
+	}
+
 	logInfo("Group ID: {}", "RunnableGateGroup::RunnableGateGroup", groupId);
 	logInfo("dataField size: {}", "RunnableGateGroup::RunnableGateGroup", dataField.size());
 	logInfo("pullBytecode: {}", "RunnableGateGroup::RunnableGateGroup", to_string(pullDataBytecode));
@@ -334,29 +372,27 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 	logInfo("publishedStateDataFieldIndices: {}", "RunnableGateGroup::RunnableGateGroup", to_string(publishedStateDataFieldIndices));
 }
 
-logic_state_t RunnableGateGroup::getState(EvalConnectionPoint connectionPoint) const {
+logic_state_t RunnableGateGroup::getState(const LogicGroupRunner& runner, EvalConnectionPoint connectionPoint) const {
 	if (empty) {
 		return logic_state_t::UNDEFINED;
 	}
 	const std::vector<unsigned int>& fetchInstructions = fetchInstructionsForConnectionPoint.at(connectionPoint);
 	BlockType blockType = static_cast<BlockType>(fetchInstructions[0]);
-	if (blockType == BlockType::BUFFER) {
-		unsigned int index = fetchInstructions[1];
-		return dataField[index];
-	} else if (blockType == BlockType::CONSTANT_OFF) {
-		return logic_state_t::LOW;
-	} else if (blockType == BlockType::CONSTANT_ON) {
-		return logic_state_t::HIGH;
-	} else if (blockType == BlockType::CONSTANT_X) {
-		return logic_state_t::UNDEFINED;
-	} else if (blockType == BlockType::CONSTANT_Z) {
-		return logic_state_t::FLOATING;
-	} else if (isJunction(blockType)) {
+	if (isJunction(blockType)) {
 		unsigned int numInputs = fetchInstructions[1];
 		logic_state_t result = logic_state_t::FLOATING;
+		unsigned int instructionIndex = 2;
 		for (unsigned int i = 0; i < numInputs; i++) {
-			unsigned int index = fetchInstructions[2 + i];
-			logic_state_t inputState = dataField[index];
+			unsigned int fetchType = fetchInstructions[instructionIndex++];
+			logic_state_t inputState;
+			if (fetchType == 0) {
+				unsigned int index = fetchInstructions[instructionIndex++];
+				inputState = dataField[index];
+			} else {
+				unsigned int gateId = fetchInstructions[instructionIndex++];
+				unsigned int connectionEndId = fetchInstructions[instructionIndex++];
+				inputState = runner.getStaticState(EvalConnectionPoint { eval_gate_id(gateId), connection_end_id_t(connectionEndId) });
+			}
 			if (inputState == logic_state_t::UNDEFINED) {
 				return logic_state_t::UNDEFINED;
 			} else if (inputState == logic_state_t::HIGH) {
@@ -386,7 +422,27 @@ logic_state_t RunnableGateGroup::getState(EvalConnectionPoint connectionPoint) c
 		}
 		return result;
 	} else {
-		assert(false && "Unsupported block type in getState");
+		return getStaticState(connectionPoint);
+	}
+}
+
+logic_state_t RunnableGateGroup::getStaticState(EvalConnectionPoint connectionPoint) const {
+	assert(!empty && "getStaticState should not be called for empty groups");
+	const std::vector<unsigned int>& fetchInstructions = fetchInstructionsForConnectionPoint.at(connectionPoint);
+	BlockType blockType = static_cast<BlockType>(fetchInstructions[0]);
+	if (blockType == BlockType::BUFFER) {
+		unsigned int index = fetchInstructions[1];
+		return dataField[index];
+	} else if (blockType == BlockType::CONSTANT_OFF) {
+		return logic_state_t::LOW;
+	} else if (blockType == BlockType::CONSTANT_ON) {
+		return logic_state_t::HIGH;
+	} else if (blockType == BlockType::CONSTANT_X) {
+		return logic_state_t::UNDEFINED;
+	} else if (blockType == BlockType::CONSTANT_Z) {
+		return logic_state_t::FLOATING;
+	} else {
+		assert(false && "Unsupported block type in getStaticState");
 		return logic_state_t::UNDEFINED;
 	}
 }
@@ -407,4 +463,13 @@ void RunnableGateGroup::runPull(const LogicGroupRunner& runner) const {
 			dataField[j] = pulledState;
 		}
 	}
+}
+
+logic_state_t LogicGroupRunner::getStaticState(EvalConnectionPoint connectionPoint) const {
+	if (!gateIdToGroupId.contains(connectionPoint.gateId)) {
+		return logic_state_t::UNDEFINED;
+	}
+	gate_group_id_t groupId = gateIdToGroupId.at(connectionPoint.gateId);
+	const RunnableGateGroup& group = runnableGroups[groupId.get()];
+	return group.getStaticState(connectionPoint);
 }
