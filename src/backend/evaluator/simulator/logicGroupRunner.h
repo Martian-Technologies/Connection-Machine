@@ -8,6 +8,125 @@
 struct LinkedGateGroup;
 class LogicGroupRunner;
 
+class ProcessingTable {
+public:
+	inline static logic_state_t buffer(logic_state_t input) {
+		const static std::vector<logic_state_t> bufferTable = {
+			logic_state_t::LOW, logic_state_t::HIGH, logic_state_t::UNDEFINED, logic_state_t::UNDEFINED
+		};
+		return bufferTable[static_cast<unsigned int>(input)];
+	}
+	inline static logic_state_t not_gate(logic_state_t input) {
+		const static std::vector<logic_state_t> notTable = {
+			logic_state_t::HIGH, logic_state_t::LOW, logic_state_t::UNDEFINED, logic_state_t::UNDEFINED
+		};
+		return notTable[static_cast<unsigned int>(input)];
+	}
+	inline static bool and_gate(logic_state_t& acc, logic_state_t input) {
+		if (input == logic_state_t::LOW) {
+			acc = logic_state_t::LOW;
+			return false;
+		}
+		if (static_cast<unsigned int>(input) & 0b10) { // UNDEFINED or FLOATING
+			acc = logic_state_t::UNDEFINED;
+		}
+		return true;
+	}
+	inline static bool or_gate(logic_state_t& acc, logic_state_t input) {
+		if (input == logic_state_t::HIGH) {
+			acc = logic_state_t::HIGH;
+			return false;
+		}
+		if (static_cast<unsigned int>(input) & 0b10) { // UNDEFINED or FLOATING
+			acc = logic_state_t::UNDEFINED;
+		}
+		return true;
+	}
+	inline static bool xor_gate(logic_state_t& acc, logic_state_t input) {
+		if (static_cast<unsigned int>(input) & 0b10) { // UNDEFINED or FLOATING
+			acc = logic_state_t::UNDEFINED;
+			return false;
+		}
+		if (input == logic_state_t::HIGH) {
+			acc = static_cast<logic_state_t>(static_cast<unsigned int>(acc) ^ 0b01);
+		}
+		return true;
+	}
+	inline static void invert_no_float_safe(logic_state_t& acc) {
+		assert(acc != logic_state_t::FLOATING);
+		unsigned int accVal = static_cast<unsigned int>(acc);
+		unsigned int proc = (accVal ^ 0b01) | (accVal >> 1);
+		acc = static_cast<logic_state_t>(proc);
+	}
+	inline static logic_state_t tristate_buffer(logic_state_t input, logic_state_t control) {
+		if (control == logic_state_t::HIGH) {
+			return buffer(input);
+		} else if (control == logic_state_t::LOW) {
+			return logic_state_t::FLOATING;
+		} else {
+			return logic_state_t::UNDEFINED;
+		}
+	}
+	inline static bool junction(logic_state_t& acc, logic_state_t input) {
+		if (input == logic_state_t::UNDEFINED) {
+			acc = logic_state_t::UNDEFINED;
+			return false;
+		} else if (input == logic_state_t::HIGH) {
+			if (acc == logic_state_t::LOW) {
+				acc = logic_state_t::UNDEFINED;
+				return false;
+			}
+			acc = logic_state_t::HIGH;
+		} else if (input == logic_state_t::LOW) {
+			if (acc == logic_state_t::HIGH) {
+				acc = logic_state_t::UNDEFINED;
+				return false;
+			}
+			acc = logic_state_t::LOW;
+		}
+		return true;
+	}
+	inline static logic_state_t pull_up(logic_state_t input) {
+		if (input == logic_state_t::FLOATING) {
+			return logic_state_t::HIGH;
+		}
+		return input;
+	}
+	inline static logic_state_t pull_down(logic_state_t input) {
+		if (input == logic_state_t::FLOATING) {
+			return logic_state_t::LOW;
+		}
+		return input;
+	}
+	inline static logic_state_t pull_x(logic_state_t input) {
+		if (input == logic_state_t::FLOATING) {
+			return logic_state_t::UNDEFINED;
+		}
+		return input;
+	}
+};
+
+enum class InstructionType : unsigned int {
+	COPY,
+	BUFFER,
+	NOT,
+	AND,
+	NAND,
+	OR,
+	NOR,
+	XOR,
+	XNOR,
+	SET_L,
+	SET_H,
+	SET_Z,
+	SET_X,
+	JUNCTION_PULL_H,
+	JUNCTION_PULL_L,
+	JUNCTION_PULL_X,
+	JUNCTION_PULL_Z,
+	TRISTATE,
+};
+
 class RunnableGateGroup {
 public:
 	RunnableGateGroup() = default;
@@ -80,6 +199,28 @@ public:
 	const RunnableGateGroup& getGroup(gate_group_id_t groupId) const {
 		return runnableGroups[groupId.get()];
 	}
+
+	void setRunning(bool running);
+	void setRealistic(bool realistic);
+	void setUseTickrateLimiter(bool useTickrateLimiter);
+	void setTargetTickrate(double tickrate);
+	void addSprint(unsigned int nTicks);
+	void waitForSprintComplete();
+
+	bool isRunning() const;
+	bool isRealistic() const;
+	bool getUseTickrateLimiter() const;
+	double getTargetTickrate() const;
+	double getAverageTickrate() const;
+	unsigned int getSprintCount() const;
+
+	bool stepBack() const;
+	bool stepForward() const;
+	bool skipBack() const;
+	bool skipForward() const;
+	bool isViewingReplay() const;
+
+	void tick();
 
 private:
 	mutable std::shared_mutex mainMutex;

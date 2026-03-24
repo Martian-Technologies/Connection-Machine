@@ -187,23 +187,23 @@ logic_state_t LogicSimulator::getRunnerState_noMux(simulator_state_reference sim
 std::optional<simulator_state_reference> LogicSimulator::getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const {
 	return logicGroupRunner.getSimulatorStateIndex(evalConnectionPoint);
 }
-void LogicSimulator::setRunning(bool running) {}
-bool LogicSimulator::isRunning() const { return false; }
-void LogicSimulator::setRealistic(bool realistic) {}
-bool LogicSimulator::isRealistic() const { return false; }
-void LogicSimulator::setUseTickrateLimiter(bool useTickrate) {}
-bool LogicSimulator::getUseTickrateLimiter() const { return false; }
-void LogicSimulator::setTargetTickrate(double tickrate) {}
-double LogicSimulator::getTargetTickrate() const { return 40.0; }
-double LogicSimulator::getAverageTickrate() const { return 0.0; }
-void LogicSimulator::addSprint(unsigned int nTicks) {}
-unsigned int LogicSimulator::getSprintCount() const { return 0; }
-void LogicSimulator::waitForSprintComplete() {}
-bool LogicSimulator::stepBack() { return false; }
-bool LogicSimulator::stepForward() { return false; }
-bool LogicSimulator::skipBack() { return false; }
-bool LogicSimulator::skipForward() { return false; }
-bool LogicSimulator::isViewingReplay() const { return false; }
+void LogicSimulator::setRunning(bool running) { logicGroupRunner.setRunning(running); }
+bool LogicSimulator::isRunning() const { return logicGroupRunner.isRunning(); }
+void LogicSimulator::setRealistic(bool realistic) { logicGroupRunner.setRealistic(realistic); }
+bool LogicSimulator::isRealistic() const { return logicGroupRunner.isRealistic(); }
+void LogicSimulator::setUseTickrateLimiter(bool useTickrate) { logicGroupRunner.setUseTickrateLimiter(useTickrate); }
+bool LogicSimulator::getUseTickrateLimiter() const { return logicGroupRunner.getUseTickrateLimiter(); }
+void LogicSimulator::setTargetTickrate(double tickrate) { logicGroupRunner.setTargetTickrate(tickrate); }
+double LogicSimulator::getTargetTickrate() const { return logicGroupRunner.getTargetTickrate(); }
+double LogicSimulator::getAverageTickrate() const { return logicGroupRunner.getAverageTickrate(); }
+void LogicSimulator::addSprint(unsigned int nTicks) { logicGroupRunner.addSprint(nTicks); }
+unsigned int LogicSimulator::getSprintCount() const { return logicGroupRunner.getSprintCount(); }
+void LogicSimulator::waitForSprintComplete() { logicGroupRunner.waitForSprintComplete(); }
+bool LogicSimulator::stepBack() { return logicGroupRunner.stepBack(); }
+bool LogicSimulator::stepForward() { return logicGroupRunner.stepForward(); }
+bool LogicSimulator::skipBack() { return logicGroupRunner.skipBack(); }
+bool LogicSimulator::skipForward() { return logicGroupRunner.skipForward(); }
+bool LogicSimulator::isViewingReplay() const { return logicGroupRunner.isViewingReplay(); }
 nlohmann::json LogicSimulator::dumpState() const { return nlohmann::json::object(); }
 
 // helpers
