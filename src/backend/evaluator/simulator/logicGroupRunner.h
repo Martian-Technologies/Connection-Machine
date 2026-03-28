@@ -104,6 +104,15 @@ public:
 		}
 		return input;
 	}
+	inline static logic_state_t tristate(logic_state_t data, logic_state_t control) {
+		if (control == logic_state_t::HIGH) {
+			return buffer(data);
+		}
+		if (control == logic_state_t::LOW) {
+			return logic_state_t::FLOATING;
+		}
+		return logic_state_t::UNDEFINED;
+	}
 };
 
 enum class InstructionType : unsigned int {

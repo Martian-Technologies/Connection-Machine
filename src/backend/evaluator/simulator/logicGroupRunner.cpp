@@ -291,6 +291,7 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 		if (isJunction(gate.type)) {
 			continue;
 		}
+		logInfo("Processing gate {} of type {}", "RunnableGateGroup::RunnableGateGroup", gate.id, blocktype_to_string(gate.type));
 
 		const std::vector<connection_end_id_t>& outputPorts = SimBlockData::getOutputPorts(gate.type);
 		for (connection_end_id_t outputPort : outputPorts) {
@@ -414,8 +415,33 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			continue;
 		} else if (gate.type == BlockType::BUTTON || gate.type == BlockType::SWITCH) {
 			allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }); // allocate data field index for the button/switch state, even though it won't be used in simulateBytecode because buttons/switches are controlled externally, not simulated
+		} else if (gate.type == BlockType::TRISTATE_BUFFER) {
+			calculateGatesBytecode[0]++;
+			// 0 - data
+			// 1 - control
+			// 2 - output
+
+			const auto& dataConnections = gate.getConnectionsFromPort(connection_end_id_t(0));
+			assert(dataConnections.size() <= 1 && "Tristate buffer should have at most one data input");
+			const auto& controlConnections = gate.getConnectionsFromPort(connection_end_id_t(1));
+			assert(controlConnections.size() <= 1 && "Tristate buffer should have at most one control input");
+			if (controlConnections.size() == 0 || dataConnections.size() == 0) {
+				// treat as const X
+				simulateBytecode.push_back(static_cast<unsigned int>(InstructionType::SET_X)); // control is X
+				simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(2) }));
+				dataVectorInitializers.push_back({ allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(2) }), logic_state_t::UNDEFINED });
+				continue;
+			}
+			simulateBytecode.push_back(static_cast<unsigned int>(InstructionType::TRISTATE)); // block type
+			unsigned int dataIndex = allocEvalConnectionPointsReserved.contains(dataConnections.begin()->first) ? allocEvalConnectionPointsReserved.getIndex(dataConnections.begin()->first) : allocEvalConnectionPointsMain.getIndex(dataConnections.begin()->first);
+			unsigned int controlIndex = allocEvalConnectionPointsReserved.contains(controlConnections.begin()->first) ? allocEvalConnectionPointsReserved.getIndex(controlConnections.begin()->first) : allocEvalConnectionPointsMain.getIndex(controlConnections.begin()->first);
+			simulateBytecode.push_back(dataIndex);
+			simulateBytecode.push_back(controlIndex);
+			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(2) }));
+
 		} else {
-			assert(false && "Unsupported gate type in logic group");
+			// assert(false && "Unsupported gate type in logic group");
+			logError("Unsupported gate type {} in logic group", "RunnableGateGroup::RunnableGateGroup", blocktype_to_string(gate.type));
 		}
 	}
 
@@ -478,10 +504,8 @@ logic_state_t RunnableGateGroup::getState(const LogicGroupRunner& runner, EvalCo
 				return logic_state_t::LOW;
 			} else if (instruction == InstructionType::JUNCTION_PULL_X) {
 				return logic_state_t::UNDEFINED;
-			} else {
-				assert(false && "Unknown junction type");
-				return logic_state_t::UNDEFINED;
 			}
+			return logic_state_t::FLOATING;
 		}
 		return result;
 	} else {
@@ -663,6 +687,11 @@ void RunnableGateGroup::runTick() {
 			}
 			unsigned int outputIndex = calculateGatesBytecode[bytecodeIndex++];
 			dataField[outputIndex] = accumulator;
+		} else if (instruction == InstructionType::TRISTATE) {
+			unsigned int dataIndex = calculateGatesBytecode[bytecodeIndex++];
+			unsigned int controlIndex = calculateGatesBytecode[bytecodeIndex++];
+			unsigned int outputIndex = calculateGatesBytecode[bytecodeIndex++];
+			dataField[outputIndex] = ProcessingTable::tristate(dataField[dataIndex], dataField[controlIndex]);
 		} else {
 			assert(false && "Unsupported block type in runTick");
 		}
