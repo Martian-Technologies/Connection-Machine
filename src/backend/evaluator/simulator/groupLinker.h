@@ -14,7 +14,6 @@ public:
 	std::unordered_map<gate_group_id_t, LinkedGateGroup> linkGroups(const std::unordered_map<gate_group_id_t, CompiledGateGroup>& simGroups);
 
 private:
-	std::unordered_map<gate_group_id_t, CompiledGateGroup> simGroupsCopy;
 	std::unordered_map<eval_gate_id, gate_group_id_t> gateIdToGroupId;
 };
 

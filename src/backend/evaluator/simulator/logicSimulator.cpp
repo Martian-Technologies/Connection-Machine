@@ -138,7 +138,10 @@ void LogicSimulator::endEdit() {
 
 void LogicSimulator::resetStates() {}
 
-void LogicSimulator::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {}
+void LogicSimulator::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {
+	LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
+	logicGroupRunner.setState(simulatorStateIndex, state);
+}
 
 logic_state_t LogicSimulator::getState(simulator_state_reference simulatorStateIndex) const {
 	if (simulatorStateIndex == simulator_state_reference(0)) {
@@ -233,6 +236,7 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 	IdProvider<gate_group_id_t> newGroupIdProvider { 0 };
 	std::unordered_set<eval_gate_id> ungroupedGates = {};
 	std::unordered_set<eval_gate_id> ungroupedJunctions = {};
+	std::unordered_set<eval_gate_id> groupedGateIds = {};
 	for (const auto& [gateId, simulatorGate] : gates) {
 		if (isJunction(gateId)) {
 			ungroupedJunctions.insert(gateId);
@@ -295,6 +299,7 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 					eval_gate_id otherGateId = otherConnectionPoint.gateId;
 					if (groupGateIds.contains(otherGateId)) continue; // already in the group
 					if (isJunction(otherGateId)) {
+						if (!ungroupedJunctions.contains(otherGateId)) continue; // already assigned to a different group
 						groupGateIds.insert(otherGateId);
 						ungroupedJunctions.erase(otherGateId);
 						// walk forward again because the instant value calculated for the junction will be used to calculate the state of the gates the junction connects into
@@ -308,11 +313,13 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 							if (junctionOtherGatePortDirection != PortDirection::INPUT) continue; // we only want to walk forward
 							eval_gate_id junctionOtherGateId = junctionOtherGateConnectionPoint.gateId;
 							if (groupGateIds.contains(junctionOtherGateId)) continue; // already in the group
+							if (!ungroupedGates.contains(junctionOtherGateId)) continue; // already assigned to a different group
 							groupGateIds.insert(junctionOtherGateId);
 							ungroupedGates.erase(junctionOtherGateId);
 							toVisit.push_back(junctionOtherGateId);
 						}
 					} else {
+						if (!ungroupedGates.contains(otherGateId)) continue; // already assigned to a different group
 						groupGateIds.insert(otherGateId);
 						ungroupedGates.erase(otherGateId);
 						toVisit.push_back(otherGateId);
@@ -328,6 +335,7 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 		logInfo("Group gates: {}", "LogicSimulator::compileGroups", to_string(groupGateIds));
 		logInfo("Visited output connection points: {}", "LogicSimulator::compileGroups", to_string(visitedOutputConnectionPoints));
 		for (eval_gate_id groupGateId : groupGateIds) {
+			assert(groupedGateIds.insert(groupGateId).second && "Gate was assigned to multiple compiled groups");
 			groupedGates.push_back(gates.at(groupGateId));
 		}
 		for (const EvalConnectionPoint& visitedOutputConnectionPoint : visitedOutputConnectionPoints) {
@@ -340,6 +348,7 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 	if (ungroupedJunctions.size() > 0) {
 		std::vector<SimulatorGate> junctionGates;
 		for (eval_gate_id junctionGateId : ungroupedJunctions) {
+			assert(groupedGateIds.insert(junctionGateId).second && "Junction was assigned to multiple compiled groups");
 			junctionGates.push_back(gates.at(junctionGateId));
 		}
 		CompiledGateGroup junctionGroup(junctionGates, {}); // no pull connection points because these junctions are only going to be computed on getState;

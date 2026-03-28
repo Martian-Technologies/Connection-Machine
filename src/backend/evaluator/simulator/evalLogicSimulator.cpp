@@ -1,5 +1,6 @@
 #include "evalLogicSimulator.h"
 
+#include "logicSimulator.h"
 #include "backend/circuit/circuitManager.h"
 #include "backend/evaluator/layers/layerRunner.h"
 #include "backend/evaluator/layers/evalLayerState.h"
@@ -11,7 +12,7 @@ EvalLogicSimulator::EvalLogicSimulator(
 	const CircuitManager& circuitManager,
 	circuit_id_t circuitId,
 	DataUpdateEventManager& dataUpdateEventManager
-) : logicSimulator(simulatorId, dirtySimulatorIds, dataUpdateEventManager), circuitManager(circuitManager), circuitId(circuitId),
+) : logicSimulator(std::make_unique<LogicSimulator>(simulatorId, dirtySimulatorIds, dataUpdateEventManager)), circuitManager(circuitManager), circuitId(circuitId),
 	evaluatorInternal(circuitManager.getCircuit(circuitId)->getEvaluator().getEvaluatorInternal()), simulatorId(simulatorId) {
 	const Circuit* circuit = circuitManager.getCircuit(circuitId).get();
 	assert(circuit);
@@ -19,7 +20,7 @@ EvalLogicSimulator::EvalLogicSimulator(
 	const EvalLayerState& evalLayerState = circuit->getEvaluator().getEvaluatorInternal().getLayerRunner().getOutputLayer();
 
 	for (std::pair<eval_gate_id, EvalGate> pair : evalLayerState.getGates()) {
-		logicSimulator.addGate(pair.first, getBlockType(pair.second.type));
+		logicSimulator->addGate(pair.first, getBlockType(pair.second.type));
 	}
 	for (std::pair<eval_gate_id, EvalGate> pair : evalLayerState.getGates()) {
 		for (std::pair<connection_end_id_t, std::unordered_set<EvalConnectionPoint>> connectionsPair : pair.second.connections) {
@@ -33,7 +34,7 @@ EvalLogicSimulator::EvalLogicSimulator(
 						EvalConnectionPoint(pair.first, connectionsPair.first),
 						otherConnectionPoint
 					));
-					logicSimulator.addConnection(EvalConnection(
+					logicSimulator->addConnection(EvalConnection(
 						EvalConnectionPoint(pair.first, connectionsPair.first),
 						otherConnectionPoint
 					), weight);
@@ -41,7 +42,7 @@ EvalLogicSimulator::EvalLogicSimulator(
 			}
 		}
 	}
-	logicSimulator.resetStates();
+	logicSimulator->resetStates();
 }
 
 EvalLogicSimulator::~EvalLogicSimulator() { circuitManager.getCircuit(circuitId)->getEvaluator().removeSimulator(*this); }
@@ -52,6 +53,22 @@ std::string EvalLogicSimulator::getSimulatorName() const {
 
 circuit_id_t EvalLogicSimulator::getCircuitId(const Address& address) const {
 	return circuitManager.getCircuit(circuitId)->getCircuitId(address);
+}
+
+void EvalLogicSimulator::resetStates() {
+	logicSimulator->resetStates();
+}
+
+void EvalLogicSimulator::setState(simulator_state_reference id, logic_state_t state) {
+	logicSimulator->setState(id, state);
+}
+
+logic_state_t EvalLogicSimulator::getState(simulator_state_reference id) const {
+	return logicSimulator->getState(id);
+}
+
+std::vector<logic_state_t> EvalLogicSimulator::getStates(const std::vector<simulator_state_reference>& ids) const {
+	return logicSimulator->getStates(ids);
 }
 
 void EvalLogicSimulator::setState(const Address& address, logic_state_t state) {
@@ -86,24 +103,40 @@ std::variant<logic_state_t, std::vector<logic_state_t>> EvalLogicSimulator::getP
 	}
 }
 
+void EvalLogicSimulator::setPause(bool pause) {
+	logicSimulator->setRunning(!pause);
+}
+
+bool EvalLogicSimulator::isPause() const {
+	return !logicSimulator->isRunning();
+}
+
+void EvalLogicSimulator::addSprint(unsigned int nTicks) {
+	logicSimulator->addSprint(nTicks);
+}
+
+bool EvalLogicSimulator::isSprinting() const {
+	return logicSimulator->getSprintCount() > 0;
+}
+
 void EvalLogicSimulator::waitForSprintComplete() {
-	logicSimulator.waitForSprintComplete();
+	logicSimulator->waitForSprintComplete();
 }
 
 void EvalLogicSimulator::tickStep(unsigned int nTicks) {
 	setPause(true);
-	logicSimulator.addSprint(nTicks);
+	logicSimulator->addSprint(nTicks);
 	waitForSprintComplete();
 }
 
 bool EvalLogicSimulator::stepBack() {
 	setPause(true);
-	return logicSimulator.stepBack();
+	return logicSimulator->stepBack();
 }
 
 void EvalLogicSimulator::stepForward() {
 	setPause(true);
-	bool success = logicSimulator.stepForward();
+	bool success = logicSimulator->stepForward();
 	if (!success) {
 		tickStep();
 	}
@@ -111,12 +144,44 @@ void EvalLogicSimulator::stepForward() {
 
 bool EvalLogicSimulator::skipBack() {
 	setPause(true);
-	return logicSimulator.skipBack();
+	return logicSimulator->skipBack();
 }
 
 bool EvalLogicSimulator::skipForward() {
 	setPause(true);
-	return logicSimulator.skipForward();
+	return logicSimulator->skipForward();
+}
+
+bool EvalLogicSimulator::isViewingReplay() const {
+	return logicSimulator->isViewingReplay();
+}
+
+void EvalLogicSimulator::setRealistic(bool realistic) {
+	logicSimulator->setRealistic(realistic);
+}
+
+bool EvalLogicSimulator::isRealistic() const {
+	return logicSimulator->isRealistic();
+}
+
+void EvalLogicSimulator::setTickrate(double tickrate) {
+	logicSimulator->setTargetTickrate(tickrate);
+}
+
+double EvalLogicSimulator::getTickrate() const {
+	return logicSimulator->getTargetTickrate();
+}
+
+void EvalLogicSimulator::setUseTickrate(bool useTickrate) {
+	logicSimulator->setUseTickrateLimiter(useTickrate);
+}
+
+bool EvalLogicSimulator::getUseTickrate() const {
+	return logicSimulator->getUseTickrateLimiter();
+}
+
+double EvalLogicSimulator::getRealTickrate() const {
+	return logicSimulator->getAverageTickrate();
 }
 
 namespace {
@@ -326,18 +391,18 @@ void EvalLogicSimulator::processEdits() {
 	// printCounts();
 	{
 		for (auto iter : evalLayerState.getRemovedConnections()) {
-			logicSimulator.removeConnection(iter.first, iter.second);
+			logicSimulator->removeConnection(iter.first, iter.second);
 		}
 		for (auto iter : evalLayerState.getRemovedGates()) {
-			logicSimulator.removeGate(iter.first);
+			logicSimulator->removeGate(iter.first);
 		}
 		for (auto iter : evalLayerState.getAddedGates()) {
-			logicSimulator.addGate(iter.first, getBlockType(iter.second));
+			logicSimulator->addGate(iter.first, getBlockType(iter.second));
 		}
 		for (auto iter : evalLayerState.getAddedConnections()) {
-			logicSimulator.addConnection(iter.first, iter.second);
+			logicSimulator->addConnection(iter.first, iter.second);
 		}
-		logicSimulator.endEdit();
+		logicSimulator->endEdit();
 	}
 
 	if (simulatorMappingUpdateListeners.empty()) return;
@@ -411,9 +476,13 @@ void EvalLogicSimulator::disconnectListener(void* object) const {
 	}
 }
 
+nlohmann::json EvalLogicSimulator::dumpState() const {
+	return logicSimulator->dumpState();
+}
+
 
 std::optional<simulator_state_reference> EvalLogicSimulator::getSimulatorStateIndex_noMux(EvalConnectionPoint evalConnectionPoint) const {
-	return logicSimulator.getSimulatorStateIndex(evalConnectionPoint);
+	return logicSimulator->getSimulatorStateIndex(evalConnectionPoint);
 }
 
 SimulatorStateIndexVecVariant EvalLogicSimulator::getVirtualConnectionSimulatorId_noMux(const Address& address, virtual_connection_id_t virtualConnectionId) const {

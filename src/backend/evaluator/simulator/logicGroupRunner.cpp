@@ -28,7 +28,13 @@ logic_state_t LogicGroupRunner::getState(simulator_state_reference simulatorStat
 }
 
 void LogicGroupRunner::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {
-	logError("setState not implemented", "LogicGroupRunner::setState");
+	EvalConnectionPoint connectionPoint = simulatorStateIndexToConnectionPoint.at(simulatorStateIndex);
+	if (!gateIdToGroupId.contains(connectionPoint.gateId)) {
+		return;
+	}
+	gate_group_id_t groupId = gateIdToGroupId.at(connectionPoint.gateId);
+	RunnableGateGroup& group = runnableGroups[groupId.get()];
+	group.setState(connectionPoint, state);
 }
 
 simulator_state_reference LogicGroupRunner::getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const {
@@ -290,6 +296,7 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 		for (connection_end_id_t outputPort : outputPorts) {
 			EvalConnectionPoint connectionPoint { gate.id, outputPort };
 			fetchInstructionsForConnectionPoint[connectionPoint] = { static_cast<unsigned int>(InstructionType::COPY), allocEvalConnectionPointsMain.getIndex(connectionPoint) };
+			dataFieldIndexForSetState[connectionPoint] = allocEvalConnectionPointsMain.getIndex(connectionPoint);
 		}
 
 		for (const auto& [connectionEndId, connectionsFromPort] : gate.connections) {
@@ -320,8 +327,8 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			}
 		}
 
-		calculateGatesBytecode[0]++;
 		if (gate.type == BlockType::BUFFER || gate.type == BlockType::NOT) {
+			calculateGatesBytecode[0]++;
 			// check if the gate has an input
 			const auto& connectionsFromPort = gate.getConnectionsFromPort(connection_end_id_t(0));
 			if (connectionsFromPort.size() == 0) {
@@ -343,6 +350,7 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			gate.type == BlockType::NOR ||
 			gate.type == BlockType::XNOR
 		) {
+			calculateGatesBytecode[0]++;
 			const auto& connectionsFromPort = gate.getConnectionsFromPort(connection_end_id_t(0));
 			if (connectionsFromPort.size() == 0) {
 				simulateBytecode.push_back(static_cast<unsigned int>(InstructionType::SET_L)); // block type
@@ -386,6 +394,7 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			gate.type == BlockType::CONSTANT_X ||
 			gate.type == BlockType::CONSTANT_Z
 		) {
+			dataFieldIndexForSetState.erase(EvalConnectionPoint { gate.id, connection_end_id_t(0) });
 			// simulateBytecode.push_back(static_cast<unsigned int>(gate.type)); // block type
 			// simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
 			logic_state_t defaultState;
@@ -507,6 +516,7 @@ void RunnableGateGroup::runPull(const LogicGroupRunner& runner) const {
 	}
 	unsigned int bytecodeIndex = 0;
 	unsigned int numGroups = pullDataBytecode[bytecodeIndex++];
+	unsigned int cnt = 0;
 	for (unsigned int i = 0; i < numGroups; i++) {
 		gate_group_id_t groupId(pullDataBytecode[bytecodeIndex++]);
 		const RunnableGateGroup& group = runner.getGroup(groupId);
@@ -514,7 +524,7 @@ void RunnableGateGroup::runPull(const LogicGroupRunner& runner) const {
 		for (unsigned int j = 0; j < numPulls; j++) {
 			unsigned int pullIndex = pullDataBytecode[bytecodeIndex++];
 			logic_state_t pulledState = group.getState(pullIndex);
-			dataField[j] = pulledState;
+			dataField[cnt++] = pulledState;
 		}
 	}
 }
@@ -527,8 +537,7 @@ logic_state_t LogicGroupRunner::getStaticState(EvalConnectionPoint connectionPoi
 	const RunnableGateGroup& group = runnableGroups[groupId.get()];
 	return group.getStaticState(connectionPoint);
 }
-
-void RunnableGateGroup::runTick() const {
+void RunnableGateGroup::runTick() {
 	if (empty) {
 		return;
 	}
@@ -601,7 +610,7 @@ void RunnableGateGroup::runTick() const {
 		} else if (instruction == InstructionType::XOR) {
 			unsigned int numInputs = calculateGatesBytecode[bytecodeIndex++];
 			assert(numInputs >= 1 && "XOR gate should have at least one input");
-			logic_state_t accumulator = ProcessingTable::buffer(dataField[calculateGatesBytecode[bytecodeIndex++]]);
+			logic_state_t accumulator = ProcessingTable::buffer(dataField[calculateGatesBytecode[bytecodeIndex]]);
 			bool continueProcessing = true;
 			for (unsigned int j = 1; continueProcessing && j < numInputs; j++) {
 				unsigned int inputIndex = calculateGatesBytecode[bytecodeIndex+j];
@@ -613,7 +622,7 @@ void RunnableGateGroup::runTick() const {
 		} else if (instruction == InstructionType::XNOR) {
 			unsigned int numInputs = calculateGatesBytecode[bytecodeIndex++];
 			assert(numInputs >= 1 && "XNOR gate should have at least one input");
-			logic_state_t accumulator = ProcessingTable::not_gate(dataField[calculateGatesBytecode[bytecodeIndex++]]);
+			logic_state_t accumulator = ProcessingTable::not_gate(dataField[calculateGatesBytecode[bytecodeIndex]]);
 			bool continueProcessing = true;
 			for (unsigned int j = 1; continueProcessing && j < numInputs; j++) {
 				unsigned int inputIndex = calculateGatesBytecode[bytecodeIndex+j];
@@ -646,11 +655,11 @@ void RunnableGateGroup::runTick() const {
 			}
 			bytecodeIndex += numInputs;
 			if (instruction == InstructionType::JUNCTION_PULL_H) {
-				ProcessingTable::pull_up(accumulator);
+				accumulator = ProcessingTable::pull_up(accumulator);
 			} else if (instruction == InstructionType::JUNCTION_PULL_L) {
-				ProcessingTable::pull_down(accumulator);
+				accumulator = ProcessingTable::pull_down(accumulator);
 			} else if (instruction == InstructionType::JUNCTION_PULL_X) {
-				ProcessingTable::pull_x(accumulator);
+				accumulator = ProcessingTable::pull_x(accumulator);
 			}
 			unsigned int outputIndex = calculateGatesBytecode[bytecodeIndex++];
 			dataField[outputIndex] = accumulator;
@@ -659,6 +668,19 @@ void RunnableGateGroup::runTick() const {
 		}
 	}
 }
+
+void RunnableGateGroup::setState(const EvalConnectionPoint& connectionPoint, logic_state_t state) {
+	if (empty) {
+		assert(false && "setState should not be called for empty groups");
+		return;
+	}
+	if (!dataFieldIndexForSetState.contains(connectionPoint)) {
+		return;
+	}
+	unsigned int dataFieldIndex = dataFieldIndexForSetState.at(connectionPoint);
+	dataField[dataFieldIndex] = state;
+}
+
 
 void LogicGroupRunner::tick() {
 	for (RunnableGateGroup& group : runnableGroups) {

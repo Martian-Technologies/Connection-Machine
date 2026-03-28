@@ -136,9 +136,10 @@ public:
 	}
 	logic_state_t getState(const LogicGroupRunner& runner, EvalConnectionPoint connectionPoint) const;
 	logic_state_t getStaticState(EvalConnectionPoint connectionPoint) const;
+	void setState(const EvalConnectionPoint& connectionPoint, logic_state_t state);
 	bool isEmpty() const { return empty; }
 	void runPull(const LogicGroupRunner& runner) const;
-	void runTick() const;
+	void runTick();
 private:
 	bool empty = true;
 	mutable std::vector<logic_state_t> dataField;
@@ -146,6 +147,7 @@ private:
 	std::vector<unsigned int> pullDataBytecode;
 	std::vector<unsigned int> calculateGatesBytecode;
 	std::unordered_map<EvalConnectionPoint, std::vector<unsigned int>> fetchInstructionsForConnectionPoint;
+	std::unordered_map<EvalConnectionPoint, unsigned int> dataFieldIndexForSetState;
 	gate_group_id_t groupId;
 };
 

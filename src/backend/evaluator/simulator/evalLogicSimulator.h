@@ -3,10 +3,11 @@
 
 #include "backend/circuit/circuitDefs.h"
 #include "backend/address.h"
-#include "logicSimulator.h"
 #include "simulatorDefs.h"
 #include "../evalDefs.h"
+#include "logicState.h"
 
+class LogicSimulator;
 class EvaluatorInternal;
 class BlockDataManager;
 class CircuitManager;
@@ -26,12 +27,12 @@ public:
 
 	// --------------- Controls ---------------
 
-	void resetStates() { logicSimulator.resetStates(); }
+	void resetStates();
 
 	// Simulator Id State
-	void setState(simulator_state_reference id, logic_state_t state) { logicSimulator.setState(id, state); }
-	logic_state_t getState(simulator_state_reference id) const { return logicSimulator.getState(id); }
-	std::vector<logic_state_t> getStates(const std::vector<simulator_state_reference>& ids) const { return logicSimulator.getStates(ids); }
+	void setState(simulator_state_reference id, logic_state_t state);
+	logic_state_t getState(simulator_state_reference id) const;
+	std::vector<logic_state_t> getStates(const std::vector<simulator_state_reference>& ids) const;
 
 	// Address State
 	void setState(const Address& address, logic_state_t state);
@@ -39,10 +40,10 @@ public:
 	std::variant<logic_state_t, std::vector<logic_state_t>> getPinState(const Address& address);
 
 	// Speed/Ticking
-	void setPause(bool pause) { logicSimulator.setRunning(!pause); }
-	bool isPause() const { return !logicSimulator.isRunning(); }
-	void addSprint(unsigned int nTicks) { logicSimulator.addSprint(nTicks); }
-	bool isSprinting() const { return logicSimulator.getSprintCount() > 0; }
+	void setPause(bool pause);
+	bool isPause() const;
+	void addSprint(unsigned int nTicks);
+	bool isSprinting() const;
 	void waitForSprintComplete();
 	void tickStep(unsigned int nTicks);
 	void tickStep() { tickStep(1); }
@@ -50,16 +51,16 @@ public:
 	void stepForward();
 	bool skipBack();
 	bool skipForward();
-	inline bool isViewingReplay() const { return logicSimulator.isViewingReplay(); }
-	void setRealistic(bool realistic) { logicSimulator.setRealistic(realistic); }
-	bool isRealistic() const { return logicSimulator.isRealistic(); }
-	void setTickrate(double tickrate) { logicSimulator.setTargetTickrate(tickrate); }
-	double getTickrate() const { return logicSimulator.getTargetTickrate(); }
+	bool isViewingReplay() const;
+	void setRealistic(bool realistic);
+	bool isRealistic() const;
+	void setTickrate(double tickrate);
+	double getTickrate() const;
 	void increaseTickrateSeq();
 	void decreaseTickrateSeq();
-	void setUseTickrate(bool useTickrate) { logicSimulator.setUseTickrateLimiter(useTickrate); }
-	bool getUseTickrate() const { return logicSimulator.getUseTickrateLimiter(); }
-	double getRealTickrate() const { return logicSimulator.getAverageTickrate(); }
+	void setUseTickrate(bool useTickrate);
+	bool getUseTickrate() const;
+	double getRealTickrate() const;
 
 	// --------------- Other ---------------
 
@@ -76,7 +77,7 @@ public:
 	void connectListener(void* object, const Address& address, SimulatorMappingUpdateListenerFunction func) const;
 	void disconnectListener(void* object) const;
 
-	nlohmann::json dumpState() const { return logicSimulator.dumpState(); }
+	nlohmann::json dumpState() const;
 
 private:
 	SimulatorStateIndexVecVariant getVirtualConnectionSimulatorId_noMux(const Address& address, virtual_connection_id_t virtualConnectionId) const;
@@ -89,7 +90,7 @@ private:
 	mutable std::mutex mux;
 
 	std::vector<simulator_state_reference> dirtySimulatorIds;
-	LogicSimulator logicSimulator;
+	std::unique_ptr<LogicSimulator> logicSimulator;
 	const CircuitManager& circuitManager;
 	const EvaluatorInternal& evaluatorInternal;
 	simulator_id_t simulatorId;

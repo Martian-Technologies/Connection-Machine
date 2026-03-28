@@ -1,41 +1,12 @@
 #include "groupLinker.h"
 
-namespace {
-	void eraseGateMappings(
-		std::unordered_map<eval_gate_id, gate_group_id_t>& gateIdToGroupId,
-		const std::vector<SimulatorGate>& gates
-	) {
-		for (const SimulatorGate& gate : gates) {
-			gateIdToGroupId.erase(gate.id);
-		}
-	}
-}
-
 std::unordered_map<gate_group_id_t, LinkedGateGroup> GroupLinker::linkGroups(const std::unordered_map<gate_group_id_t, CompiledGateGroup>& simGroups) {
-	// remove groups that got deleted (before remapping, since gates may have moved)
-	for (auto it = simGroupsCopy.begin(); it != simGroupsCopy.end(); ) {
-		if (simGroups.find(it->first) == simGroups.end()) {
-			eraseGateMappings(gateIdToGroupId, it->second.gates);
-			it = simGroupsCopy.erase(it);
-		} else {
-			++it;
-		}
-	}
-
-	// compare the copy with the new simGroups to update gateidToGroupId only from the groups that changed
+	gateIdToGroupId.clear();
 	for (const auto& [groupId, simGroup] : simGroups) {
-		auto it = simGroupsCopy.find(groupId);
-		if (it != simGroupsCopy.end()) {
-			const CompiledGateGroup& oldSimGroup = it->second;
-			if (oldSimGroup == simGroup) {
-				continue; // group didn't change, skip
-			}
-			eraseGateMappings(gateIdToGroupId, oldSimGroup.gates);
-		}
 		for (const SimulatorGate& gate : simGroup.gates) {
+			assert(!gateIdToGroupId.contains(gate.id) && "Gate belongs to multiple compiled groups");
 			gateIdToGroupId[gate.id] = groupId;
 		}
-		simGroupsCopy[groupId] = simGroup;
 	}
 
 	// print out the mapping for debugging
@@ -57,7 +28,7 @@ std::unordered_map<gate_group_id_t, LinkedGateGroup> GroupLinker::linkGroups(con
 	std::unordered_map<gate_group_id_t, unsigned int> groupIdToNewPullConnectionPointIndexProvider;
 	for (const auto& connectionPoint : allConnectionPointsToBePushed) {
 		eval_gate_id gateId = connectionPoint.gateId;
-		connection_end_id_t connectionEndId = connectionPoint.connectionEndId;
+		assert(gateIdToGroupId.contains(gateId) && "Pull connection references a gate that is not in any compiled group");
 		gate_group_id_t groupId = gateIdToGroupId.at(gateId);
 		unsigned int newIndex = groupIdToNewPullConnectionPointIndexProvider[groupId]++;
 		pushConnectionPointToGroupIdAndIndex[connectionPoint] = { groupId, newIndex };
