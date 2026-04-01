@@ -1,6 +1,9 @@
 #include "logicSimulator.h"
 #include "gateGroup.h"
 #include "util/algorithm.h"
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
 
 using namespace SimBlockData;
 
@@ -33,6 +36,7 @@ void LogicSimulator::addGate(eval_gate_id gateId, BlockType blockType) {
 
 void LogicSimulator::removeGate(eval_gate_id gateId) {
 	assert(gates.contains(gateId) && "Gate does not exist in LogicSimulator");
+	deletedGatesInCurrentEdit.insert(gateId);
 	removeAllGateConnections(gateId);
 	gates.erase(gateId);
 }
@@ -133,7 +137,8 @@ void LogicSimulator::endEdit() {
 	LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups = compileGroups();
 	std::unordered_map<gate_group_id_t, LinkedGateGroup> linkedGroups = groupLinker.linkGroups(compiledGroups);
-	logicGroupRunner.setGroups(linkedGroups);
+	logicGroupRunner.setGroups(linkedGroups, deletedGatesInCurrentEdit);
+	deletedGatesInCurrentEdit.clear();
 }
 
 void LogicSimulator::resetStates() {}
@@ -159,6 +164,9 @@ logic_state_t LogicSimulator::getState(simulator_state_reference simulatorStateI
 }
 
 std::vector<logic_state_t> LogicSimulator::getStates(const std::vector<simulator_state_reference>& simulatorStateIndices) const {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
 	std::optional<LogicGroupRunner::ReadingGuard> readingGuardOpt;
 	std::vector<logic_state_t> states;
 	for (const auto& index : simulatorStateIndices) {
@@ -232,6 +240,9 @@ BlockType LogicSimulator::getBlockType(eval_gate_id gateId) const {
 }
 
 std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGroups() const {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups;
 	IdProvider<gate_group_id_t> newGroupIdProvider { 0 };
 	std::unordered_set<eval_gate_id> ungroupedGates = {};
@@ -245,7 +256,7 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 		}
 	}
 	while (ungroupedGates.size() != 0) {
-		logInfo("{} ungrouped gates remaining", "LogicSimulator::compileGroups", ungroupedGates.size());
+		// logInfo("{} ungrouped gates remaining", "LogicSimulator::compileGroups", ungroupedGates.size());
 		eval_gate_id gateId = *ungroupedGates.begin();
 		assert(!isJunction(gateId) && "Expected gate, got junction in compileGroups");
 		// walk back then walk forward
@@ -330,10 +341,10 @@ std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGr
 		gate_group_id_t gateGroupId = newGroupIdProvider.getNewId();
 		std::vector<SimulatorGate> groupedGates;
 		std::vector<EvalConnectionPoint> pullConnectionPoints;
-		logInfo("----------------------------------------------------------", "LogicSimulator::compileGroups");
-		logInfo("Group {}", "LogicSimulator::compileGroups", gateGroupId);
-		logInfo("Group gates: {}", "LogicSimulator::compileGroups", to_string(groupGateIds));
-		logInfo("Visited output connection points: {}", "LogicSimulator::compileGroups", to_string(visitedOutputConnectionPoints));
+		// logInfo("----------------------------------------------------------", "LogicSimulator::compileGroups");
+		// logInfo("Group {}", "LogicSimulator::compileGroups", gateGroupId);
+		// logInfo("Group gates: {}", "LogicSimulator::compileGroups", to_string(groupGateIds));
+		// logInfo("Visited output connection points: {}", "LogicSimulator::compileGroups", to_string(visitedOutputConnectionPoints));
 		for (eval_gate_id groupGateId : groupGateIds) {
 			assert(groupedGateIds.insert(groupGateId).second && "Gate was assigned to multiple compiled groups");
 			groupedGates.push_back(gates.at(groupGateId));

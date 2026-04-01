@@ -1,6 +1,12 @@
 #include "groupLinker.h"
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
 
 std::unordered_map<gate_group_id_t, LinkedGateGroup> GroupLinker::linkGroups(const std::unordered_map<gate_group_id_t, CompiledGateGroup>& simGroups) {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
 	gateIdToGroupId.clear();
 	for (const auto& [groupId, simGroup] : simGroups) {
 		for (const SimulatorGate& gate : simGroup.gates) {
@@ -10,9 +16,9 @@ std::unordered_map<gate_group_id_t, LinkedGateGroup> GroupLinker::linkGroups(con
 	}
 
 	// print out the mapping for debugging
-	for (const auto& [gateId, groupId] : gateIdToGroupId) {
-		logInfo("Gate {} is in group {}", "GroupLinker::linkGroups", gateId, groupId);
-	}
+	// for (const auto& [gateId, groupId] : gateIdToGroupId) {
+	// 	logInfo("Gate {} is in group {}", "GroupLinker::linkGroups", gateId, groupId);
+	// }
 
 	std::unordered_map<gate_group_id_t, LinkedGateGroup> linkedGroups;
 	std::unordered_set<EvalConnectionPoint> allConnectionPointsToBePushed;

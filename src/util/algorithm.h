@@ -121,6 +121,21 @@ inline std::string to_string(const std::unordered_set<T>& set) {
 	return result;
 }
 
+template <typename K, typename V>
+inline std::string to_string(const std::unordered_map<K, V>& map) {
+	std::string result = "{";
+	size_t i = 0;
+	for (const auto& [key, value] : map) {
+		result += to_string(key) + ": " + to_string(value);
+		if (i < map.size() - 1) {
+			result += ", ";
+		}
+		i++;
+	}
+	result += "}";
+	return result;
+}
+
 template <typename... Ts>
 inline std::string to_string(const std::variant<Ts...>& var) {
 	return std::visit([](const auto& value) {

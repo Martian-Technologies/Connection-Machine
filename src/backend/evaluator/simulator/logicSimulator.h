@@ -72,6 +72,7 @@ private:
 	DataUpdateEventManager& dataUpdateEventManager;
 
 	std::unordered_map<eval_gate_id, SimulatorGate> gates;
+	std::unordered_set<eval_gate_id> deletedGatesInCurrentEdit; // used to keep track of which gates need their states reset in the sim
 
 	GroupLinker groupLinker;
 	LogicGroupRunner logicGroupRunner;
