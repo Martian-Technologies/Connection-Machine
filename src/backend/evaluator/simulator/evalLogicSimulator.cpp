@@ -42,6 +42,7 @@ EvalLogicSimulator::EvalLogicSimulator(
 			}
 		}
 	}
+	logicSimulator->endEdit();
 	logicSimulator->resetStates();
 }
 

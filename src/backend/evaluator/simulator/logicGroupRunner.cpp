@@ -85,7 +85,7 @@ void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, Linke
 		gateIdToGroupId.erase(deletedGateId);
 	}
 
-	preserveStates(simGroups, statesToPreserve, deletedGates);
+	preserveStates(statesToPreserve, deletedGates);
 
 	for (const auto& [groupId, simGroup] : simGroups) {
 		setGroup(groupId, simGroup);
@@ -111,17 +111,13 @@ void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, Linke
 	}
 }
 
-void LogicGroupRunner::preserveStates(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups, std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve, const std::unordered_set<eval_gate_id>& deletedGates) {
+void LogicGroupRunner::preserveStates(std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve, const std::unordered_set<eval_gate_id>& deletedGates) {
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
-	for (const auto& [groupId, simGroup] : simGroups) {
-		if (groupId.get() >= groupsCache.size()) {
+	for (const LinkedGateGroup& oldSimGroup : groupsCache) {
+		if (oldSimGroup.gates.empty()) {
 			continue;
-		}
-		const LinkedGateGroup& oldSimGroup = groupsCache[groupId.get()];
-		if (oldSimGroup == simGroup) {
-			continue; // group didn't change, so we can skip it
 		}
 		for (const SimulatorGate& gate : oldSimGroup.gates) {
 			if (deletedGates.contains(gate.id)) {
@@ -473,12 +469,14 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			simulateBytecode.push_back(0); // num inputs, will be filled in later
 			for (const auto& [connectionPoint, weight] : connectionsFromPort) {
 				InputOutput direction = gate.getDirection(connection_end_id_t(0), connectionPoint);
-				if (direction != InputOutput::INPUT) {
+				if (direction != InputOutput::INPUT || weight == 0) {
 					continue;
 				}
-				simulateBytecode[numInputsIndex]++;
 				unsigned int index = allocEvalConnectionPointsReserved.contains(connectionPoint) ? allocEvalConnectionPointsReserved.getIndex(connectionPoint) : allocEvalConnectionPointsMain.getIndex(connectionPoint);
-				simulateBytecode.push_back(index);
+				for (unsigned int i = 0; i < weight; i++) {
+					simulateBytecode[numInputsIndex]++;
+					simulateBytecode.push_back(index);
+				}
 			}
 			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(1) }));
 			nonJunctionGatesWhoseStateGotWritten.insert(gate.id);
@@ -537,6 +535,7 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			simulateBytecode.push_back(dataIndex);
 			simulateBytecode.push_back(controlIndex);
 			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(2) }));
+			dataVectorInitializers.push_back({ allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(2) }), logic_state_t::FLOATING });
 
 		} else {
 			// assert(false && "Unsupported gate type in logic group");
