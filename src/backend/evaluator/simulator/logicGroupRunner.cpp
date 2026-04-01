@@ -506,6 +506,10 @@ RunnableGateGroup::RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gat
 			continue;
 		} else if (gate.type == BlockType::BUTTON || gate.type == BlockType::SWITCH) {
 			allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }); // allocate data field index for the button/switch state, even though it won't be used in simulateBytecode because buttons/switches are controlled externally, not simulated
+		} else if (gate.type == BlockType::TICK_BUTTON) {
+			calculateGatesBytecode[0]++;
+			simulateBytecode.push_back(static_cast<unsigned int>(InstructionType::SET_L)); // block type
+			simulateBytecode.push_back(allocEvalConnectionPointsMain.getIndex(EvalConnectionPoint { gate.id, connection_end_id_t(0) }));
 		} else if (gate.type == BlockType::TRISTATE_BUFFER) {
 			calculateGatesBytecode[0]++;
 			// 0 - data
@@ -828,6 +832,7 @@ void LogicGroupRunner::setRealistic(bool realistic) {}
 void LogicGroupRunner::setUseTickrateLimiter(bool useTickrateLimiter) {}
 void LogicGroupRunner::setTargetTickrate(double tickrate) {}
 void LogicGroupRunner::addSprint(unsigned int nTicks) {
+	EditingGuard editingGuard = getEditingGuard();
 	for (unsigned int i = 0; i < nTicks; i++) {
 		tick();
 	}
