@@ -166,6 +166,9 @@ std::vector<logic_state_t> LogicSimulator::getStates(const std::vector<simulator
 	std::optional<LogicGroupRunner::ReadingGuard> readingGuardOpt;
 	std::vector<logic_state_t> states;
 	for (const auto& index : simulatorStateIndices) {
+#ifdef TRACY_PROFILER
+		ZoneScopedN("getState loop");
+#endif
 		if (index == simulator_state_reference(0)) {
 			states.push_back(logic_state_t::LOW);
 			continue;
@@ -180,6 +183,9 @@ std::vector<logic_state_t> LogicSimulator::getStates(const std::vector<simulator
 			continue;
 		}
 		if (!readingGuardOpt.has_value()) {
+#ifdef TRACY_PROFILER
+			ZoneScopedN("acquire reading guard");
+#endif
 			readingGuardOpt.emplace(logicGroupRunner.getReadingGuard());
 		}
 		states.push_back(getRunnerState_noMux(index));

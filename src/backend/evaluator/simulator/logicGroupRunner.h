@@ -164,7 +164,8 @@ class LogicGroupRunner {
 	friend class EditingGuard;
 	friend class ReadingGuard;
 public:
-	LogicGroupRunner() {}
+	LogicGroupRunner();
+	~LogicGroupRunner();
 
 	class EditingGuard {
 	public:
@@ -233,6 +234,12 @@ public:
 	bool isViewingReplay() const;
 
 	void tick();
+	void simulationLoop();
+	void updateEmaTickrate(
+		const std::chrono::steady_clock::time_point& currentTime,
+		std::chrono::steady_clock::time_point& lastTickTime,
+		bool& isFirstTick
+	);
 
 private:
 	mutable std::shared_mutex mainMutex;
@@ -246,6 +253,18 @@ private:
 	LinearIdProvider<simulator_state_reference> stateIndexProvider { 4 };
 	mutable std::vector<std::uint8_t> groupsPulled;
 	mutable bool groupsPulledValid = false;
+
+	std::thread simulationThread;
+	std::atomic<bool> simulationThreadRunning { true };
+	std::atomic<bool> running { false };
+	std::atomic<bool> realistic { false };
+	std::atomic<bool> useTickrateLimiter { true };
+	std::atomic<double> targetTickrate { 0.0 };
+	std::atomic<double> averageTickrate { 0.0 };
+	std::atomic<unsigned int> sprintCounter { 0 };
+	double tickrateHalflife { 0.3 };
+	mutable std::mutex controlMutex;
+	std::condition_variable controlCv;
 };
 
 #endif /* logicGroupRunner_h */

@@ -19,6 +19,21 @@ namespace {
 	}
 }
 
+LogicGroupRunner::LogicGroupRunner() {
+	simulationThread = std::thread(&LogicGroupRunner::simulationLoop, this);
+}
+
+LogicGroupRunner::~LogicGroupRunner() {
+	{
+		std::lock_guard<std::mutex> lock(controlMutex);
+		simulationThreadRunning.store(false, std::memory_order_release);
+	}
+	controlCv.notify_all();
+	if (simulationThread.joinable()) {
+		simulationThread.join();
+	}
+}
+
 logic_state_t LogicGroupRunner::getState(simulator_state_reference simulatorStateIndex) const {
 #ifdef TRACY_PROFILER
 	ZoneScoped;
@@ -827,24 +842,150 @@ void LogicGroupRunner::tick() {
 	}
 }
 
-void LogicGroupRunner::setRunning(bool running) {}
-void LogicGroupRunner::setRealistic(bool realistic) {}
-void LogicGroupRunner::setUseTickrateLimiter(bool useTickrateLimiter) {}
-void LogicGroupRunner::setTargetTickrate(double tickrate) {}
-void LogicGroupRunner::addSprint(unsigned int nTicks) {
-	EditingGuard editingGuard = getEditingGuard();
-	for (unsigned int i = 0; i < nTicks; i++) {
-		tick();
+void LogicGroupRunner::simulationLoop() {
+	using clock = std::chrono::steady_clock;
+
+	auto nextTick = clock::now();
+	auto lastTickTime = clock::now();
+	bool isFirstTick = true;
+
+	while (simulationThreadRunning.load(std::memory_order_acquire)) {
+		bool didSprint = false;
+		while (
+			simulationThreadRunning.load(std::memory_order_acquire) &&
+			sprintCounter.load(std::memory_order_acquire) > 0
+		) {
+			didSprint = true;
+			auto currentTime = clock::now();
+			{
+				EditingGuard editingGuard = getEditingGuard();
+				tick();
+			}
+			sprintCounter.fetch_sub(1, std::memory_order_acq_rel);
+			updateEmaTickrate(currentTime, lastTickTime, isFirstTick);
+			controlCv.notify_all();
+		}
+
+		if (didSprint) {
+			continue;
+		}
+
+		if (running.load(std::memory_order_acquire)) {
+			auto currentTime = clock::now();
+			{
+				EditingGuard editingGuard = getEditingGuard();
+				tick();
+			}
+			updateEmaTickrate(currentTime, lastTickTime, isFirstTick);
+
+			bool sleptForTickrateLimit = false;
+			if (useTickrateLimiter.load(std::memory_order_acquire)) {
+				double currentTargetTickrate = targetTickrate.load(std::memory_order_acquire);
+				if (currentTargetTickrate > 0.0) {
+					auto period = std::chrono::duration_cast<std::chrono::nanoseconds>(
+						std::chrono::duration<double>(1.0 / currentTargetTickrate)
+					);
+					nextTick += period;
+					auto waitStart = clock::now();
+					if (nextTick > waitStart) {
+						std::unique_lock<std::mutex> lock(controlMutex);
+						controlCv.wait_until(lock, nextTick, [&] {
+							return
+								!simulationThreadRunning.load(std::memory_order_acquire) ||
+								!running.load(std::memory_order_acquire) ||
+								sprintCounter.load(std::memory_order_acquire) > 0;
+						});
+						sleptForTickrateLimit = true;
+					}
+				}
+			}
+			if (!sleptForTickrateLimit) {
+				// When we can run flat-out, yield between exclusive lock acquisitions so readers
+				// and edit operations are not starved by the simulation thread.
+				std::this_thread::yield();
+			}
+		} else {
+			averageTickrate.store(0.0, std::memory_order_release);
+			std::unique_lock<std::mutex> lock(controlMutex);
+			controlCv.wait(lock, [&] {
+				return
+					!simulationThreadRunning.load(std::memory_order_acquire) ||
+					running.load(std::memory_order_acquire) ||
+					sprintCounter.load(std::memory_order_acquire) > 0;
+			});
+			nextTick = clock::now();
+			lastTickTime = nextTick;
+			isFirstTick = true;
+		}
 	}
 }
-void LogicGroupRunner::waitForSprintComplete() {}
 
-bool LogicGroupRunner::isRunning() const { return false; }
-bool LogicGroupRunner::isRealistic() const { return false; }
-bool LogicGroupRunner::getUseTickrateLimiter() const { return false; }
-double LogicGroupRunner::getTargetTickrate() const { return 0; }
-double LogicGroupRunner::getAverageTickrate() const { return 0; }
-unsigned int LogicGroupRunner::getSprintCount() const { return 0; }
+void LogicGroupRunner::updateEmaTickrate(
+	const std::chrono::steady_clock::time_point& currentTime,
+	std::chrono::steady_clock::time_point& lastTickTime,
+	bool& isFirstTick
+) {
+	if (!isFirstTick) {
+		auto deltaTime = std::chrono::duration_cast<std::chrono::nanoseconds>(currentTime - lastTickTime);
+		if (deltaTime.count() > 0) {
+			double currentTickrate = 1.0e9 / static_cast<double>(deltaTime.count());
+			double dtSeconds = std::chrono::duration<double>(deltaTime).count();
+			double alpha = 1.0 - std::exp(-dtSeconds * std::log(2.0) / tickrateHalflife);
+			double currentEMA = averageTickrate.load(std::memory_order_acquire);
+			double newEMA = alpha * currentTickrate + (1.0 - alpha) * currentEMA;
+			averageTickrate.store(newEMA, std::memory_order_release);
+		}
+	} else {
+		isFirstTick = false;
+	}
+	lastTickTime = currentTime;
+}
+
+void LogicGroupRunner::setRunning(bool shouldRun) {
+	running.store(shouldRun, std::memory_order_release);
+	controlCv.notify_all();
+}
+void LogicGroupRunner::setRealistic(bool isRealistic) {
+	realistic.store(isRealistic, std::memory_order_release);
+}
+void LogicGroupRunner::setUseTickrateLimiter(bool shouldUseTickrateLimiter) {
+	useTickrateLimiter.store(shouldUseTickrateLimiter, std::memory_order_release);
+	controlCv.notify_all();
+}
+void LogicGroupRunner::setTargetTickrate(double tickrate) {
+	targetTickrate.store(tickrate, std::memory_order_release);
+	controlCv.notify_all();
+}
+void LogicGroupRunner::addSprint(unsigned int nTicks) {
+	sprintCounter.fetch_add(nTicks, std::memory_order_acq_rel);
+	controlCv.notify_all();
+}
+void LogicGroupRunner::waitForSprintComplete() {
+	std::unique_lock<std::mutex> lock(controlMutex);
+	controlCv.wait(lock, [&] {
+		return sprintCounter.load(std::memory_order_acquire) == 0;
+	});
+}
+
+bool LogicGroupRunner::isRunning() const { return running.load(std::memory_order_acquire); }
+bool LogicGroupRunner::isRealistic() const { return realistic.load(std::memory_order_acquire); }
+bool LogicGroupRunner::getUseTickrateLimiter() const { return useTickrateLimiter.load(std::memory_order_acquire); }
+double LogicGroupRunner::getTargetTickrate() const { return targetTickrate.load(std::memory_order_acquire); }
+double LogicGroupRunner::getAverageTickrate() const {
+	if (!isRunning()) {
+		return 0.0;
+	}
+	double currentAverageTickrate = averageTickrate.load(std::memory_order_acquire);
+	double currentTargetTickrate = getTargetTickrate();
+	if (currentTargetTickrate > 0.0) {
+		double percentageError = (currentAverageTickrate - currentTargetTickrate) / currentTargetTickrate;
+		if (std::abs(percentageError) < 0.01) {
+			return currentTargetTickrate;
+		}
+	}
+	return currentAverageTickrate;
+}
+unsigned int LogicGroupRunner::getSprintCount() const { return sprintCounter.load(std::memory_order_acquire); }
 
 bool LogicGroupRunner::stepBack() const { return false; }
 bool LogicGroupRunner::stepForward() const { return false; }
