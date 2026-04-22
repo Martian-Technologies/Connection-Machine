@@ -17,6 +17,7 @@
 #include <type_traits>
 
 #include <array>
+#include <bit>
 #include <condition_variable>
 #include <list>
 #include <map>

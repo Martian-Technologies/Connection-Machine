@@ -36,6 +36,9 @@ public:
 	logic_state_t getState(simulator_state_reference simulatorStateIndex) const;
 	std::vector<logic_state_t> getStates(const std::vector<simulator_state_reference>& simulatorStateIndices) const;
 	std::optional<simulator_state_reference> getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const;
+	void requestNewStatesOutputVector() const {
+		logicGroupRunner.requestNewStatesOutputVector();
+	}
 
 	// controls
 

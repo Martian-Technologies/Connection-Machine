@@ -139,23 +139,28 @@ enum class InstructionType : unsigned int {
 class RunnableGateGroup {
 public:
 	RunnableGateGroup() = default;
-	RunnableGateGroup(const LinkedGateGroup& linkedGateGroup, gate_group_id_t groupId);
+	RunnableGateGroup(
+		const LinkedGateGroup& linkedGateGroup,
+		gate_group_id_t groupId,
+		LogicGroupRunner& logicGroupRunner
+	);
 	logic_state_t getState(unsigned int pullIndex) const {
 		return dataField[publishedStateDataFieldIndices[pullIndex]];
 	}
-	logic_state_t getState(const LogicGroupRunner& runner, EvalConnectionPoint connectionPoint) const;
 	logic_state_t getStaticState(EvalConnectionPoint connectionPoint) const;
 	void setState(const EvalConnectionPoint& connectionPoint, logic_state_t state);
 	bool isEmpty() const { return empty; }
 	void runPull(const LogicGroupRunner& runner) const;
 	void runTick();
+	void calculateAllGateStates(const LogicGroupRunner& runner, std::vector<logic_state_t>& outputVector) const;
 private:
 	bool empty = true;
 	mutable std::vector<logic_state_t> dataField;
 	std::vector<unsigned int> publishedStateDataFieldIndices;
 	std::vector<unsigned int> pullDataBytecode;
 	std::vector<unsigned int> calculateGatesBytecode;
-	std::unordered_map<EvalConnectionPoint, std::vector<unsigned int>> fetchInstructionsForConnectionPoint;
+	std::vector<unsigned int> calculateAllGateStatesBytecode;
+	std::unordered_map<EvalConnectionPoint, std::pair<InstructionType, unsigned int>> getStateStaticInstructions;
 	std::unordered_map<EvalConnectionPoint, unsigned int> dataFieldIndexForSetState;
 	gate_group_id_t groupId;
 };
@@ -197,13 +202,32 @@ public:
 		std::shared_lock<std::shared_mutex> lock;
 	};
 
+	class StateReadingGuard {
+	public:
+		StateReadingGuard(const LogicGroupRunner& runner) : lock(runner.statesOutputVectorMutex) {}
+		~StateReadingGuard() = default;
+
+		StateReadingGuard(StateReadingGuard&&) = default;
+		StateReadingGuard& operator=(StateReadingGuard&&) = default;
+		StateReadingGuard(const StateReadingGuard&) = delete;
+		StateReadingGuard& operator=(const StateReadingGuard&) = delete;
+	private:
+		std::shared_lock<std::shared_mutex> lock;
+	};
+
 	EditingGuard getEditingGuard() { return EditingGuard(*this); }
 	ReadingGuard getReadingGuard() const { return ReadingGuard(*this); }
+	StateReadingGuard getStateReadingGuard() const { return StateReadingGuard(*this); }
 
 	logic_state_t getState(simulator_state_reference simulatorStateIndex) const;
 	logic_state_t getStaticState(EvalConnectionPoint connectionPoint) const;
 	void setState(simulator_state_reference simulatorStateIndex, logic_state_t state);
 	simulator_state_reference getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const;
+	simulator_state_reference getSimulatorStateIndex_mut(EvalConnectionPoint evalConnectionPoint);
+
+	void requestNewStatesOutputVector() const {
+		updateStatesOutputVectorNextUpdate.store(true, std::memory_order_release);
+	}
 
 	void setGroups(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups, const std::unordered_set<eval_gate_id>& deletedGates);
 	void preserveStates(std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve, const std::unordered_set<eval_gate_id>& deletedGates);
@@ -242,6 +266,8 @@ public:
 	);
 
 private:
+	void calculateAllGateStates();
+
 	mutable std::shared_mutex mainMutex;
 	std::vector<LinkedGateGroup> groupsCache;
 	std::vector<RunnableGateGroup> runnableGroups;
@@ -249,10 +275,8 @@ private:
 	std::unordered_map<simulator_state_reference, EvalConnectionPoint> simulatorStateIndexToConnectionPoint;
 	std::unordered_map<EvalConnectionPoint, simulator_state_reference> connectionPointToSimulatorStateIndex;
 
-	simulator_state_reference getSimulatorStateIndex_mut(EvalConnectionPoint evalConnectionPoint);
 	LinearIdProvider<simulator_state_reference> stateIndexProvider { 4 };
 	mutable std::vector<std::uint8_t> groupsPulled;
-	mutable bool groupsPulledValid = false;
 
 	std::thread simulationThread;
 	std::atomic<bool> simulationThreadRunning { true };
@@ -265,6 +289,11 @@ private:
 	double tickrateHalflife { 0.3 };
 	mutable std::mutex controlMutex;
 	std::condition_variable controlCv;
+
+	mutable std::atomic<bool> updateStatesOutputVectorNextUpdate { false };
+
+	mutable std::shared_mutex statesOutputVectorMutex;
+	std::vector<logic_state_t> statesOutputVector;
 };
 
 #endif /* logicGroupRunner_h */

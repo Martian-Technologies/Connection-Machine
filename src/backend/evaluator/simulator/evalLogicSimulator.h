@@ -33,6 +33,7 @@ public:
 	void setState(simulator_state_reference id, logic_state_t state);
 	logic_state_t getState(simulator_state_reference id) const;
 	std::vector<logic_state_t> getStates(const std::vector<simulator_state_reference>& ids) const;
+	void requestNewStatesOutputVector() const;
 
 	// Address State
 	void setState(const Address& address, logic_state_t state);

@@ -94,6 +94,9 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, const Eval
 			vmaCopyMemoryToAllocation(device->getAllocator(), states.data(), chunk->getStateBuffer()->getCurrentBuffer().allocation, 0, states.size());
 		}
 	}
+	if (simulator != nullptr) {
+		simulator->requestNewStatesOutputVector();
+	}
 
 	// block drawing pass
 	{

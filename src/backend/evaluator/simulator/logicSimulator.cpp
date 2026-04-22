@@ -154,7 +154,7 @@ logic_state_t LogicSimulator::getState(simulator_state_reference simulatorStateI
 	} else if (simulatorStateIndex == simulator_state_reference(3)) {
 		return logic_state_t::UNDEFINED;
 	} else {
-		LogicGroupRunner::ReadingGuard readingGuard = logicGroupRunner.getReadingGuard();
+		LogicGroupRunner::StateReadingGuard stateReadingGuard = logicGroupRunner.getStateReadingGuard();
 		return getRunnerState_noMux(simulatorStateIndex);
 	}
 }
@@ -163,8 +163,9 @@ std::vector<logic_state_t> LogicSimulator::getStates(const std::vector<simulator
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
-	std::optional<LogicGroupRunner::ReadingGuard> readingGuardOpt;
+	std::optional<LogicGroupRunner::StateReadingGuard> stateReadingGuardOpt;
 	std::vector<logic_state_t> states;
+	states.reserve(simulatorStateIndices.size());
 	for (const auto& index : simulatorStateIndices) {
 #ifdef TRACY_PROFILER
 		ZoneScopedN("getState loop");
@@ -182,11 +183,11 @@ std::vector<logic_state_t> LogicSimulator::getStates(const std::vector<simulator
 			states.push_back(logic_state_t::UNDEFINED);
 			continue;
 		}
-		if (!readingGuardOpt.has_value()) {
+		if (!stateReadingGuardOpt.has_value()) {
 #ifdef TRACY_PROFILER
-			ZoneScopedN("acquire reading guard");
+			ZoneScopedN("acquire state reading guard");
 #endif
-			readingGuardOpt.emplace(logicGroupRunner.getReadingGuard());
+			stateReadingGuardOpt.emplace(logicGroupRunner.getStateReadingGuard());
 		}
 		states.push_back(getRunnerState_noMux(index));
 	}

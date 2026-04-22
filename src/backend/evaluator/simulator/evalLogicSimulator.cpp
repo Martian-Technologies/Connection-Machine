@@ -72,6 +72,10 @@ std::vector<logic_state_t> EvalLogicSimulator::getStates(const std::vector<simul
 	return logicSimulator->getStates(ids);
 }
 
+void EvalLogicSimulator::requestNewStatesOutputVector() const {
+	logicSimulator->requestNewStatesOutputVector();
+}
+
 void EvalLogicSimulator::setState(const Address& address, logic_state_t state) {
 	std::lock_guard lock(mux);
 	std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> connectionPoints = evaluatorInternal.mapFromAddressToBottomConnectionPoints(address);
