@@ -254,61 +254,66 @@ TEST_F(EvaluatorTest, EqualityCircuit) {
 }
 
 TEST_F(EvaluatorTest, JunctionRemovalGate) {
-	circuit->tryInsertBlock({ 0, 0 }, Rotation::ZERO, BlockType::SWITCH); // switch 1
-	circuit->tryInsertBlock({ 1, 0 }, Rotation::ZERO, BlockType::SWITCH); // switch 2
-	circuit->tryInsertBlock({ 2, 0 }, Rotation::ZERO, BlockType::JUNCTION); // junction 1
-	circuit->tryInsertBlock({ 3, 0 }, Rotation::ZERO, BlockType::JUNCTION); // junction 2
-	circuit->tryInsertBlock({ 4, 0 }, Rotation::ZERO, BlockType::AND);
-	circuit->tryCreateConnection(Position { 0, 0 }, Position { 2, 0 }); // switch 1 to junction 1
-	circuit->tryCreateConnection(Position { 1, 0 }, Position { 2, 0 }); // switch 2 to junction 1
-	circuit->tryCreateConnection(Position { 3, 0 }, Position { 4, 0 }); // junction 2 to and gate
-	circuit->tryCreateConnection(Position { 2, 0 }, Position { 3, 0 }); // junction 1 to junction 2
-	ASSERT_EQ(simulator->getState(Address({ 0, 0 })), L);
-	ASSERT_EQ(simulator->getState(Address({ 1, 0 })), L);
-	ASSERT_EQ(simulator->getState(Address({ 2, 0 })), L);
-	ASSERT_EQ(simulator->getState(Address({ 3, 0 })), L);
-	ASSERT_EQ(simulator->getState(Address({ 4, 0 })), L);
-	simulator->setState(Address({ 0, 0 }), H);
+	Position switch1(0, 0);
+	Position switch2(1, 0);
+	Position junction1(2, 0);
+	Position junction2(3, 0);
+	Position andGate(4, 0);
+	circuit->tryInsertBlock(switch1, Rotation::ZERO, BlockType::SWITCH); // switch 1
+	circuit->tryInsertBlock(switch2, Rotation::ZERO, BlockType::SWITCH); // switch 2
+	circuit->tryInsertBlock(junction1, Rotation::ZERO, BlockType::JUNCTION); // junction 1
+	circuit->tryInsertBlock(junction2, Rotation::ZERO, BlockType::JUNCTION); // junction 2
+	circuit->tryInsertBlock(andGate, Rotation::ZERO, BlockType::AND);
+	circuit->tryCreateConnection(switch1, junction1); // switch 1 to junction 1
+	circuit->tryCreateConnection(switch2, junction1); // switch 2 to junction 1
+	circuit->tryCreateConnection(junction2, andGate); // junction 2 to and gate
+	circuit->tryCreateConnection(junction1, junction2); // junction 1 to junction 2
+	ASSERT_EQ(simulator->getState(Address(switch1)), L);
+	ASSERT_EQ(simulator->getState(Address(switch2)), L);
+	ASSERT_EQ(simulator->getState(Address(junction1)), L);
+	ASSERT_EQ(simulator->getState(Address(junction2)), L);
+	ASSERT_EQ(simulator->getState(Address(andGate)), L);
+	simulator->setState(Address(switch1), H);
 	simulator->tickStep(1);
-	ASSERT_EQ(simulator->getState(Address({ 0, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 1, 0 })), L);
-	ASSERT_EQ(simulator->getState(Address({ 2, 0 })), X);
-	ASSERT_EQ(simulator->getState(Address({ 3, 0 })), X);
-	ASSERT_EQ(simulator->getState(Address({ 4, 0 })), X);
-	simulator->setState(Address({ 1, 0 }), H);
+	ASSERT_EQ(simulator->getState(Address(switch1)), H);
+	ASSERT_EQ(simulator->getState(Address(switch2)), L);
+	ASSERT_EQ(simulator->getState(Address(junction1)), X);
+	ASSERT_EQ(simulator->getState(Address(junction2)), X);
+	ASSERT_EQ(simulator->getState(Address(andGate)), X);
+	simulator->setState(Address(switch2), H);
 	simulator->tickStep(1);
-	ASSERT_EQ(simulator->getState(Address({ 0, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 1, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 2, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 3, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 4, 0 })), H);
-	simulator->setState(Address({ 0, 0 }), L);
+	ASSERT_EQ(simulator->getState(Address(switch1)), H);
+	ASSERT_EQ(simulator->getState(Address(switch2)), H);
+	ASSERT_EQ(simulator->getState(Address(junction1)), H);
+	ASSERT_EQ(simulator->getState(Address(junction2)), H);
+	ASSERT_EQ(simulator->getState(Address(andGate)), H);
+	simulator->setState(Address(switch1), L);
 	simulator->tickStep(1);
-	ASSERT_EQ(simulator->getState(Address({ 0, 0 })), L);
-	ASSERT_EQ(simulator->getState(Address({ 1, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 2, 0 })), X);
-	ASSERT_EQ(simulator->getState(Address({ 3, 0 })), X);
-	ASSERT_EQ(simulator->getState(Address({ 4, 0 })), X);
-	circuit->tryRemoveBlock(Position { 0, 0 });
-	ASSERT_EQ(simulator->getState(Address({ 1, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 2, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 3, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 4, 0 })), X);
+	ASSERT_EQ(simulator->getState(Address(switch1)), L);
+	ASSERT_EQ(simulator->getState(Address(switch2)), H);
+	ASSERT_EQ(simulator->getState(Address(junction1)), X);
+	ASSERT_EQ(simulator->getState(Address(junction2)), X);
+	ASSERT_EQ(simulator->getState(Address(andGate)), X);
+	circuit->tryRemoveBlock(switch1);
+	ASSERT_EQ(simulator->getState(Address(switch2)), H);
+	ASSERT_EQ(simulator->getState(Address(junction1)), H);
+	ASSERT_EQ(simulator->getState(Address(junction2)), H);
+	ASSERT_EQ(simulator->getState(Address(andGate)), X);
 	simulator->tickStep(1);
-	ASSERT_EQ(simulator->getState(Address({ 1, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 2, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 3, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 4, 0 })), H);
-	circuit->tryRemoveConnection(Position { 2, 0 }, Position { 3, 0 });
-	ASSERT_EQ(simulator->getState(Address({ 1, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 2, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 3, 0 })), Z);
-	ASSERT_EQ(simulator->getState(Address({ 4, 0 })), H);
+	ASSERT_EQ(simulator->getState(Address(switch2)), H);
+	ASSERT_EQ(simulator->getState(Address(junction1)), H);
+	ASSERT_EQ(simulator->getState(Address(junction2)), H);
+	ASSERT_EQ(simulator->getState(Address(andGate)), H);
+	circuit->tryRemoveConnection(junction1, junction2);
+	ASSERT_EQ(simulator->getState(Address(switch2)), H);
+	ASSERT_EQ(simulator->getState(Address(junction1)), H);
+	ASSERT_EQ(simulator->getState(Address(junction2)), Z);
+	ASSERT_EQ(simulator->getState(Address(andGate)), H);
 	simulator->tickStep(1);
-	ASSERT_EQ(simulator->getState(Address({ 1, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 2, 0 })), H);
-	ASSERT_EQ(simulator->getState(Address({ 3, 0 })), Z);
-	ASSERT_EQ(simulator->getState(Address({ 4, 0 })), X);
+	ASSERT_EQ(simulator->getState(Address(switch2)), H);
+	ASSERT_EQ(simulator->getState(Address(junction1)), H);
+	ASSERT_EQ(simulator->getState(Address(junction2)), Z);
+	ASSERT_EQ(simulator->getState(Address(andGate)), X);
 }
 
 TEST_F(EvaluatorTest, TristateBufferEnableControlsOutput) {

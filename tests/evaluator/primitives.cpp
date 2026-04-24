@@ -252,14 +252,14 @@ TEST_F(PrimitivesEvaluatorTest, AllBasicGatesBehavior) {
 		simulator->tickStep();
 		logic_state_t expectedState = naiveButCorrectGateImplementation(testcase.blockType, testcase.inputStates);
 		logic_state_t computedState = simulator->getState(Address(Position(1, 0)));
-		EXPECT_EQ(expectedState, computedState);
+		EXPECT_EQ(expectedState, computedState) << " for block type " << blocktype_to_string(testcase.blockType) << " with inputs " << to_string(testcase.inputStates);
 		for (int i = 0; i < testcase.inputStates.size(); ++i) {
 			ASSERT_TRUE(circuit->tryRemoveConnection(Position(0, i), Position(1, 0) + testcase.connectionOffset));
 		}
 	}
 }
 
-TEST_F(PrimitivesEvaluatorTest, DISABLED_TristateBufferBehavior) {
+TEST_F(PrimitivesEvaluatorTest, TristateBufferBehavior) {
 	struct Testcase {
 		std::vector<logic_state_t> enableStates;
 		std::vector<logic_state_t> dataStates;
