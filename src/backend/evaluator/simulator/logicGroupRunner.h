@@ -231,7 +231,7 @@ public:
 
 	void setGroups(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups, const std::unordered_set<eval_gate_id>& deletedGates);
 	void preserveStates(std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve, const std::unordered_set<eval_gate_id>& deletedGates);
-	void setGroup(gate_group_id_t groupId, const LinkedGateGroup& simGroup);
+	bool setGroup(gate_group_id_t groupId, const LinkedGateGroup& simGroup);
 
 	const RunnableGateGroup& getGroup(gate_group_id_t groupId) const {
 		return runnableGroups[groupId.get()];
@@ -267,6 +267,7 @@ public:
 
 private:
 	void calculateAllGateStates();
+	void setState_noCalculate(simulator_state_reference simulatorStateIndex, logic_state_t state);
 
 	mutable std::shared_mutex mainMutex;
 	std::vector<LinkedGateGroup> groupsCache;

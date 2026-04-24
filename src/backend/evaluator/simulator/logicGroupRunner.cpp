@@ -38,7 +38,7 @@ logic_state_t LogicGroupRunner::getState(simulator_state_reference simulatorStat
 	return statesOutputVector.at(simulatorStateIndex.get());
 }
 
-void LogicGroupRunner::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {
+void LogicGroupRunner::setState_noCalculate(simulator_state_reference simulatorStateIndex, logic_state_t state) {
 	EvalConnectionPoint connectionPoint = simulatorStateIndexToConnectionPoint.at(simulatorStateIndex);
 	if (!gateIdToGroupId.contains(connectionPoint.gateId)) {
 		logError("Trying to set state for connection point {}, but its gate {} is not in any group", "LogicGroupRunner::setState", connectionPoint.toString(), connectionPoint.gateId.get());
@@ -47,6 +47,10 @@ void LogicGroupRunner::setState(simulator_state_reference simulatorStateIndex, l
 	gate_group_id_t groupId = gateIdToGroupId.at(connectionPoint.gateId);
 	RunnableGateGroup& group = runnableGroups[groupId.get()];
 	group.setState(connectionPoint, state);
+}
+
+void LogicGroupRunner::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {
+	setState_noCalculate(simulatorStateIndex, state);
 	calculateAllGateStates();
 }
 
@@ -83,8 +87,11 @@ void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, Linke
 
 	preserveStates(statesToPreserve, deletedGates);
 
+	std::vector<gate_group_id_t> groupIdsToUpdate;
 	for (const auto& [groupId, simGroup] : simGroups) {
-		setGroup(groupId, simGroup);
+		if (setGroup(groupId, simGroup)) {
+			groupIdsToUpdate.push_back(groupId);
+		}
 	}
 
 	// logInfo("Updated logic groups. Preserved states for " + to_string(statesToPreserve));
@@ -98,12 +105,20 @@ void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, Linke
 			groupsCache[groupId.get()] = LinkedGateGroup();
 		}
 	}
+
 	for (const auto& [connectionPoint, state] : statesToPreserve) {
 		simulator_state_reference simulatorStateIndex = getSimulatorStateIndex(connectionPoint);
 		if (simulatorStateIndex.get() < 4) {
 			continue; // skip constants
 		}
-		setState(simulatorStateIndex, state);
+		setState_noCalculate(simulatorStateIndex, state);
+	}
+
+	for (gate_group_id_t groupId : groupIdsToUpdate) {
+		runnableGroups[groupId.get()].runPull(*this);
+	}
+	for (gate_group_id_t groupId : groupIdsToUpdate) {
+		runnableGroups[groupId.get()].calculateAllGateStates(*this, statesOutputVector);
 	}
 }
 
@@ -133,7 +148,7 @@ void LogicGroupRunner::preserveStates(std::unordered_map<EvalConnectionPoint, lo
 	}
 }
 
-void LogicGroupRunner::setGroup(gate_group_id_t groupId, const LinkedGateGroup& simGroup) {
+bool LogicGroupRunner::setGroup(gate_group_id_t groupId, const LinkedGateGroup& simGroup) {
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
@@ -142,7 +157,7 @@ void LogicGroupRunner::setGroup(gate_group_id_t groupId, const LinkedGateGroup& 
 		ZoneScopedN("group cache check");
 #endif
 		if (groupsCache[groupId.get()] == simGroup) {
-			return;
+			return false;
 		}
 	}
 	if (groupsCache.size() <= groupId.get()) {
@@ -175,6 +190,7 @@ void LogicGroupRunner::setGroup(gate_group_id_t groupId, const LinkedGateGroup& 
 			getSimulatorStateIndex_mut(connectionPoint);
 		}
 	}
+	return true;
 }
 
 namespace {
