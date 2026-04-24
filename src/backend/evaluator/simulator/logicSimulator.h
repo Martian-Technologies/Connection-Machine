@@ -76,6 +76,12 @@ private:
 
 	std::unordered_map<eval_gate_id, SimulatorGate> gates;
 	std::unordered_set<eval_gate_id> deletedGatesInCurrentEdit; // used to keep track of which gates need their states reset in the sim
+	std::unordered_set<eval_gate_id> ungroupedGates;
+	std::unordered_set<EvalConnection> pendingAddedConnections;
+	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups;
+	std::unordered_map<eval_gate_id, gate_group_id_t> gateIdToGroupId;
+	IdProvider<gate_group_id_t> groupIdProvider { 0 };
+	std::unordered_set<gate_group_id_t> dirtyGroups;
 
 	GroupLinker groupLinker;
 	LogicGroupRunner logicGroupRunner;
@@ -103,6 +109,14 @@ private:
 	}
 
 	std::unordered_map<gate_group_id_t, CompiledGateGroup> compileGroups() const;
+	void createGroupForGate(eval_gate_id gateId);
+	void markGateGroupDirty(eval_gate_id gateId);
+	void mergeGroups(gate_group_id_t groupIdA, gate_group_id_t groupIdB);
+	void addGateToGroup(eval_gate_id gateId, gate_group_id_t groupId);
+	void removeGateFromGroup(eval_gate_id gateId);
+	void materializePendingGroupMerges();
+	void refreshDirtyGroups();
+	void refreshGroup(gate_group_id_t groupId);
 
 	bool isJunction(eval_gate_id gateId) const { return isJunction(getBlockType(gateId)); }
 

@@ -7,7 +7,70 @@
 
 using namespace SimBlockData;
 
+namespace {
+	constexpr std::uint64_t GROUP_NODE_FLAG = 0;
+	constexpr std::uint64_t GATE_NODE_FLAG = 1ULL << 63;
+
+	std::uint64_t makeGroupNode(gate_group_id_t groupId) {
+		return GROUP_NODE_FLAG | groupId.get();
+	}
+
+	std::uint64_t makeGateNode(eval_gate_id gateId) {
+		return GATE_NODE_FLAG | gateId.get();
+	}
+
+	class DisjointSet {
+	public:
+		void add(std::uint64_t node) {
+			if (parent.contains(node)) {
+				return;
+			}
+			parent[node] = node;
+			sizes[node] = 1;
+		}
+
+		std::uint64_t find(std::uint64_t node) {
+			add(node);
+			std::uint64_t root = node;
+			while (parent.at(root) != root) {
+				root = parent.at(root);
+			}
+			while (parent.at(node) != node) {
+				std::uint64_t next = parent.at(node);
+				parent[node] = root;
+				node = next;
+			}
+			return root;
+		}
+
+		void unite(std::uint64_t a, std::uint64_t b) {
+			std::uint64_t rootA = find(a);
+			std::uint64_t rootB = find(b);
+			if (rootA == rootB) {
+				return;
+			}
+			if (sizes.at(rootA) < sizes.at(rootB)) {
+				std::swap(rootA, rootB);
+			}
+			parent[rootB] = rootA;
+			sizes[rootA] += sizes[rootB];
+		}
+
+	private:
+		std::unordered_map<std::uint64_t, std::uint64_t> parent;
+		std::unordered_map<std::uint64_t, unsigned int> sizes;
+	};
+
+	struct DeferredGroupComponent {
+		std::vector<gate_group_id_t> groups;
+		std::vector<eval_gate_id> gates;
+	};
+}
+
 void LogicSimulator::addGate(eval_gate_id gateId, BlockType blockType) {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
 	assert(
 		blockType == BlockType::AND ||
 		blockType == BlockType::OR ||
@@ -32,16 +95,24 @@ void LogicSimulator::addGate(eval_gate_id gateId, BlockType blockType) {
 	);
 	assert(!gates.contains(gateId) && "Gate already exists in LogicSimulator");
 	gates.emplace(gateId, SimulatorGate { gateId, blockType, {} });
+	ungroupedGates.insert(gateId);
 }
 
 void LogicSimulator::removeGate(eval_gate_id gateId) {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
 	assert(gates.contains(gateId) && "Gate does not exist in LogicSimulator");
 	deletedGatesInCurrentEdit.insert(gateId);
 	removeAllGateConnections(gateId);
+	removeGateFromGroup(gateId);
 	gates.erase(gateId);
 }
 
 void LogicSimulator::addConnection(const EvalConnection& evalConnection, int weight) {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
 	SimulatorGate& gateA = gates.at(evalConnection.connectionPointA.gateId);
 	SimulatorGate& gateB = gates.at(evalConnection.connectionPointB.gateId);
 	BlockType gateAType = gateA.type;
@@ -123,18 +194,42 @@ void LogicSimulator::addConnection(const EvalConnection& evalConnection, int wei
 			}
 		}
 	}
+	if (newWeight > 0) {
+#ifdef TRACY_PROFILER
+		ZoneScopedN("newWeight > 0");
+#endif
+		if (oldWeight == 0) {
+			pendingAddedConnections.insert(evalConnection);
+			markGateGroupDirty(evalConnection.connectionPointA.gateId);
+			markGateGroupDirty(evalConnection.connectionPointB.gateId);
+		}
+	} else {
+		pendingAddedConnections.erase(evalConnection);
+		markGateGroupDirty(evalConnection.connectionPointA.gateId);
+		markGateGroupDirty(evalConnection.connectionPointB.gateId);
+	}
 }
 
 void LogicSimulator::removeConnection(const EvalConnection& evalConnection, int weight) {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
 	addConnection(evalConnection, -weight);
 }
 
 void LogicSimulator::endEdit() {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
 	LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
-	std::unordered_map<gate_group_id_t, CompiledGateGroup> compiledGroups = compileGroups();
+	materializePendingGroupMerges();
+	refreshDirtyGroups();
 	std::unordered_map<gate_group_id_t, LinkedGateGroup> linkedGroups = groupLinker.linkGroups(compiledGroups);
 	logicGroupRunner.setGroups(linkedGroups, deletedGatesInCurrentEdit);
 	deletedGatesInCurrentEdit.clear();
+	pendingAddedConnections.clear();
+	ungroupedGates.clear();
+	dirtyGroups.clear();
 }
 
 void LogicSimulator::resetStates() {}
@@ -244,6 +339,229 @@ void LogicSimulator::removeAllGateConnections(eval_gate_id gateId) {
 
 BlockType LogicSimulator::getBlockType(eval_gate_id gateId) const {
 	return gates.at(gateId).type;
+}
+
+void LogicSimulator::createGroupForGate(eval_gate_id gateId) {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
+	gate_group_id_t groupId = groupIdProvider.getNewId();
+	auto inserted = gateIdToGroupId.emplace(gateId, groupId);
+	assert(inserted.second && "Gate already belongs to a simulator group");
+	compiledGroups.emplace(groupId, CompiledGateGroup({ gates.at(gateId) }, {}));
+	dirtyGroups.insert(groupId);
+}
+
+void LogicSimulator::markGateGroupDirty(eval_gate_id gateId) {
+	auto iter = gateIdToGroupId.find(gateId);
+	if (iter == gateIdToGroupId.end()) {
+		return;
+	}
+	dirtyGroups.insert(iter->second);
+}
+
+void LogicSimulator::mergeGroups(gate_group_id_t groupIdA, gate_group_id_t groupIdB) {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
+	if (groupIdA == groupIdB) {
+		dirtyGroups.insert(groupIdA);
+		return;
+	}
+
+	auto groupAIter = compiledGroups.find(groupIdA);
+	auto groupBIter = compiledGroups.find(groupIdB);
+	assert(groupAIter != compiledGroups.end() && groupBIter != compiledGroups.end());
+
+	gate_group_id_t targetGroupId = groupIdA;
+	gate_group_id_t sourceGroupId = groupIdB;
+	if (groupBIter->second.gates.size() > groupAIter->second.gates.size()) {
+		targetGroupId = groupIdB;
+		sourceGroupId = groupIdA;
+	}
+
+	CompiledGateGroup& targetGroup = compiledGroups.at(targetGroupId);
+	CompiledGateGroup& sourceGroup = compiledGroups.at(sourceGroupId);
+	targetGroup.gates.reserve(targetGroup.gates.size() + sourceGroup.gates.size());
+	for (const SimulatorGate& gate : sourceGroup.gates) {
+		gateIdToGroupId[gate.id] = targetGroupId;
+		targetGroup.gates.push_back(gate);
+	}
+
+	compiledGroups.erase(sourceGroupId);
+	dirtyGroups.erase(sourceGroupId);
+	dirtyGroups.insert(targetGroupId);
+}
+
+void LogicSimulator::addGateToGroup(eval_gate_id gateId, gate_group_id_t groupId) {
+	auto inserted = gateIdToGroupId.emplace(gateId, groupId);
+	assert(inserted.second && "Gate already belongs to a simulator group");
+	compiledGroups.at(groupId).gates.push_back(gates.at(gateId));
+	ungroupedGates.erase(gateId);
+	dirtyGroups.insert(groupId);
+}
+
+void LogicSimulator::removeGateFromGroup(eval_gate_id gateId) {
+	if (ungroupedGates.erase(gateId) > 0) {
+		return;
+	}
+
+	auto groupIter = gateIdToGroupId.find(gateId);
+	if (groupIter == gateIdToGroupId.end()) {
+		return;
+	}
+
+	gate_group_id_t groupId = groupIter->second;
+	gateIdToGroupId.erase(groupIter);
+
+	auto compiledGroupIter = compiledGroups.find(groupId);
+	assert(compiledGroupIter != compiledGroups.end());
+	std::erase_if(compiledGroupIter->second.gates, [gateId](const SimulatorGate& gate) {
+		return gate.id == gateId;
+	});
+	if (compiledGroupIter->second.gates.empty()) {
+		compiledGroups.erase(compiledGroupIter);
+		dirtyGroups.erase(groupId);
+	} else {
+		dirtyGroups.insert(groupId);
+	}
+}
+
+void LogicSimulator::materializePendingGroupMerges() {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
+	if (ungroupedGates.empty() && pendingAddedConnections.empty()) {
+		return;
+	}
+
+	DisjointSet disjointSet;
+	std::unordered_set<gate_group_id_t> touchedGroups;
+
+	for (eval_gate_id gateId : ungroupedGates) {
+		if (gates.contains(gateId)) {
+			disjointSet.add(makeGateNode(gateId));
+		}
+	}
+
+	auto nodeForGate = [&](eval_gate_id gateId) -> std::optional<std::uint64_t> {
+		if (!gates.contains(gateId)) {
+			return std::nullopt;
+		}
+		auto groupIter = gateIdToGroupId.find(gateId);
+		if (groupIter != gateIdToGroupId.end()) {
+			touchedGroups.insert(groupIter->second);
+			return makeGroupNode(groupIter->second);
+		}
+		if (ungroupedGates.contains(gateId)) {
+			return makeGateNode(gateId);
+		}
+		return std::nullopt;
+	};
+
+	for (const EvalConnection& connection : pendingAddedConnections) {
+		const auto nodeA = nodeForGate(connection.connectionPointA.gateId);
+		const auto nodeB = nodeForGate(connection.connectionPointB.gateId);
+		if (!nodeA.has_value() || !nodeB.has_value()) {
+			continue;
+		}
+		disjointSet.unite(nodeA.value(), nodeB.value());
+	}
+
+	std::unordered_map<std::uint64_t, DeferredGroupComponent> components;
+	for (eval_gate_id gateId : ungroupedGates) {
+		if (!gates.contains(gateId)) {
+			continue;
+		}
+		components[disjointSet.find(makeGateNode(gateId))].gates.push_back(gateId);
+	}
+	for (gate_group_id_t groupId : touchedGroups) {
+		components[disjointSet.find(makeGroupNode(groupId))].groups.push_back(groupId);
+	}
+
+	for (auto& [root, component] : components) {
+		if (component.groups.empty()) {
+			gate_group_id_t groupId = groupIdProvider.getNewId();
+			std::vector<SimulatorGate> groupedGates;
+			groupedGates.reserve(component.gates.size());
+			for (eval_gate_id gateId : component.gates) {
+				gateIdToGroupId[gateId] = groupId;
+				groupedGates.push_back(gates.at(gateId));
+				ungroupedGates.erase(gateId);
+			}
+			compiledGroups.emplace(groupId, CompiledGateGroup(std::move(groupedGates), {}));
+			dirtyGroups.insert(groupId);
+			continue;
+		}
+
+		gate_group_id_t targetGroupId = component.groups.front();
+		for (gate_group_id_t groupId : component.groups) {
+			if (compiledGroups.at(groupId).gates.size() > compiledGroups.at(targetGroupId).gates.size()) {
+				targetGroupId = groupId;
+			}
+		}
+
+		for (gate_group_id_t groupId : component.groups) {
+			if (groupId != targetGroupId) {
+				mergeGroups(targetGroupId, groupId);
+			}
+		}
+		compiledGroups.at(targetGroupId).gates.reserve(compiledGroups.at(targetGroupId).gates.size() + component.gates.size());
+		for (eval_gate_id gateId : component.gates) {
+			addGateToGroup(gateId, targetGroupId);
+		}
+		dirtyGroups.insert(targetGroupId);
+	}
+}
+
+void LogicSimulator::refreshDirtyGroups() {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
+	std::vector<gate_group_id_t> groupsToRefresh(dirtyGroups.begin(), dirtyGroups.end());
+	for (gate_group_id_t groupId : groupsToRefresh) {
+		if (compiledGroups.contains(groupId)) {
+			refreshGroup(groupId);
+		}
+	}
+}
+
+void LogicSimulator::refreshGroup(gate_group_id_t groupId) {
+	CompiledGateGroup& group = compiledGroups.at(groupId);
+	std::vector<SimulatorGate> refreshedGates;
+	std::vector<EvalConnectionPoint> pullConnectionPoints;
+	std::unordered_set<EvalConnectionPoint> pullConnectionPointSet;
+
+	refreshedGates.reserve(group.gates.size());
+	for (const SimulatorGate& oldGate : group.gates) {
+		auto gateIter = gates.find(oldGate.id);
+		if (gateIter == gates.end()) {
+			continue;
+		}
+		const SimulatorGate& gate = gateIter->second;
+		refreshedGates.push_back(gate);
+
+		for (const auto& [connectionEndId, connectionsMap] : gate.connections) {
+			for (const auto& [otherConnectionPoint, weight] : connectionsMap) {
+				if (weight == 0) {
+					continue;
+				}
+				if (gate.getDirection(connectionEndId, otherConnectionPoint) != InputOutput::INPUT) {
+					continue;
+				}
+				auto otherGroupIter = gateIdToGroupId.find(otherConnectionPoint.gateId);
+				if (otherGroupIter == gateIdToGroupId.end() || otherGroupIter->second == groupId) {
+					continue;
+				}
+				if (pullConnectionPointSet.insert(otherConnectionPoint).second) {
+					pullConnectionPoints.push_back(otherConnectionPoint);
+				}
+			}
+		}
+	}
+
+	group.gates = std::move(refreshedGates);
+	group.pullConnectionPoints = std::move(pullConnectionPoints);
 }
 
 std::unordered_map<gate_group_id_t, CompiledGateGroup> LogicSimulator::compileGroups() const {

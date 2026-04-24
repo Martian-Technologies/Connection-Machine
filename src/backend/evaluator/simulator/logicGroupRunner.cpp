@@ -81,11 +81,25 @@ void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, Linke
 	std::unordered_map<EvalConnectionPoint, logic_state_t> statesToPreserve;
 
 	for (eval_gate_id deletedGateId : deletedGates) {
-		assert(gateIdToGroupId.contains(deletedGateId) && "Deleted gate should exist in gateIdToGroupId mapping");
 		gateIdToGroupId.erase(deletedGateId);
 	}
 
-	preserveStates(statesToPreserve, deletedGates);
+	std::vector<gate_group_id_t> groupIdsToPreserve;
+	for (const auto& [groupId, simGroup] : simGroups) {
+		if (groupId.get() >= groupsCache.size() || groupsCache[groupId.get()] != simGroup) {
+			groupIdsToPreserve.push_back(groupId);
+		}
+	}
+	for (gate_group_id_t groupId : range(gate_group_id_t(0), gate_group_id_t(runnableGroups.size()))) {
+		if (runnableGroups[groupId.get()].isEmpty()) {
+			continue;
+		}
+		if (simGroups.find(groupId) == simGroups.end()) {
+			groupIdsToPreserve.push_back(groupId);
+		}
+	}
+
+	preserveStates(statesToPreserve, groupIdsToPreserve, deletedGates);
 
 	std::vector<gate_group_id_t> groupIdsToUpdate;
 	for (const auto& [groupId, simGroup] : simGroups) {
@@ -122,11 +136,19 @@ void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, Linke
 	}
 }
 
-void LogicGroupRunner::preserveStates(std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve, const std::unordered_set<eval_gate_id>& deletedGates) {
+void LogicGroupRunner::preserveStates(
+	std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve,
+	const std::vector<gate_group_id_t>& groupIdsToPreserve,
+	const std::unordered_set<eval_gate_id>& deletedGates
+) {
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
-	for (const LinkedGateGroup& oldSimGroup : groupsCache) {
+	for (gate_group_id_t groupId : groupIdsToPreserve) {
+		if (groupId.get() >= groupsCache.size()) {
+			continue;
+		}
+		const LinkedGateGroup& oldSimGroup = groupsCache[groupId.get()];
 		if (oldSimGroup.gates.empty()) {
 			continue;
 		}

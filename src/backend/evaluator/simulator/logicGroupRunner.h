@@ -230,7 +230,7 @@ public:
 	}
 
 	void setGroups(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups, const std::unordered_set<eval_gate_id>& deletedGates);
-	void preserveStates(std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve, const std::unordered_set<eval_gate_id>& deletedGates);
+	void preserveStates(std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve, const std::vector<gate_group_id_t>& groupIdsToPreserve, const std::unordered_set<eval_gate_id>& deletedGates);
 	bool setGroup(gate_group_id_t groupId, const LinkedGateGroup& simGroup);
 
 	const RunnableGateGroup& getGroup(gate_group_id_t groupId) const {
