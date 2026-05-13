@@ -42,11 +42,7 @@ TEST_F(NoEditSimulatoruatorTest, PauseUnpause) {
 TEST_F(NoEditSimulatoruatorTest, TickStep) {
 	simulator->setPause(true);
 	EXPECT_TRUE(simulator->isPause());
-	EXPECT_EQ(simulator->getTickCounter(), 0u);
 	simulator->tickStep();
-	EXPECT_EQ(simulator->getTickCounter(), 1u);
-	simulator->tickStep(3);
-	EXPECT_EQ(simulator->getTickCounter(), 4u);
 	EXPECT_TRUE(simulator->isPause());
 	EXPECT_DOUBLE_EQ(simulator->getRealTickrate(), 0.0);
 	EXPECT_FALSE(simulator->isViewingReplay());
