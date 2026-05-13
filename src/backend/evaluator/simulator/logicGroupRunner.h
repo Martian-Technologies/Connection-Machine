@@ -225,17 +225,15 @@ public:
 	simulator_state_reference getSimulatorStateIndex(EvalConnectionPoint evalConnectionPoint) const;
 	simulator_state_reference getSimulatorStateIndex_mut(EvalConnectionPoint evalConnectionPoint);
 
+	const RunnableGateGroup& getGroup(gate_group_id_t groupId) const {
+		return runnableGroups[groupId.get()];
+	}
+
 	void requestNewStatesOutputVector() const {
 		updateStatesOutputVectorNextUpdate.store(true, std::memory_order_release);
 	}
 
 	void setGroups(const std::unordered_map<gate_group_id_t, LinkedGateGroup>& simGroups, const std::unordered_set<eval_gate_id>& deletedGates);
-	void preserveStates(std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve, const std::vector<gate_group_id_t>& groupIdsToPreserve, const std::unordered_set<eval_gate_id>& deletedGates);
-	bool setGroup(gate_group_id_t groupId, const LinkedGateGroup& simGroup);
-
-	const RunnableGateGroup& getGroup(gate_group_id_t groupId) const {
-		return runnableGroups[groupId.get()];
-	}
 
 	void setRunning(bool running);
 	void setRealistic(bool realistic);
@@ -264,10 +262,18 @@ public:
 		std::chrono::steady_clock::time_point& lastTickTime,
 		bool& isFirstTick
 	);
+	void setMaxReplayKeyframes(unsigned int n) { maxReplayKeyframes.store(n, std::memory_order_release); }
+	unsigned int getMaxReplayKeyframes() const { return maxReplayKeyframes.load(std::memory_order_acquire); }
 
 private:
+	void preserveStates(std::unordered_map<EvalConnectionPoint, logic_state_t>& statesToPreserve, const std::vector<gate_group_id_t>& groupIdsToPreserve, const std::unordered_set<eval_gate_id>& deletedGates);
+	bool setGroup(gate_group_id_t groupId, const LinkedGateGroup& simGroup);
+
 	void calculateAllGateStates();
 	void setState_noCalculate(simulator_state_reference simulatorStateIndex, logic_state_t state);
+
+	void resetReplay();
+	void saveReplayKeyframe();
 
 	mutable std::shared_mutex mainMutex;
 	std::vector<LinkedGateGroup> groupsCache;
@@ -287,6 +293,7 @@ private:
 	std::atomic<double> targetTickrate { 0.0 };
 	std::atomic<double> averageTickrate { 0.0 };
 	std::atomic<unsigned int> sprintCounter { 0 };
+	std::atomic<unsigned long long> simulationTickIndex { 0 };
 	double tickrateHalflife { 0.3 };
 	mutable std::mutex controlMutex;
 	std::condition_variable controlCv;
@@ -294,7 +301,17 @@ private:
 	mutable std::atomic<bool> updateStatesOutputVectorNextUpdate { false };
 
 	mutable std::shared_mutex statesOutputVectorMutex;
+	mutable std::shared_mutex replayKeyframesMutex;
+
 	std::vector<logic_state_t> statesOutputVector;
+
+	struct ReplayKeyframe {
+		unsigned long long tickIndex;
+		std::vector<logic_state_t> statesOutputVector;
+	};
+
+	std::deque<ReplayKeyframe> replayKeyframes;
+	std::atomic<unsigned int> maxReplayKeyframes = 4096;
 };
 
 #endif /* logicGroupRunner_h */

@@ -20,6 +20,7 @@ namespace {
 }
 
 LogicGroupRunner::LogicGroupRunner() {
+	calculateAllGateStates();
 	simulationThread = std::thread(&LogicGroupRunner::simulationLoop, this);
 }
 
@@ -134,6 +135,8 @@ void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, Linke
 	for (gate_group_id_t groupId : groupIdsToUpdate) {
 		runnableGroups[groupId.get()].calculateAllGateStates(*this, statesOutputVector);
 	}
+
+	resetReplay();
 }
 
 void LogicGroupRunner::preserveStates(
@@ -887,11 +890,32 @@ void RunnableGateGroup::calculateAllGateStates(const LogicGroupRunner& runner, s
 	}
 };
 
-void LogicGroupRunner::calculateAllGateStates() {
-	std::unique_lock lock(statesOutputVectorMutex);
-	for (RunnableGateGroup& group : runnableGroups) {
-		group.calculateAllGateStates(*this, statesOutputVector);
+void LogicGroupRunner::resetReplay() {
+	// this gets called when the circuit gets edited and the replay keyframes are no longer valid
+	{
+		std::unique_lock replayLock(replayKeyframesMutex);
+		replayKeyframes.clear();
 	}
+	saveReplayKeyframe();
+}
+
+void LogicGroupRunner::saveReplayKeyframe() {
+	std::shared_lock statesLock(statesOutputVectorMutex);
+	std::unique_lock replayLock(replayKeyframesMutex);
+	replayKeyframes.push_back({ simulationTickIndex.load(std::memory_order_acquire), statesOutputVector });
+	while (replayKeyframes.size() > maxReplayKeyframes) {
+		replayKeyframes.pop_front();
+	}
+}
+
+void LogicGroupRunner::calculateAllGateStates() {
+	{
+		std::unique_lock lock(statesOutputVectorMutex);
+		for (RunnableGateGroup& group : runnableGroups) {
+			group.calculateAllGateStates(*this, statesOutputVector);
+		}
+	}
+	saveReplayKeyframe();
 }
 
 void LogicGroupRunner::tick() {
@@ -911,6 +935,7 @@ void LogicGroupRunner::tick() {
 			group.runTick();
 		}
 	}
+	simulationTickIndex.fetch_add(1, std::memory_order_acq_rel);
 	if (updateStatesOutputVectorNextUpdate.load(std::memory_order_acquire)) {
 #ifdef TRACY_PROFILER
 		ZoneScopedN("LogicGroupRunner::tick - calculateAllGateStates");
