@@ -57,6 +57,9 @@ void LogicGroupRunner::setState(simulator_state_reference simulatorStateIndex, l
 	}
 	EditingGuard editingGuard = getEditingGuard();
 	setState_noCalculate(simulatorStateIndex, state);
+	for (RunnableGateGroup& group : runnableGroups) {
+		group.runPull(*this);
+	}
 	recordReplayEvent(ReplayEventType::SetState);
 	saveReplayKeyframe();
 	calculateAllGateStates();
