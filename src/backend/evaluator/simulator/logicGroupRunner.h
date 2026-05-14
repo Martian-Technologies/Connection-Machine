@@ -153,6 +153,8 @@ public:
 	void runPull(const LogicGroupRunner& runner) const;
 	void runTick();
 	void calculateAllGateStates(const LogicGroupRunner& runner, std::vector<logic_state_t>& outputVector) const;
+	const std::vector<logic_state_t>& getDataField() const { return dataField; }
+	void setDataField(const std::vector<logic_state_t>& newDataField) { dataField = newDataField; }
 private:
 	bool empty = true;
 	mutable std::vector<logic_state_t> dataField;
@@ -249,10 +251,10 @@ public:
 	double getAverageTickrate() const;
 	unsigned int getSprintCount() const;
 
-	bool stepBack() const;
-	bool stepForward() const;
-	bool skipBack() const;
-	bool skipForward() const;
+	bool stepBack();
+	bool stepForward();
+	bool skipBack();
+	bool skipForward();
 	bool isViewingReplay() const;
 
 	void tick();
@@ -274,6 +276,10 @@ private:
 
 	void resetReplay();
 	void saveReplayKeyframe();
+	std::optional<unsigned int> whichReplayKeyframe(unsigned long long tickIndex) const;
+	void normalizeReplayState();
+	void replayTickIndex(unsigned long long targetTickIndex);
+	void replayTickIndex(unsigned int keyframeIndex, unsigned long long targetTickIndex);
 
 	mutable std::shared_mutex mainMutex;
 	std::vector<LinkedGateGroup> groupsCache;
@@ -294,6 +300,10 @@ private:
 	std::atomic<double> averageTickrate { 0.0 };
 	std::atomic<unsigned int> sprintCounter { 0 };
 	std::atomic<unsigned long long> simulationTickIndex { 0 };
+
+	std::atomic<unsigned long long> viewingTickIndex { 0 };
+	std::atomic<bool> viewingReplay { false };
+
 	double tickrateHalflife { 0.3 };
 	mutable std::mutex controlMutex;
 	std::condition_variable controlCv;
@@ -307,7 +317,7 @@ private:
 
 	struct ReplayKeyframe {
 		unsigned long long tickIndex;
-		std::vector<logic_state_t> statesOutputVector;
+		std::vector<std::vector<logic_state_t>> groupsDataFields;
 	};
 
 	std::deque<ReplayKeyframe> replayKeyframes;
