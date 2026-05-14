@@ -980,35 +980,20 @@ std::optional<unsigned long long> LogicGroupRunner::nextReplayEventTick(unsigned
 }
 
 void LogicGroupRunner::calculateAllGateStates() {
-	{
-		std::unique_lock lock(statesOutputVectorMutex);
-		for (RunnableGateGroup& group : runnableGroups) {
-			group.calculateAllGateStates(*this, statesOutputVector);
-		}
+	std::unique_lock lock(statesOutputVectorMutex);
+	for (RunnableGateGroup& group : runnableGroups) { // should be run in thread pool
+		group.calculateAllGateStates(*this, statesOutputVector);
 	}
 }
 
 void LogicGroupRunner::tick(bool recordReplay) {
-	{
-#ifdef TRACY_PROFILER
-		ZoneScopedN("LogicGroupRunner::tick - pull phase");
-#endif
-		for (RunnableGateGroup& group : runnableGroups) {
-			group.runPull(*this);
-		}
+	for (RunnableGateGroup& group : runnableGroups) { // should be run in thread pool
+		group.runPull(*this);
 	}
-	{
-#ifdef TRACY_PROFILER
-		ZoneScopedN("LogicGroupRunner::tick - tick phase");
-#endif
-		for (RunnableGateGroup& group : runnableGroups) {
-			group.runTick();
-		}
+	for (RunnableGateGroup& group : runnableGroups) { // should be run in thread pool
+		group.runTick();
 	}
 	if (updateStatesOutputVectorNextUpdate.load(std::memory_order_acquire)) {
-#ifdef TRACY_PROFILER
-		ZoneScopedN("LogicGroupRunner::tick - calculateAllGateStates");
-#endif
 		calculateAllGateStates();
 		if (recordReplay) {
 			saveReplayKeyframe();
