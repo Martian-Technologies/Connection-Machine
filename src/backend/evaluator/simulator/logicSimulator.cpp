@@ -235,7 +235,6 @@ void LogicSimulator::endEdit() {
 void LogicSimulator::resetStates() {}
 
 void LogicSimulator::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {
-	LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
 	logicGroupRunner.setState(simulatorStateIndex, state);
 }
 

@@ -276,6 +276,17 @@ private:
 
 	void resetReplay();
 	void saveReplayKeyframe();
+	enum class ReplayEventType {
+		SetState,
+	};
+	struct ReplayEvent {
+		unsigned long long tickIndex;
+		ReplayEventType type;
+	};
+	void recordReplayEvent(ReplayEventType type);
+	void trimReplayEvents(unsigned long long earliestSavedTickIndex);
+	std::optional<unsigned long long> previousReplayEventTick(unsigned long long tickIndex, ReplayEventType type) const;
+	std::optional<unsigned long long> nextReplayEventTick(unsigned long long tickIndex, ReplayEventType type) const;
 	std::optional<unsigned int> whichReplayKeyframe(unsigned long long tickIndex) const;
 	void normalizeReplayState();
 	void replayTickIndex(unsigned long long targetTickIndex);
@@ -312,6 +323,7 @@ private:
 
 	mutable std::shared_mutex statesOutputVectorMutex;
 	mutable std::shared_mutex replayKeyframesMutex;
+	mutable std::shared_mutex replayEventsMutex;
 
 	std::vector<logic_state_t> statesOutputVector;
 
@@ -321,6 +333,7 @@ private:
 	};
 
 	std::deque<ReplayKeyframe> replayKeyframes;
+	std::deque<ReplayEvent> replayEvents;
 	std::atomic<unsigned int> maxReplayKeyframes = 4096;
 };
 

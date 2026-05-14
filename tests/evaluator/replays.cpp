@@ -81,6 +81,34 @@ TEST_F(ReplaysEvaluatorTest, SetStateWhileViewingReplayReturnsToLiveState) {
 	EXPECT_EQ(simulator->getState(switchPos), H);
 }
 
+TEST_F(ReplaysEvaluatorTest, SkipUsesSetStateEvents) {
+	Position switchPos(0, 0);
+	ASSERT_TRUE(circuit->tryInsertBlock(switchPos, 0, BlockType::SWITCH));
+
+	simulator->setState(switchPos, H);
+	simulator->stepForward();
+	simulator->setState(switchPos, L);
+	for (int i = 0; i < 5; i++) {
+		simulator->stepForward();
+	}
+
+	ASSERT_TRUE(simulator->skipBack());
+	EXPECT_TRUE(simulator->isViewingReplay());
+	EXPECT_EQ(simulator->getState(switchPos), L);
+
+	ASSERT_TRUE(simulator->skipBack());
+	EXPECT_TRUE(simulator->isViewingReplay());
+	EXPECT_EQ(simulator->getState(switchPos), H);
+
+	ASSERT_TRUE(simulator->skipForward());
+	EXPECT_TRUE(simulator->isViewingReplay());
+	EXPECT_EQ(simulator->getState(switchPos), L);
+
+	ASSERT_TRUE(simulator->skipForward());
+	EXPECT_FALSE(simulator->isViewingReplay());
+	EXPECT_EQ(simulator->getState(switchPos), L);
+}
+
 TEST_F(ReplaysEvaluatorTest, StepForwardALotThenBack) {
 	for (int i = 0; i < 20; i++) {
 		simulator->stepForward();
