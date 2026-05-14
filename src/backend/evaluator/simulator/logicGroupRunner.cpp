@@ -143,6 +143,7 @@ void LogicGroupRunner::setGroups(const std::unordered_map<gate_group_id_t, Linke
 		runnableGroups[groupId.get()].calculateAllGateStates(*this, statesOutputVector);
 	}
 
+	rebuildTickJobs();
 	resetReplay();
 }
 
@@ -210,7 +211,7 @@ bool LogicGroupRunner::setGroup(gate_group_id_t groupId, const LinkedGateGroup& 
 #endif
 		groupsCache[groupId.get()] = simGroup;
 	}
-	runnableGroups[groupId.get()] = RunnableGateGroup(simGroup, groupId, *this);
+	runnableGroups[groupId.get()] = RunnableGateGroup(simGroup, groupId, *this); // should be run in thread pool (maybe? / this would need to be moved out of setGroup? / not sure how to architect this)
 	for (const SimulatorGate& gate : simGroup.gates) {
 #ifdef TRACY_PROFILER
 		ZoneScopedN("setGroup gateIdToGroupId");
@@ -986,13 +987,105 @@ void LogicGroupRunner::calculateAllGateStates() {
 	}
 }
 
+void LogicGroupRunner::execRunPull(void* jobInstruction) {
+	GroupJobInstruction* instruction = static_cast<GroupJobInstruction*>(jobInstruction);
+	LogicGroupRunner* runner = instruction->runner;
+	runner->runnableGroups[instruction->groupIndex].runPull(*runner);
+}
+
+void LogicGroupRunner::execRunTick(void* jobInstruction) {
+	GroupJobInstruction* instruction = static_cast<GroupJobInstruction*>(jobInstruction);
+	instruction->runner->runnableGroups[instruction->groupIndex].runTick();
+}
+
+void LogicGroupRunner::rebuildTickJobs() {
+	threadPool.waitForCompletion();
+	groupJobInstructionStorage.clear();
+
+	std::vector<ThreadPool::Job> allPullJobs;
+	std::vector<ThreadPool::Job> allTickJobs;
+	logInfo("runnableGroups.size() = {}", "LogicGroupRunner::rebuildTickJobs", runnableGroups.size());
+	allPullJobs.reserve(runnableGroups.size());
+	allTickJobs.reserve(runnableGroups.size());
+	groupJobInstructionStorage.reserve(runnableGroups.size());
+
+	for (size_t groupIndex = 0; groupIndex < runnableGroups.size(); groupIndex++) {
+		if (runnableGroups[groupIndex].isEmpty()) {
+			continue;
+		}
+		groupJobInstructionStorage.emplace_back(std::make_unique<GroupJobInstruction>(GroupJobInstruction { this, groupIndex }));
+		GroupJobInstruction* instruction = groupJobInstructionStorage.back().get();
+		allPullJobs.push_back(ThreadPool::Job { &LogicGroupRunner::execRunPull, instruction });
+		allTickJobs.push_back(ThreadPool::Job { &LogicGroupRunner::execRunTick, instruction });
+	}
+
+	if (allPullJobs.empty()) {
+		pullJobs.clear();
+		tickJobs.clear();
+		updateThreadCount(0);
+		return;
+	}
+
+	size_t threadCount = std::min(allPullJobs.size(), getDefaultMaxThreadCount());
+	logInfo("std::min(allPullJobs.size(), getDefaultMaxThreadCount()) = {}", "LogicGroupRunner::rebuildTickJobs", threadCount);
+	threadCount = std::max(threadCount, size_t(1));
+	logInfo("threadCount after max with 1 = {}", "LogicGroupRunner::rebuildTickJobs", threadCount);
+	pullJobs.clear();
+	tickJobs.clear();
+	pullJobs.resize(threadCount);
+	tickJobs.resize(threadCount);
+
+	size_t threadIndex = 0;
+	for (size_t i = 0; i < allPullJobs.size(); i++) {
+		pullJobs[threadIndex].push_back(allPullJobs[i]);
+		tickJobs[threadIndex].push_back(allTickJobs[i]);
+		if (++threadIndex >= threadCount) {
+			threadIndex = 0;
+		}
+	}
+	updateThreadCount(threadCount);
+}
+
+void LogicGroupRunner::runThreadPoolJobs(const std::vector<std::vector<ThreadPool::Job>>& jobs) {
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
+	if (jobs.empty()) {
+		return;
+	}
+	// if (jobs.size() == 1 && threadPool.threadCount() == 0) {
+	// 	for (const ThreadPool::Job& job : jobs[0]) {
+	// 		job.fn(job.arg);
+	// 	}
+	// 	return;
+	// }
+	threadPool.resetAndLoad(jobs);
+	threadPool.waitForCompletion(true);
+}
+
+void LogicGroupRunner::updateThreadCount(size_t threadCount) {
+	if (threadCount == 0) {
+		threadPool.resizeThreads(0);
+		return;
+	}
+	threadPool.resizeThreads(threadCount - 1);
+}
+
+size_t LogicGroupRunner::getDefaultMaxThreadCount() {
+	unsigned int hardwareThreadCount = std::thread::hardware_concurrency();
+	logInfo("std::thread::hardware_concurrency() = {}", "LogicGroupRunner::getDefaultMaxThreadCount", hardwareThreadCount);
+	if (hardwareThreadCount == 0) {
+		return 1;
+	}
+	return std::max<size_t>(1, static_cast<int>(hardwareThreadCount) - 2);
+}
+
 void LogicGroupRunner::tick(bool recordReplay) {
-	for (RunnableGateGroup& group : runnableGroups) { // should be run in thread pool
-		group.runPull(*this);
-	}
-	for (RunnableGateGroup& group : runnableGroups) { // should be run in thread pool
-		group.runTick();
-	}
+#ifdef TRACY_PROFILER
+	ZoneScoped;
+#endif
+	runThreadPoolJobs(pullJobs);
+	runThreadPoolJobs(tickJobs);
 	if (updateStatesOutputVectorNextUpdate.load(std::memory_order_acquire)) {
 		calculateAllGateStates();
 		if (recordReplay) {

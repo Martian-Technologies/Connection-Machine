@@ -4,6 +4,7 @@
 #include "simulatorDefs.h"
 #include "../evalDefs.h"
 #include "logicState.h"
+#include "threadPool.h"
 
 struct LinkedGateGroup;
 class LogicGroupRunner;
@@ -274,6 +275,17 @@ private:
 	void calculateAllGateStates();
 	void setState_noCalculate(simulator_state_reference simulatorStateIndex, logic_state_t state);
 
+	struct GroupJobInstruction {
+		LogicGroupRunner* runner;
+		size_t groupIndex;
+	};
+	static void execRunPull(void* jobInstruction);
+	static void execRunTick(void* jobInstruction);
+	void rebuildTickJobs();
+	void runThreadPoolJobs(const std::vector<std::vector<ThreadPool::Job>>& jobs);
+	void updateThreadCount(size_t threadCount);
+	static size_t getDefaultMaxThreadCount();
+
 	void resetReplay();
 	void saveReplayKeyframe();
 	enum class ReplayEventType {
@@ -320,6 +332,11 @@ private:
 	std::condition_variable controlCv;
 
 	mutable std::atomic<bool> updateStatesOutputVectorNextUpdate { false };
+
+	ThreadPool threadPool;
+	std::vector<std::vector<ThreadPool::Job>> pullJobs;
+	std::vector<std::vector<ThreadPool::Job>> tickJobs;
+	std::vector<std::unique_ptr<GroupJobInstruction>> groupJobInstructionStorage;
 
 	mutable std::shared_mutex statesOutputVectorMutex;
 	mutable std::shared_mutex replayKeyframesMutex;
