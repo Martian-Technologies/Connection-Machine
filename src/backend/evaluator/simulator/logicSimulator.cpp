@@ -222,8 +222,18 @@ void LogicSimulator::endEdit() {
 	ZoneScoped;
 #endif
 	LogicGroupRunner::EditingGuard editingGuard = logicGroupRunner.getEditingGuard();
-	materializePendingGroupMerges();
-	refreshDirtyGroups();
+	// materializePendingGroupMerges();
+	// refreshDirtyGroups();
+	compiledGroups = compileGroups();
+	gateIdToGroupId.clear();
+	groupIdProvider.reset();
+	for (const auto& [groupId, group] : compiledGroups) {
+		groupIdProvider.getNewId(groupId);
+		for (const SimulatorGate& gate : group.gates) {
+			gateIdToGroupId[gate.id] = groupId;
+		}
+	}
+
 	std::unordered_map<gate_group_id_t, LinkedGateGroup> linkedGroups = groupLinker.linkGroups(compiledGroups);
 	logicGroupRunner.setGroups(linkedGroups, deletedGatesInCurrentEdit);
 	deletedGatesInCurrentEdit.clear();
