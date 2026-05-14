@@ -259,7 +259,7 @@ TEST_F(PrimitivesEvaluatorTest, AllBasicGatesBehavior) {
 	}
 }
 
-TEST_F(PrimitivesEvaluatorTest, DISABLED_TristateBufferBehavior) {
+TEST_F(PrimitivesEvaluatorTest, TristateBufferBehavior) {
 	struct Testcase {
 		std::vector<logic_state_t> enableStates;
 		std::vector<logic_state_t> dataStates;

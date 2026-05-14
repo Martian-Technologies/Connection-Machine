@@ -51,6 +51,10 @@ void LogicGroupRunner::setState_noCalculate(simulator_state_reference simulatorS
 }
 
 void LogicGroupRunner::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {
+	if (isViewingReplay()) {
+		viewingReplay.store(false, std::memory_order_release);
+		viewingTickIndex.store(simulationTickIndex.load(std::memory_order_acquire), std::memory_order_release);
+	}
 	setState_noCalculate(simulatorStateIndex, state);
 	saveReplayKeyframe();
 	calculateAllGateStates();
@@ -937,7 +941,7 @@ void LogicGroupRunner::calculateAllGateStates() {
 	}
 }
 
-void LogicGroupRunner::tick() {
+void LogicGroupRunner::tick(bool recordReplay) {
 	{
 #ifdef TRACY_PROFILER
 		ZoneScopedN("LogicGroupRunner::tick - pull phase");
@@ -959,7 +963,9 @@ void LogicGroupRunner::tick() {
 		ZoneScopedN("LogicGroupRunner::tick - calculateAllGateStates");
 #endif
 		calculateAllGateStates();
-		saveReplayKeyframe();
+		if (recordReplay) {
+			saveReplayKeyframe();
+		}
 		updateStatesOutputVectorNextUpdate.store(false, std::memory_order_release);
 	}
 }
@@ -984,7 +990,10 @@ void LogicGroupRunner::simulationLoop() {
 				simulationTickIndex.fetch_add(1, std::memory_order_acq_rel);
 				tick();
 			}
-			sprintCounter.fetch_sub(1, std::memory_order_acq_rel);
+			{
+				std::lock_guard<std::mutex> lock(controlMutex);
+				sprintCounter.fetch_sub(1, std::memory_order_acq_rel);
+			}
 			updateEmaTickrate(currentTime, lastTickTime, isFirstTick);
 			controlCv.notify_all();
 		}
@@ -1073,7 +1082,10 @@ void LogicGroupRunner::setRunning(bool shouldRun) {
 		replayTickIndex(simulationTickIndex.load(std::memory_order_acquire));
 		viewingReplay.store(false, std::memory_order_release);
 	}
-	running.store(shouldRun, std::memory_order_release);
+	{
+		std::lock_guard<std::mutex> lock(controlMutex);
+		running.store(shouldRun, std::memory_order_release);
+	}
 	controlCv.notify_all();
 }
 void LogicGroupRunner::setRealistic(bool isRealistic) {
@@ -1088,7 +1100,10 @@ void LogicGroupRunner::setTargetTickrate(double tickrate) {
 	controlCv.notify_all();
 }
 void LogicGroupRunner::addSprint(unsigned int nTicks) {
-	sprintCounter.fetch_add(nTicks, std::memory_order_acq_rel);
+	{
+		std::lock_guard<std::mutex> lock(controlMutex);
+		sprintCounter.fetch_add(nTicks, std::memory_order_acq_rel);
+	}
 	controlCv.notify_all();
 }
 void LogicGroupRunner::waitForSprintComplete() {
@@ -1175,7 +1190,7 @@ void LogicGroupRunner::replayTickIndex(unsigned int keyframeIndex, unsigned long
 		numTicksToSimulate = tickIndex - keyframe.tickIndex;
 	}
 	for (unsigned int i = 0; i < numTicksToSimulate; i++) {
-		tick();
+		tick(false);
 	}
 	calculateAllGateStates();
 }
@@ -1186,13 +1201,20 @@ bool LogicGroupRunner::stepBack() {
 		viewingReplay.store(true, std::memory_order_release);
 		viewingTickIndex.store(simulationTickIndex.load(std::memory_order_acquire), std::memory_order_release);
 	}
-	std::optional<unsigned int> keyframeIndexOpt = whichReplayKeyframe(viewingTickIndex.load(std::memory_order_acquire) - 1);
+	unsigned long long currentViewingTickIndex = viewingTickIndex.load(std::memory_order_acquire);
+	if (currentViewingTickIndex == 0) {
+		normalizeReplayState();
+		return false;
+	}
+	unsigned long long newViewingTickIndex = currentViewingTickIndex - 1;
+	std::optional<unsigned int> keyframeIndexOpt = whichReplayKeyframe(newViewingTickIndex);
 	if (!keyframeIndexOpt.has_value()) {
 		normalizeReplayState();
 		return false;
 	}
 	unsigned int keyframeIndex = keyframeIndexOpt.value();
-	replayTickIndex(keyframeIndex, viewingTickIndex.fetch_sub(1, std::memory_order_acq_rel) - 1);
+	viewingTickIndex.store(newViewingTickIndex, std::memory_order_release);
+	replayTickIndex(keyframeIndex, newViewingTickIndex);
 	return true;
 }
 
@@ -1200,18 +1222,25 @@ bool LogicGroupRunner::stepForward() {
 	if (!isViewingReplay()) {
 		return false;
 	}
-	// {
-	// 	EditingGuard editingGuard = getEditingGuard();
-	// 	tick();
-	// }
-	unsigned long long currentViewingTickIndex = viewingTickIndex.fetch_add(1, std::memory_order_acq_rel);
+	unsigned long long currentViewingTickIndex = viewingTickIndex.load(std::memory_order_acquire);
+	unsigned long long currentSimulationTickIndex = simulationTickIndex.load(std::memory_order_acquire);
+	if (currentViewingTickIndex >= currentSimulationTickIndex) {
+		normalizeReplayState();
+		return false;
+	}
 	unsigned long long newViewingTickIndex = currentViewingTickIndex + 1;
 	std::optional<unsigned int> keyframeIndexOpt = whichReplayKeyframe(newViewingTickIndex);
-	assert(keyframeIndexOpt.has_value() && "stepForward should not be called if there is no future replay keyframe");
+	if (!keyframeIndexOpt.has_value()) {
+		normalizeReplayState();
+		return false;
+	}
 	unsigned int keyframeIndex = keyframeIndexOpt.value();
-	if (keyframeIndex == whichReplayKeyframe(currentViewingTickIndex).value()) {
+	std::optional<unsigned int> currentKeyframeIndexOpt = whichReplayKeyframe(currentViewingTickIndex);
+	viewingTickIndex.store(newViewingTickIndex, std::memory_order_release);
+	if (currentKeyframeIndexOpt.has_value() && keyframeIndex == currentKeyframeIndexOpt.value()) {
 		EditingGuard editingGuard = getEditingGuard();
-		tick();
+		tick(false);
+		calculateAllGateStates();
 	} else {
 		replayTickIndex(keyframeIndex, newViewingTickIndex);
 	}

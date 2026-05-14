@@ -257,7 +257,7 @@ public:
 	bool skipForward();
 	bool isViewingReplay() const;
 
-	void tick();
+	void tick(bool recordReplay = true);
 	void simulationLoop();
 	void updateEmaTickrate(
 		const std::chrono::steady_clock::time_point& currentTime,
