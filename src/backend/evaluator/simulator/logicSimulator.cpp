@@ -239,7 +239,9 @@ void LogicSimulator::endEdit() {
 	dirtyGroups.clear();
 }
 
-void LogicSimulator::resetStates() {}
+void LogicSimulator::resetStates() {
+	logicGroupRunner.resetStates();
+}
 
 void LogicSimulator::setState(simulator_state_reference simulatorStateIndex, logic_state_t state) {
 	logicGroupRunner.setState(simulatorStateIndex, state);

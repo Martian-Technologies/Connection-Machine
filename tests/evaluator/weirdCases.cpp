@@ -38,6 +38,35 @@ void WeirdCasesEvaluatorTest::TearDown() {
 	simulator = nullptr;
 }
 
+TEST_F(WeirdCasesEvaluatorTest, JunctionToTristateDataMatchesFreshSimulator) {
+	Position tristatePos(10, 6);
+	Position junctionPos(17, 6);
+	Position sharedTristatePort(11, 6);
+
+	simulator->setRealistic(true);
+
+	ASSERT_TRUE(circuit->tryInsertBlock(tristatePos, Orientation(Rotation(1), false), BlockType::TRISTATE_BUFFER));
+	ASSERT_TRUE(circuit->tryInsertBlock(junctionPos, Orientation(Rotation(3), false), BlockType::JUNCTION));
+	ASSERT_TRUE(circuit->tryCreateConnection(junctionPos, sharedTristatePort));
+
+	simulator_id_t refId = environment.getBackend().createSimulator(circuit->getCircuitId()).value();
+	EvalLogicSimulator* ref = environment.getBackend().getSimulator(refId);
+	ref->setRealistic(true);
+
+	simulator->resetStates();
+	ref->resetStates();
+
+	std::vector<Position> positionsToCheck = {
+		tristatePos,
+		junctionPos,
+		sharedTristatePort,
+		Position(10, 7)
+	};
+	for (Position position : positionsToCheck) {
+		EXPECT_EQ(simulator->getState(position), ref->getState(position)) << "incremental vs fresh mismatch at " << position.toString();
+	}
+}
+
 TEST_F(WeirdCasesEvaluatorTest, ConstJunctionAnd) {
 	Position constPosition(0, 0);
 	Position junctionPosition(1, 0);

@@ -624,6 +624,7 @@ RunnableGateGroup::RunnableGateGroup(
 	for (const auto& [dataFieldIndex, state] : dataVectorInitializers) {
 		dataField[dataFieldIndex] = state;
 	}
+	initialDataField = dataField;
 
 	// logInfo("Group ID: {}", "RunnableGateGroup::RunnableGateGroup", groupId);
 	// logInfo("dataField size: {}", "RunnableGateGroup::RunnableGateGroup", dataField.size());
@@ -832,6 +833,10 @@ void RunnableGateGroup::setState(const EvalConnectionPoint& connectionPoint, log
 	dataField[dataFieldIndex] = state;
 }
 
+void RunnableGateGroup::resetState() {
+	dataField = initialDataField;
+}
+
 void RunnableGateGroup::calculateAllGateStates(const LogicGroupRunner& runner, std::vector<logic_state_t>& outputVector) const {
 	if (empty) {
 		return;
@@ -993,6 +998,21 @@ void LogicGroupRunner::calculateAllGateStates() {
 	for (RunnableGateGroup& group : runnableGroups) { // should be run in thread pool
 		group.calculateAllGateStates(*this, statesOutputVector);
 	}
+}
+
+void LogicGroupRunner::resetStates() {
+	EditingGuard editingGuard = getEditingGuard();
+	for (RunnableGateGroup& group : runnableGroups) {
+		group.resetState();
+	}
+	for (RunnableGateGroup& group : runnableGroups) {
+		group.runPull(*this);
+	}
+	calculateAllGateStates();
+	simulationTickIndex.store(0, std::memory_order_release);
+	viewingTickIndex.store(0, std::memory_order_release);
+	viewingReplay.store(false, std::memory_order_release);
+	resetReplay();
 }
 
 void LogicGroupRunner::execRunPull(void* jobInstruction) {
