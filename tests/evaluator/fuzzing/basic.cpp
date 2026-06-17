@@ -318,12 +318,12 @@ TEST_P(BasicFuzzingEvaluatorTest, DISABLED_FuzzInteractions) {
 		ASSERT_NE(block, nullptr);
 		Position pos = block->getPosition();
 		blockIdToPosition[blockId] = pos;
-		if (std::holds_alternative<std::vector<simulator_gate_id_t>>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0))) {
-			ASSERT_TRUE(std::holds_alternative<std::vector<simulator_gate_id_t>>(rSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
+		if (std::holds_alternative<std::vector<simulator_state_reference>>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0))) {
+			ASSERT_TRUE(std::holds_alternative<std::vector<simulator_state_reference>>(rSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
 			continue;
 		}
-		simulatorIdsTest.push_back(std::get<simulator_gate_id_t>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
-		simulatorIdsRef.push_back(std::get<simulator_gate_id_t>(rSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
+		simulatorIdsTest.push_back(std::get<simulator_state_reference>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
+		simulatorIdsRef.push_back(std::get<simulator_state_reference>(rSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
 		ps.push_back("B " + pos.toString());
 		const BlockData* blockData = blockDataManager.getBlockData(block->type());
 		ASSERT_NE(blockData, nullptr);
@@ -337,13 +337,13 @@ TEST_P(BasicFuzzingEvaluatorTest, DISABLED_FuzzInteractions) {
 			Position portPosition = portPositionOpt.value();
 			SimulatorStateIndexVecVariant simulatorIdTest = tSimulator->getPinSimulatorId(portPosition);
 			SimulatorStateIndexVecVariant simulatorIdRef = rSimulator->getPinSimulatorId(portPosition);
-			if (std::holds_alternative<simulator_gate_id_t>(simulatorIdTest) && std::holds_alternative<simulator_gate_id_t>(simulatorIdRef)) {
-				simulatorIdsTest.push_back(std::get<simulator_gate_id_t>(simulatorIdTest));
-				simulatorIdsRef.push_back(std::get<simulator_gate_id_t>(simulatorIdRef));
+			if (std::holds_alternative<simulator_state_reference>(simulatorIdTest) && std::holds_alternative<simulator_state_reference>(simulatorIdRef)) {
+				simulatorIdsTest.push_back(std::get<simulator_state_reference>(simulatorIdTest));
+				simulatorIdsRef.push_back(std::get<simulator_state_reference>(simulatorIdRef));
 				ps.push_back("P " + portPosition.toString());
-			} else if (std::holds_alternative<std::vector<simulator_gate_id_t>>(simulatorIdTest) && std::holds_alternative<std::vector<simulator_gate_id_t>>(simulatorIdRef)) {
-				std::vector<simulator_gate_id_t>& vecTest = std::get<std::vector<simulator_gate_id_t>>(simulatorIdTest);
-				std::vector<simulator_gate_id_t>& vecRef = std::get<std::vector<simulator_gate_id_t>>(simulatorIdRef);
+			} else if (std::holds_alternative<std::vector<simulator_state_reference>>(simulatorIdTest) && std::holds_alternative<std::vector<simulator_state_reference>>(simulatorIdRef)) {
+				std::vector<simulator_state_reference>& vecTest = std::get<std::vector<simulator_state_reference>>(simulatorIdTest);
+				std::vector<simulator_state_reference>& vecRef = std::get<std::vector<simulator_state_reference>>(simulatorIdRef);
 				ASSERT_EQ(vecTest.size(), vecRef.size()) << "Mismatched simulator ID vector sizes for pin at position " << portPosition.toString();
 				simulatorIdsTest.insert(simulatorIdsTest.end(), vecTest.begin(), vecTest.end());
 				simulatorIdsRef.insert(simulatorIdsRef.end(), vecRef.begin(), vecRef.end());

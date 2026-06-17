@@ -3,6 +3,7 @@
 #include "SDL3/SDL_dialog.h"
 
 #include "computerAPI/directoryManager.h"
+#include "backend/settings/settings.h"
 #include "util/preprocessors.h"
 #include "util/algorithm.h"
 #include "../mainWindow.h"

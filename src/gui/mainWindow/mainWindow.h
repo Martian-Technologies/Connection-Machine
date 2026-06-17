@@ -3,7 +3,9 @@
 
 #include <SDL3/SDL_events.h>
 
+#include "backend/settings/keybind.h"
 #include "environment/environment.h"
+#include "imgui/imgui.h"
 #include "gui/sdl/sdlWindow.h"
 
 #include "gui/viewportManager/circuitView/tutorialDataManager.h"

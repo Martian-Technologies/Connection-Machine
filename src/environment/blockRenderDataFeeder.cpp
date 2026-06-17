@@ -2,6 +2,7 @@
 
 #include "gpu/blockRenderDataManager.h"
 #include "backend/backend.h"
+#include "backend/settings/settings.h"
 #include "gpu/freetype/freetype.h"
 #include "gpu/mainRenderer.h"
 #include "computerAPI/directoryManager.h"

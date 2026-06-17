@@ -1,6 +1,7 @@
 #include "circuitTestWidget.h"
 
 #include "app.h"
+#include "backend/settings/settings.h"
 #include "backend/circuit/circuitDefs.h"
 #include "backend/circuitTests/circuitTestGroup.h"
 #include "backend/circuitTests/circuitTestGroupRunner.h"

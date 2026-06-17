@@ -2,6 +2,7 @@
 
 #include "util/preprocessors.h"
 #include "../mainWindow.h"
+#include "imgui/imgui.h"
 
 ToolSelectorWidget::ToolSelectorWidget(WidgetId widgetId, MainWindow& mainWindow) :
 	Widget(widgetId, mainWindow), dataUpdateEventReceiver(getBackend().getDataUpdateEventManager()) {

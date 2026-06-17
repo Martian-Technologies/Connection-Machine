@@ -2,6 +2,7 @@
 
 #include "../mainWindow.h"
 #include "SDL3/SDL_dialog.h"
+#include "backend/settings/settings.h"
 #include "gpu/mainRenderer.h"
 #include "gui/helper/saveCallback.h"
 #include "gui/viewportManager/circuitView/circuitView.h"

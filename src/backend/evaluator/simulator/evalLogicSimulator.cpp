@@ -20,8 +20,7 @@ EvalLogicSimulator::EvalLogicSimulator(
 	const EvalLayerState& evalLayerState = circuit->getEvaluator().getEvaluatorInternal().getLayerRunner().getOutputLayer();
 
 	for (auto pair : evalLayerState.getGates()) {
-		simulator_gate_id_t simulatorId = logicSimulator.addGate(getBlockType(pair.second.type));
-		gateIdMapping.try_emplace(pair.first, simulatorId);
+		logicSimulator->addGate(pair.first, getBlockType(pair.second.type));
 	}
 	for (auto pair : evalLayerState.getGates()) {
 		for (const auto& connectionsPair : pair.second.connections) {
@@ -536,6 +535,17 @@ SimulatorStateIndexVecVariant EvalLogicSimulator::getPinSimulatorId_noMux(const 
 		outputSimulatorIds.push_back(simulatorStateIndex);
 	}
 	return outputSimulatorIds;
+}
+
+std::pair<simulator_state_reference, simulator_state_reference> EvalLogicSimulator::getPinAndNotPinSimulatorId_noMux(EvalConnectionPoint connectionPoint) const {
+	if (connectionPoint.isNull()) {
+		logError("Failed to get bottom connection point.", "EvalLogicSimulator::getPinAndNotPinSimulatorId");
+		return {simulator_state_reference(0), simulator_state_reference(3)};
+	}
+	return {
+		getSimulatorStateIndexConsideringOutput_noMux(connectionPoint).value_or(simulator_state_reference(0)),
+		getSimulatorStateIndex_noMux(connectionPoint).value_or(simulator_state_reference(3))
+	};
 }
 
 std::pair<SimulatorStateIndexVecVariant, SimulatorStateIndexVecVariant> EvalLogicSimulator::getPinAndNotPinSimulatorId_noMux(std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> connectionPoints) const {

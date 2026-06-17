@@ -1,6 +1,7 @@
 #include "blockCreationWidget.h"
 
 #include "SDL3/SDL_dialog.h"
+#include "backend/settings/settings.h"
 #include "gui/viewportManager/circuitView/tools/other/portAdder.h"
 #include "gui/viewportManager/circuitView/events/customEvents.h"
 #include "gui/viewportManager/circuitView/tools/other/portSelector.h"

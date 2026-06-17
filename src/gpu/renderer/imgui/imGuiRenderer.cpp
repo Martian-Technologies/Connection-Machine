@@ -1,6 +1,7 @@
 #include "imGuiRenderer.h"
 
 #include "app.h"
+#include "backend/settings/settings.h"
 #include "computerAPI/directoryManager.h"
 #include "gpu/mainRenderer.h"
 #include "computerAPI/fileLoader.h"
