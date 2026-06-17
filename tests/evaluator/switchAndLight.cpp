@@ -42,8 +42,8 @@ TEST_F(SwitchAndLightSimulatorTest, SingleSwitch) {
 TEST_F(SwitchAndLightSimulatorTest, InteractFail) {
 	Position nothingPos(10, 10);
 	EXPECT_EQ(simulator->getState(nothingPos), X);
-	logging_test::setExpectedLogCounts(1, 0);
-	simulator->setState(nothingPos, H); // should log an error
+	logging_test::setExpectedLogCounts(0, 1);
+	simulator->setState(nothingPos, H); // should log a warning
 	EXPECT_EQ(simulator->getState(nothingPos), X);
 }
 

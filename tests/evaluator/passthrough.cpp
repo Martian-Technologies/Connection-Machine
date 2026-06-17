@@ -208,7 +208,7 @@ TEST_F(PassthroughEvaluatorTest, DeleteSwitch) {
 	// states should no longer propagate
 	EXPECT_EQ(simulator->getState(lightPos), L); // pulls state from switch inside passthrough
 
-	logging_test::setExpectedLogCounts(1, 0);
+	logging_test::setExpectedLogCounts(0, 1);
 	simulator->setState(switchPos, L); // does nothing since switch is deleted
 
 	EXPECT_EQ(simulator->getState(lightPos), L);
