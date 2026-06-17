@@ -139,6 +139,9 @@ std::vector<BlockType> makeBlockTypesUsableVector(const std::vector<FuzzBlockTyp
 void setupFuzzLogCapture();
 unsigned long long fuzzSetStateFailCount();
 void resetFuzzSetStateFailCount();
+unsigned long long fuzzSimulatorErrorCount();
+void resetFuzzSimulatorErrorCount();
+void resetFuzzLogCounters();
 
 class FuzzTestcase {
 public:

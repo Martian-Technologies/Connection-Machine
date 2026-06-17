@@ -45,7 +45,7 @@ std::optional<connection_end_id_t> getRandomConnectionEnd(const BlockData* block
 } // namespace
 
 std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::vector<FuzzBlockType>& blockTypesUsed) {
-	resetFuzzSetStateFailCount();
+	resetFuzzLogCounters();
 	std::unique_ptr<FuzzTestcase> testcase = std::make_unique<FuzzTestcase>(blockTypesUsed);
 	Environment environment { false };
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
@@ -76,6 +76,7 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 	logInfo("Generating edit operations...", "FailingCaseFinder::tryMakeFailingCase");
 
 	for (int i = 0; i < numEditOperations; ++i) {
+		unsigned long long simulatorErrorsBeforeOperation = fuzzSimulatorErrorCount();
 		int operation = gen() % 8; // 0,1: place, 2: remove, 3,4,5: connect, 6,7: disconnect
 		if (operation <= 1) { // place block
 			Orientation orientation(Rotation(gen() % 4), (gen() % 2) == 0);
@@ -89,6 +90,7 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 			testcase->addEditAction(PlaceBlockAction { pos, fuzzBlockTypeIndex, orientation });
 			const Block* block = circuit->getBlockContainer().getBlock(pos);
 			blockIds.push_back(block->id());
+			if (fuzzSimulatorErrorCount() != simulatorErrorsBeforeOperation) return testcase;
 		} else if (operation <= 2) {
 			if (blockIds.empty()) continue;
 			std::uniform_int_distribution<size_t> distIndex(0, blockIds.size() - 1);
@@ -102,6 +104,7 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 			testcase->addEditAction(RemoveBlockAction { pos });
 			std::swap(blockIds[index], blockIds.back());
 			blockIds.pop_back();
+			if (fuzzSimulatorErrorCount() != simulatorErrorsBeforeOperation) return testcase;
 		} else if (operation <= 5) { // connect
 			if (blockIds.empty()) continue;
 			block_id_t blockIdA = blockIds[gen() % blockIds.size()];
@@ -121,6 +124,7 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 			// bool success = circuit->tryCreateConnection({blockIdA, *connA}, {blockIdB, *connB});
 			if (!success) continue;
 			testcase->addEditAction(CreateConnectionAction { posA, posB });
+			if (fuzzSimulatorErrorCount() != simulatorErrorsBeforeOperation) return testcase;
 		} else if (operation <= 7) { // disconnect
 			if (blockIds.empty()) continue;
 			block_id_t blockIdA = blockIds[gen() % blockIds.size()];
@@ -140,6 +144,7 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 			// bool success = circuit->tryRemoveConnection({blockIdA, *connA}, {blockIdB, *connB});
 			if (!success) continue;
 			testcase->addEditAction(RemoveConnectionAction { posA, posB });
+			if (fuzzSimulatorErrorCount() != simulatorErrorsBeforeOperation) return testcase;
 		}
 	}
 
@@ -159,54 +164,52 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 
 	logInfo("Mapping block IDs to positions...", "FailingCaseFinder::tryMakeFailingCase");
 
+	auto appendMatchingSimulatorIds = [&simulatorIdsTest, &simulatorIdsRef](
+		const SimulatorStateIndexVecVariant& simIdTest,
+		const SimulatorStateIndexVecVariant& simIdRef
+	) -> bool {
+		if (std::holds_alternative<simulator_state_reference>(simIdTest) && std::holds_alternative<simulator_state_reference>(simIdRef)) {
+			simulatorIdsTest.push_back(std::get<simulator_state_reference>(simIdTest));
+			simulatorIdsRef.push_back(std::get<simulator_state_reference>(simIdRef));
+			return true;
+		}
+		if (std::holds_alternative<std::vector<simulator_state_reference>>(simIdTest) && std::holds_alternative<std::vector<simulator_state_reference>>(simIdRef)) {
+			const std::vector<simulator_state_reference>& vecTest = std::get<std::vector<simulator_state_reference>>(simIdTest);
+			const std::vector<simulator_state_reference>& vecRef = std::get<std::vector<simulator_state_reference>>(simIdRef);
+			if (vecTest.size() != vecRef.size()) return false;
+			simulatorIdsTest.insert(simulatorIdsTest.end(), vecTest.begin(), vecTest.end());
+			simulatorIdsRef.insert(simulatorIdsRef.end(), vecRef.begin(), vecRef.end());
+			return true;
+		}
+		return false;
+	};
+
+	unsigned long long simulatorErrorsBeforeMapping = fuzzSimulatorErrorCount();
 	for (block_id_t blockId : blockIds) {
 		const Block* block = circuit->getBlockContainer().getBlock(blockId);
 		if (block == nullptr) continue;
 		Position pos = block->getPosition();
 		blockIdToPosition[blockId] = pos;
-		simulatorIdsTest.push_back(std::get<simulator_gate_id_t>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
-		simulatorIdsRef.push_back(std::get<simulator_gate_id_t>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
+
+		SimulatorStateIndexVecVariant virtualIdTest = tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0);
+		SimulatorStateIndexVecVariant virtualIdRef = rSimulator.getVirtualConnectionSimulatorId(Address(pos), 0);
+		if (!appendMatchingSimulatorIds(virtualIdTest, virtualIdRef)) return testcase;
+		if (fuzzSimulatorErrorCount() != simulatorErrorsBeforeMapping) return testcase;
+
 		const BlockData* blockData = blockDataManager.getBlockData(block->type());
 		if (blockData == nullptr) continue;
-		if (blockData->isDefaultData()) {
-			std::variant<simulator_gate_id_t, std::vector<simulator_gate_id_t>> simIdTest = tSimulator->getPinSimulatorId(pos);
-			std::variant<simulator_gate_id_t, std::vector<simulator_gate_id_t>> simIdRef = rSimulator.getPinSimulatorId(pos);
-			if (std::holds_alternative<simulator_gate_id_t>(simIdTest) && std::holds_alternative<simulator_gate_id_t>(simIdRef)) {
-				simulatorIdsTest.push_back(std::get<simulator_gate_id_t>(simIdTest));
-				simulatorIdsRef.push_back(std::get<simulator_gate_id_t>(simIdRef));
-			} else if (std::holds_alternative<std::vector<simulator_gate_id_t>>(simIdTest) && std::holds_alternative<std::vector<simulator_gate_id_t>>(simIdRef)) {
-				std::vector<simulator_gate_id_t>& vecTest = std::get<std::vector<simulator_gate_id_t>>(simIdTest);
-				std::vector<simulator_gate_id_t>& vecRef = std::get<std::vector<simulator_gate_id_t>>(simIdRef);
-				simulatorIdsTest.insert(simulatorIdsTest.end(), vecTest.begin(), vecTest.end());
-				simulatorIdsRef.insert(simulatorIdsRef.end(), vecRef.begin(), vecRef.end());
-			} else {
-				return testcase;
+		std::unordered_map<connection_end_id_t, BlockData::ConnectionData> connections = blockData->getConnectionsSafe();
+		for (const auto& [connectionId, connectionData] : connections) {
+			if (connectionData.portType == BlockData::ConnectionData::PortType::INPUT) {
+				continue;
 			}
-		} else {
-			const std::unordered_map<connection_end_id_t, BlockData::ConnectionData>& connections = blockData->getConnections();
-			for (const auto& [connectionId, connectionData] : connections) {
-				if (connectionData.portType == BlockData::ConnectionData::PortType::INPUT) {
-					continue;
-				}
-				std::optional<Position> portPositionOpt = block->getConnectionPosition(connectionId);
-				Position portPosition = portPositionOpt.value();
-				std::variant<simulator_gate_id_t, std::vector<simulator_gate_id_t>> simIdTest = tSimulator->getPinSimulatorId(portPosition);
-				std::variant<simulator_gate_id_t, std::vector<simulator_gate_id_t>> simIdRef = rSimulator.getPinSimulatorId(portPosition);
-				if (std::holds_alternative<simulator_gate_id_t>(simIdTest) && std::holds_alternative<simulator_gate_id_t>(simIdRef)) {
-					simulatorIdsTest.push_back(std::get<simulator_gate_id_t>(simIdTest));
-					simulatorIdsRef.push_back(std::get<simulator_gate_id_t>(simIdRef));
-				} else if (std::holds_alternative<std::vector<simulator_gate_id_t>>(simIdTest) && std::holds_alternative<std::vector<simulator_gate_id_t>>(simIdRef)) {
-					std::vector<simulator_gate_id_t>& vecTest = std::get<std::vector<simulator_gate_id_t>>(simIdTest);
-					std::vector<simulator_gate_id_t>& vecRef = std::get<std::vector<simulator_gate_id_t>>(simIdRef);
-					if (vecTest.size() != vecRef.size()){
-						return testcase;
-					}
-					simulatorIdsTest.insert(simulatorIdsTest.end(), vecTest.begin(), vecTest.end());
-					simulatorIdsRef.insert(simulatorIdsRef.end(), vecRef.begin(), vecRef.end());
-
-			} else {
-				return testcase;
-			}
+			std::optional<Position> portPositionOpt = block->getConnectionPosition(connectionId);
+			if (!portPositionOpt.has_value()) continue;
+			Position portPosition = portPositionOpt.value();
+			SimulatorStateIndexVecVariant simIdTest = tSimulator->getPinSimulatorId(portPosition);
+			SimulatorStateIndexVecVariant simIdRef = rSimulator.getPinSimulatorId(portPosition);
+			if (!appendMatchingSimulatorIds(simIdTest, simIdRef)) return testcase;
+			if (fuzzSimulatorErrorCount() != simulatorErrorsBeforeMapping) return testcase;
 		}
 	}
 
@@ -218,28 +221,35 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 			block_id_t blockId = blockIds[gen() % blockIds.size()];
 			Position pos = blockIdToPosition.at(blockId);
 			logic_state_t state = logic_state_t(gen() % 4);
+			unsigned long long simulatorErrorsBeforeOperation = fuzzSimulatorErrorCount();
 			unsigned long long failBefore = fuzzSetStateFailCount();
 			rSimulator.setState(pos, state);
 			unsigned long long refFails = fuzzSetStateFailCount() - failBefore;
 			failBefore = fuzzSetStateFailCount();
 			tSimulator->setState(pos, state);
 			unsigned long long testFails = fuzzSetStateFailCount() - failBefore;
-			if (refFails != testFails) return testcase;
 			testcase->addTestAction(SetBlockStateAction { pos, state });
+			if (refFails != testFails || fuzzSimulatorErrorCount() != simulatorErrorsBeforeOperation) return testcase;
 		}
 
+		unsigned long long simulatorErrorsBeforeCheck = fuzzSimulatorErrorCount();
 		std::vector<logic_state_t> statesTest = tSimulator->getStates(simulatorIdsTest);
 		std::vector<logic_state_t> statesRef = rSimulator.getStates(simulatorIdsRef);
+		if (fuzzSimulatorErrorCount() != simulatorErrorsBeforeCheck) return testcase;
 		for (size_t k = 0; k < statesTest.size(); ++k) {
 			if (statesTest[k] != statesRef[k]) {
 				return testcase;
 			}
 		}
+		unsigned long long simulatorErrorsBeforeTick = fuzzSimulatorErrorCount();
 		tSimulator->tickStep(numTicksBetweenTests);
 		rSimulator.tickStep(numTicksBetweenTests);
 		testcase->addTestAction(TickEvalAction { static_cast<unsigned int>(numTicksBetweenTests) });
+		if (fuzzSimulatorErrorCount() != simulatorErrorsBeforeTick) return testcase;
+		simulatorErrorsBeforeCheck = fuzzSimulatorErrorCount();
 		statesTest = tSimulator->getStates(simulatorIdsTest);
 		statesRef = rSimulator.getStates(simulatorIdsRef);
+		if (fuzzSimulatorErrorCount() != simulatorErrorsBeforeCheck) return testcase;
 		for (size_t k = 0; k < statesTest.size(); ++k) {
 			if (statesTest[k] != statesRef[k]) {
 				return testcase;

@@ -199,7 +199,7 @@ std::optional<connection_end_id_t> getRandomConnectionEnd(const BlockData* block
 	return std::nullopt;
 }
 
-TEST_P(BasicFuzzingEvaluatorTest, DISABLED_FuzzInteractions) {
+TEST_P(BasicFuzzingEvaluatorTest, FuzzInteractions) {
 	TestcaseConfig config = GetParam();
 	gen.seed(config.seed);
 	bool runRealistic = config.realistic;

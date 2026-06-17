@@ -3,6 +3,17 @@
 
 namespace {
 	std::atomic<unsigned long long> g_setStateFailCount { 0 };
+	std::atomic<unsigned long long> g_simulatorErrorCount { 0 };
+
+	bool isExpectedSetStateFailure(const std::string& message, const std::string& subcategory) {
+		return message == "Failed to set sim id" && subcategory == "EvalLogicSimulator::setState";
+	}
+
+	bool isSimulatorLogError(const std::string& subcategory) {
+		return subcategory.find("Simulator") != std::string::npos ||
+			subcategory.find("LogicGroupRunner") != std::string::npos ||
+			subcategory.find("RunnableGateGroup") != std::string::npos;
+	}
 }
 
 void setupFuzzLogCapture() {
@@ -12,8 +23,12 @@ void setupFuzzLogCapture() {
 		std::cerr << line << "\n";
 	});
 	setLogErrorCallback([](const std::string& message, const std::string& subcategory) {
-		if (message == "Failed to set sim id" && subcategory == "EvalLogicSimulator::setState") {
+		if (isExpectedSetStateFailure(message, subcategory)) {
 			g_setStateFailCount.fetch_add(1, std::memory_order_relaxed);
+			return;
+		}
+		if (isSimulatorLogError(subcategory)) {
+			g_simulatorErrorCount.fetch_add(1, std::memory_order_relaxed);
 		}
 	});
 }
@@ -24,6 +39,19 @@ unsigned long long fuzzSetStateFailCount() {
 
 void resetFuzzSetStateFailCount() {
 	g_setStateFailCount.store(0, std::memory_order_relaxed);
+}
+
+unsigned long long fuzzSimulatorErrorCount() {
+	return g_simulatorErrorCount.load(std::memory_order_relaxed);
+}
+
+void resetFuzzSimulatorErrorCount() {
+	g_simulatorErrorCount.store(0, std::memory_order_relaxed);
+}
+
+void resetFuzzLogCounters() {
+	resetFuzzSetStateFailCount();
+	resetFuzzSimulatorErrorCount();
 }
 
 std::string FuzzTestcase::serialize() const {

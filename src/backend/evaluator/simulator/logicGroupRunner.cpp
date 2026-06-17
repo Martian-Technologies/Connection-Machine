@@ -17,6 +17,10 @@ namespace {
 			gateIdToGroupId.erase(gate.id);
 		}
 	}
+
+	unsigned int getSimulationWeight(const SimulatorGate& gate, connection_end_id_t connectionEndId, unsigned int weight) {
+		return isPortLimitedToOneConnection(gate.type, connectionEndId) && weight > 0 ? 1 : weight;
+	}
 }
 
 LogicGroupRunner::LogicGroupRunner() {
@@ -534,11 +538,12 @@ RunnableGateGroup::RunnableGateGroup(
 			simulateBytecode.push_back(0); // num inputs, will be filled in later
 			for (const auto& [connectionPoint, weight] : connectionsFromPort) {
 				InputOutput direction = gate.getDirection(connection_end_id_t(0), connectionPoint);
-				if (direction != InputOutput::INPUT || weight == 0) {
+				const unsigned int simulationWeight = getSimulationWeight(gate, connection_end_id_t(0), weight);
+				if (direction != InputOutput::INPUT || simulationWeight == 0) {
 					continue;
 				}
 				unsigned int index = allocEvalConnectionPointsReserved.contains(connectionPoint) ? allocEvalConnectionPointsReserved.getIndex(connectionPoint) : allocEvalConnectionPointsMain.getIndex(connectionPoint);
-				for (unsigned int i = 0; i < weight; i++) {
+				for (unsigned int i = 0; i < simulationWeight; i++) {
 					simulateBytecode[numInputsIndex]++;
 					simulateBytecode.push_back(index);
 				}
@@ -1007,7 +1012,7 @@ void LogicGroupRunner::rebuildTickJobs() {
 
 	std::vector<ThreadPool::Job> allPullJobs;
 	std::vector<ThreadPool::Job> allTickJobs;
-	logInfo("runnableGroups.size() = {}", "LogicGroupRunner::rebuildTickJobs", runnableGroups.size());
+	// logInfo("runnableGroups.size() = {}", "LogicGroupRunner::rebuildTickJobs", runnableGroups.size());
 	allPullJobs.reserve(runnableGroups.size());
 	allTickJobs.reserve(runnableGroups.size());
 	groupJobInstructionStorage.reserve(runnableGroups.size());
@@ -1030,9 +1035,9 @@ void LogicGroupRunner::rebuildTickJobs() {
 	}
 
 	size_t threadCount = std::min(allPullJobs.size(), getDefaultMaxThreadCount());
-	logInfo("std::min(allPullJobs.size(), getDefaultMaxThreadCount()) = {}", "LogicGroupRunner::rebuildTickJobs", threadCount);
+	// logInfo("std::min(allPullJobs.size(), getDefaultMaxThreadCount()) = {}", "LogicGroupRunner::rebuildTickJobs", threadCount);
 	threadCount = std::max(threadCount, size_t(1));
-	logInfo("threadCount after max with 1 = {}", "LogicGroupRunner::rebuildTickJobs", threadCount);
+	// logInfo("threadCount after max with 1 = {}", "LogicGroupRunner::rebuildTickJobs", threadCount);
 	pullJobs.clear();
 	tickJobs.clear();
 	pullJobs.resize(threadCount);
@@ -1076,7 +1081,7 @@ void LogicGroupRunner::updateThreadCount(size_t threadCount) {
 
 size_t LogicGroupRunner::getDefaultMaxThreadCount() {
 	unsigned int hardwareThreadCount = std::thread::hardware_concurrency();
-	logInfo("std::thread::hardware_concurrency() = {}", "LogicGroupRunner::getDefaultMaxThreadCount", hardwareThreadCount);
+	// logInfo("std::thread::hardware_concurrency() = {}", "LogicGroupRunner::getDefaultMaxThreadCount", hardwareThreadCount);
 	if (hardwareThreadCount == 0) {
 		return 1;
 	}

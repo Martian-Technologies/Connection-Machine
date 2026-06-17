@@ -169,9 +169,6 @@ void LogicSimulator::addConnection(const EvalConnection& evalConnection, int wei
 		assert(false && "Invalid connection direction");
 	}
 
-	if (gateAPortInfo.limitedToOneConnection) {
-		assert(newWeight <= 1 && "Port on gate A is limited to one connection");
-	}
 	assert(newWeight >= 0 && "Connection weight cannot be negative");
 	if (newWeight == 0) {
 		gateAConnectionsFromPort.erase(evalConnection.connectionPointB);

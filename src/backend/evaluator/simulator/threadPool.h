@@ -61,7 +61,7 @@ public:
 	}
 
 	void resizeThreads(size_t new_count) {
-		logInfo("ThreadPool: resizing to {} threads", "ThreadPool::resizeThreads", new_count);
+		// logInfo("ThreadPool: resizing to {} threads", "ThreadPool::resizeThreads", new_count);
 		size_t cur = workers.size();
 		if (new_count > cur) {
 			size_t add = new_count - cur;
