@@ -4,6 +4,11 @@
 #include "backend/evaluator/evalDefs.h"
 #include "baseEvalLayer.h"
 
+namespace EvalConnectionEndInfo {
+	bool isConnectionEndIdSinglePin(EvalGateType gateType, connection_end_id_t connectionEndId);
+	bool isOutputConnectionPort(EvalGateType gateType, connection_end_id_t connectionEndId);
+}
+
 class JunctionMergeEvalLayer : public BaseEvalLayer {
 public:
 	JunctionMergeEvalLayer(EvalLayerState& currentState, const CircuitManager& circuitManager) : BaseEvalLayer(currentState, circuitManager) {}
@@ -18,7 +23,7 @@ private:
 	> gatherJunctionGroup(EvalConnectionPoint connectionPointToScanFrom, const EvalLayerState& evalLayerState) const;
 
 	std::unordered_map<EvalConnectionPoint, eval_gate_id> connectionPointRemapping;
-	std::unordered_multimap<eval_gate_id, EvalConnectionPoint> connectionPointReverseRemapping;
+	IdMultiMap<eval_gate_id, EvalConnectionPoint> connectionPointReverseRemapping;
 };
 
 #endif /* junctionMergeEvalLayer_h */

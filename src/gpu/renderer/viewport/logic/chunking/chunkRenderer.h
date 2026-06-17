@@ -12,7 +12,7 @@ struct ChunkPushConstants {
 
 class ChunkRenderer {
 public:
-	void init(VulkanDevice* device, VkRenderPass& renderPass);
+	void init(VulkanDevice& device, vk::RenderPass renderPass);
 	void cleanup();
 
 	void render(Frame& frame, const glm::mat4& viewMatrix, const EvalLogicSimulator* simulator, const Address& address, const std::vector<std::shared_ptr<VulkanLogicAllocation>>& chunks);
@@ -21,10 +21,8 @@ private:
 	Pipeline blockPipeline;
 	Pipeline wirePipeline;
 
-	// state buffer descriptor layout
-	VkDescriptorSetLayout stateBufferDescriptorSetLayout;
+	vk::UniqueDescriptorSetLayout stateBufferDescriptorSetLayout;
 
-	// refs
 	VulkanDevice* device = nullptr;
 };
 

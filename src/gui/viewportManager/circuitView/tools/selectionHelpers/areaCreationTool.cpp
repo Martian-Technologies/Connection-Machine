@@ -18,7 +18,7 @@ void AreaCreationTool::activate() {
 // }
 
 bool AreaCreationTool::click(const Event* event) {
-	if (!circuit) return false;
+	if (!getCircuit()) return false;
 	if (hasOrigin) {
 		finished(
 			std::make_shared<ProjectionSelection>(

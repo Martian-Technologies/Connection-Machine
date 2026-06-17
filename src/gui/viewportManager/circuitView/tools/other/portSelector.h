@@ -8,13 +8,18 @@ public:
 	using CircuitTool::CircuitTool;
 	void activate() override final;
 	static inline std::vector<std::string> getModes_() { return {}; }
-	static inline std::string getPath_() { return "NONE"; }
+	static inline std::string getPath_() { return "NONE/portSelector"; }
 	inline std::string getPath() const override final { return getPath_(); }
 	inline unsigned int getStackId() const override final { return 2; }
 	inline bool showInMenu() const override final { return false; }
 
 	typedef std::function<void(Position)> OnSelectFunction;
-	inline void setPort(connection_end_id_t endId, OnSelectFunction function) { if (!circuit) return; type = circuit->getBlockType(); this->endId = endId; onSelectFunction = function; }
+	inline void setPort(connection_end_id_t endId, OnSelectFunction function) {
+		if (!getCircuit()) return;
+		type = getCircuit()->getBlockType();
+		this->endId = endId;
+		onSelectFunction = function;
+	}
 
 	inline void reset() override final { type = BlockType::NONE; elementCreator.clear(); setStatusBar(""); }
 	bool press(const Event* event);

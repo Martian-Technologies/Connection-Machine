@@ -16,22 +16,11 @@ public:
 		blockData.emplace_back((BlockType)(blockData.size() + 1), dataUpdateEventManager);
 		BlockType blockType = (BlockType)blockData.size();
 		dataUpdateEventManager.sendEvent<BlockType>("newBlockType", blockType);
-		// sending data events for default data
 		// pre
 		dataUpdateEventManager.sendEvent<std::pair<BlockType, Size>>("preBlockSizeChange", { blockType, Size(1) });
-		dataUpdateEventManager.sendEvent<std::tuple<BlockType, connection_end_id_t, BlockData::ConnectionData::PortType>>(
-			"preBlockDataSetConnection", { blockType, 0, BlockData::ConnectionData::PortType::INPUT }
-		);
-		dataUpdateEventManager.sendEvent<std::tuple<BlockType, connection_end_id_t, BlockData::ConnectionData::PortType>>(
-			"preBlockDataSetConnection", { blockType, 1, BlockData::ConnectionData::PortType::OUTPUT }
-		);
 		// post
 		dataUpdateEventManager.sendEvent<std::pair<BlockType, Size>>("postBlockSizeChange", { blockType, Size(1) });
-		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, 0 });
-		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, 1 });
-		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, 0 });
-		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, 1 });
-		sendBlockDataUpdate();
+		sendBlockDataUpdate(blockType);
 		return blockType;
 	}
 
@@ -44,7 +33,7 @@ public:
 		return BlockType::NONE;
 	}
 
-	inline void sendBlockDataUpdate() { dataUpdateEventManager.sendEvent("blockDataUpdate"); }
+	inline void sendBlockDataUpdate(BlockType blockType) { dataUpdateEventManager.sendEvent<BlockType>("blockDataUpdate", blockType); }
 
 	inline const BlockData* getBlockData(BlockType type) const noexcept {
 		if (!blockExists(type)) return nullptr;

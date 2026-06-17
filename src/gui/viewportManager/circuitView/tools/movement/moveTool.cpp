@@ -66,8 +66,8 @@ bool MoveTool::flip(const Event* event) {
 }
 
 bool MoveTool::click(const Event* event) {
-	if (!activeSelectionHelper->isFinished() || !circuit) return false;
-	if (circuit->tryMoveBlocks(
+	if (!activeSelectionHelper->isFinished() || !getCircuit()) return false;
+	if (getCircuit()->tryMoveBlocks(
 		activeSelectionHelper->getSelection(),
 		lastPointerPosition - getSelectionOrigin(activeSelectionHelper->getSelection()),
 		transformAmount
@@ -98,8 +98,8 @@ void MoveTool::updateElements() {
 		elementCreator.addSelectionElement(SelectionObjectElement(activeSelectionHelper->getSelection(), SelectionObjectElement::RenderMode::SELECTION));
 		return;
 	}
-	if (lastCircuitEdit != circuit->getEditCount() || !elementCreator.hasElement(elementId)) {
-		lastCircuitEdit = circuit->getEditCount();
+	if (lastCircuitEdit != getCircuit()->getEditCount() || !elementCreator.hasElement(elementId)) {
+		lastCircuitEdit = getCircuit()->getEditCount();
 		elementCreator.clear();
 		elementCreator.addSelectionElement(SelectionObjectElement(activeSelectionHelper->getSelection(), SelectionObjectElement::RenderMode::SELECTION));
 		Position selectionOrigin = getSelectionOrigin(activeSelectionHelper->getSelection());
@@ -110,7 +110,7 @@ void MoveTool::updateElements() {
 		flattenSelection(activeSelectionHelper->getSelection(), positions);
 		std::vector<BlockPreview::Block> blocks;
 		for (Position position : positions) {
-			const Block* block = circuit->getBlockContainer().getBlock(position);
+			const Block* block = getCircuit()->getBlockContainer().getBlock(position);
 			if (!block) continue;
 			if (blocksSet.contains(block)) continue;
 			blocksSet.insert(block);

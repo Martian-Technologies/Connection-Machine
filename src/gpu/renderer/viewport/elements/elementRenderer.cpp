@@ -2,94 +2,78 @@
 
 #include <cstddef>
 #include <glm/ext/vector_float2.hpp>
-#include <vulkan/vulkan_core.h>
 
 #include "computerAPI/directoryManager.h"
 #include "computerAPI/fileLoader.h"
 #include "gpu/abstractions/vulkanShader.h"
 #include "gpu/renderer/viewport/blockTextureManager.h"
 
-void ElementRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
-	this->device = device;
+void ElementRenderer::init(VulkanDevice& device, vk::RenderPass renderPass) {
+	this->device = &device;
 
 	// block preview
-	VkShaderModule blockPreviewVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/blockPreview.vert.spv"));
-	VkShaderModule blockPreviewFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/blockPreview.frag.spv"));
+	vk::UniqueShaderModule blockPreviewVertShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/blockPreview.vert.spv"));
+	vk::UniqueShaderModule blockPreviewFragShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/blockPreview.frag.spv"));
 
 	PipelineInformation blockPreviewPipelineInfo{};
-	blockPreviewPipelineInfo.vertShader = blockPreviewVertShader;
-	blockPreviewPipelineInfo.fragShader = blockPreviewFragShader;
+	blockPreviewPipelineInfo.vertShader = blockPreviewVertShader.get();
+	blockPreviewPipelineInfo.fragShader = blockPreviewFragShader.get();
 	blockPreviewPipelineInfo.renderPass = renderPass;
-	blockPreviewPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, sizeof(BlockPreviewPushConstant) });
-	blockPreviewPipelineInfo.descriptorSets.push_back(device->getBlockTextureManager().getDescriptorLayout());
-	blockPreviewPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
+	blockPreviewPipelineInfo.pushConstants.push_back({ vk::ShaderStageFlagBits::eVertex, sizeof(BlockPreviewPushConstant) });
+	blockPreviewPipelineInfo.descriptorSets.push_back(device.getBlockTextureManager().getDescriptorLayout());
+	blockPreviewPipelineInfo.sampleCount = device.getMaxUsableSampleCount();
 	blockPreviewPipeline.init(device, blockPreviewPipelineInfo);
 
-	destroyShaderModule(device->getDevice(), blockPreviewVertShader);
-	destroyShaderModule(device->getDevice(), blockPreviewFragShader);
-
 	// box selection
-	VkShaderModule boxSelectionVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/boxSelection.vert.spv"));
-	VkShaderModule boxSelectionFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/boxSelection.frag.spv"));
+	vk::UniqueShaderModule boxSelectionVertShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/boxSelection.vert.spv"));
+	vk::UniqueShaderModule boxSelectionFragShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/boxSelection.frag.spv"));
 
 	PipelineInformation boxSelectionPipelineInfo{};
-	boxSelectionPipelineInfo.vertShader = boxSelectionVertShader;
-	boxSelectionPipelineInfo.fragShader = boxSelectionFragShader;
+	boxSelectionPipelineInfo.vertShader = boxSelectionVertShader.get();
+	boxSelectionPipelineInfo.fragShader = boxSelectionFragShader.get();
 	boxSelectionPipelineInfo.renderPass = renderPass;
-	boxSelectionPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, offsetof(BoxSelectionPushConstant, state) });
-	boxSelectionPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(uint32_t) });
-	boxSelectionPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
+	boxSelectionPipelineInfo.pushConstants.push_back({ vk::ShaderStageFlagBits::eVertex, offsetof(BoxSelectionPushConstant, state) });
+	boxSelectionPipelineInfo.pushConstants.push_back({ vk::ShaderStageFlagBits::eFragment, sizeof(uint32_t) });
+	boxSelectionPipelineInfo.sampleCount = device.getMaxUsableSampleCount();
 	boxSelectionPipeline.init(device, boxSelectionPipelineInfo);
 
-	destroyShaderModule(device->getDevice(), boxSelectionVertShader);
-	destroyShaderModule(device->getDevice(), boxSelectionFragShader);
-
 	// connection preview
-	VkShaderModule connectionPreviewVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/connectionPreview.vert.spv"));
-	VkShaderModule connectionPreviewFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/connectionPreview.frag.spv"));
+	vk::UniqueShaderModule connectionPreviewVertShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/connectionPreview.vert.spv"));
+	vk::UniqueShaderModule connectionPreviewFragShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/connectionPreview.frag.spv"));
 
 	PipelineInformation connectionPreviewPipelineInfo{};
-	connectionPreviewPipelineInfo.vertShader = connectionPreviewVertShader;
-	connectionPreviewPipelineInfo.fragShader = connectionPreviewFragShader;
+	connectionPreviewPipelineInfo.vertShader = connectionPreviewVertShader.get();
+	connectionPreviewPipelineInfo.fragShader = connectionPreviewFragShader.get();
 	connectionPreviewPipelineInfo.renderPass = renderPass;
-	connectionPreviewPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, sizeof(ConnectionPreviewPushConstant) });
-	connectionPreviewPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
+	connectionPreviewPipelineInfo.pushConstants.push_back({ vk::ShaderStageFlagBits::eVertex, sizeof(ConnectionPreviewPushConstant) });
+	connectionPreviewPipelineInfo.sampleCount = device.getMaxUsableSampleCount();
 	connectionPreviewPipeline.init(device, connectionPreviewPipelineInfo);
 
-	destroyShaderModule(device->getDevice(), connectionPreviewVertShader);
-	destroyShaderModule(device->getDevice(), connectionPreviewFragShader);
-
 	// arrow circle
-	VkShaderModule arrowCircleVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/arrowCircle.vert.spv"));
-	VkShaderModule arrowCircleFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/arrowCircle.frag.spv"));
+	vk::UniqueShaderModule arrowCircleVertShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/arrowCircle.vert.spv"));
+	vk::UniqueShaderModule arrowCircleFragShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/arrowCircle.frag.spv"));
 
 	PipelineInformation arrowCirclePipelineInfo{};
-	arrowCirclePipelineInfo.vertShader = arrowCircleVertShader;
-	arrowCirclePipelineInfo.fragShader = arrowCircleFragShader;
+	arrowCirclePipelineInfo.vertShader = arrowCircleVertShader.get();
+	arrowCirclePipelineInfo.fragShader = arrowCircleFragShader.get();
 	arrowCirclePipelineInfo.renderPass = renderPass;
-	arrowCirclePipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, offsetof(ArrowCirclePushConstant, depth) });
-	arrowCirclePipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(uint32_t) });
-	arrowCirclePipelineInfo.sampleCount = device->getMaxUsableSampleCount();
+	arrowCirclePipelineInfo.pushConstants.push_back({ vk::ShaderStageFlagBits::eVertex, offsetof(ArrowCirclePushConstant, depth) });
+	arrowCirclePipelineInfo.pushConstants.push_back({ vk::ShaderStageFlagBits::eFragment, sizeof(uint32_t) });
+	arrowCirclePipelineInfo.sampleCount = device.getMaxUsableSampleCount();
 	arrowCirclePipeline.init(device, arrowCirclePipelineInfo);
 
-	destroyShaderModule(device->getDevice(), arrowCircleVertShader);
-	destroyShaderModule(device->getDevice(), arrowCircleFragShader);
-
 	// arrow
-	VkShaderModule arrowVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/arrow.vert.spv"));
-	VkShaderModule arrowFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/arrow.frag.spv"));
+	vk::UniqueShaderModule arrowVertShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/arrow.vert.spv"));
+	vk::UniqueShaderModule arrowFragShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/arrow.frag.spv"));
 
 	PipelineInformation arrowPipelineInfo{};
-	arrowPipelineInfo.vertShader = arrowVertShader;
-	arrowPipelineInfo.fragShader = arrowFragShader;
+	arrowPipelineInfo.vertShader = arrowVertShader.get();
+	arrowPipelineInfo.fragShader = arrowFragShader.get();
 	arrowPipelineInfo.renderPass = renderPass;
-	arrowPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_VERTEX_BIT, offsetof(ArrowPushConstant, depth) });
-	arrowPipelineInfo.pushConstants.push_back({ VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(uint32_t) });
-	arrowPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
+	arrowPipelineInfo.pushConstants.push_back({ vk::ShaderStageFlagBits::eVertex, offsetof(ArrowPushConstant, depth) });
+	arrowPipelineInfo.pushConstants.push_back({ vk::ShaderStageFlagBits::eFragment, sizeof(uint32_t) });
+	arrowPipelineInfo.sampleCount = device.getMaxUsableSampleCount();
 	arrowPipeline.init(device, arrowPipelineInfo);
-
-	destroyShaderModule(device->getDevice(), arrowVertShader);
-	destroyShaderModule(device->getDevice(), arrowFragShader);
 }
 
 void ElementRenderer::cleanup() {
@@ -102,10 +86,10 @@ void ElementRenderer::cleanup() {
 
 void ElementRenderer::renderBlockPreviews(Frame& frame, const glm::mat4& viewMatrix, const std::vector<BlockPreviewRenderData>& blockPreviews) {
 	if (!blockPreviews.empty()) {
-		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPreviewPipeline.getHandle());
+		frame.mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blockPreviewPipeline.getHandle());
 		std::shared_ptr<BlockTextureArray> blockTexture = device->getBlockTextureManager().getTextureArray();
 		frame.lifetime.push(blockTexture);
-		vkCmdBindDescriptorSets(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPreviewPipeline.getLayout(), 0, 1, &blockTexture->descriptor, 0, nullptr);
+		frame.mainCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blockPreviewPipeline.getLayout(), 0, blockTexture->descriptor, nullptr);
 
 		BlockPreviewPushConstant blockPreviewConstant;
 		blockPreviewConstant.mvp = viewMatrix;
@@ -118,14 +102,14 @@ void ElementRenderer::renderBlockPreviews(Frame& frame, const glm::mat4& viewMat
 			blockPreviewConstant.texSize = preview.texSize;
 
 			blockPreviewPipeline.cmdPushConstants(frame.mainCommandBuffer, &blockPreviewConstant);
-			vkCmdDraw(frame.mainCommandBuffer, 6, 1, 0, 0);
+			frame.mainCommandBuffer.draw(6, 1, 0, 0);
 		}
 	}
 }
 
 void ElementRenderer::renderBoxSelections(Frame& frame, const glm::mat4& viewMatrix, const std::vector<BoxSelectionRenderData>& boxSelections) {
 	if (!boxSelections.empty()) {
-		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boxSelectionPipeline.getHandle());
+		frame.mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, boxSelectionPipeline.getHandle());
 
 		BoxSelectionPushConstant boxSelectionConstant;
 		boxSelectionConstant.mvp = viewMatrix;
@@ -136,14 +120,14 @@ void ElementRenderer::renderBoxSelections(Frame& frame, const glm::mat4& viewMat
 			boxSelectionConstant.state = boxSelection.state;
 
 			boxSelectionPipeline.cmdPushConstants(frame.mainCommandBuffer, &boxSelectionConstant);
-			vkCmdDraw(frame.mainCommandBuffer, 6, 1, 0, 0);
+			frame.mainCommandBuffer.draw(6, 1, 0, 0);
 		}
 	}
 }
 
 void ElementRenderer::renderConnectionPreviews(Frame& frame, const glm::mat4& viewMatrix, const std::vector<ConnectionPreviewRenderData>& connectionPreviews) {
 	if (!connectionPreviews.empty()) {
-		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, connectionPreviewPipeline.getHandle());
+		frame.mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, connectionPreviewPipeline.getHandle());
 
 		ConnectionPreviewPushConstant connectionPreviewConstant;
 		connectionPreviewConstant.mvp = viewMatrix;
@@ -153,15 +137,14 @@ void ElementRenderer::renderConnectionPreviews(Frame& frame, const glm::mat4& vi
 			connectionPreviewConstant.pointB = connectionPreview.pointB;
 
 			connectionPreviewPipeline.cmdPushConstants(frame.mainCommandBuffer, &connectionPreviewConstant);
-			vkCmdDraw(frame.mainCommandBuffer, 6, 1, 0, 0);
+			frame.mainCommandBuffer.draw(6, 1, 0, 0);
 		}
 	}
 }
 
 void ElementRenderer::renderArrows(Frame& frame, const glm::mat4& viewMatrix, const std::vector<ArrowRenderData>& arrows) {
 	if (!arrows.empty()) {
-		// arrow circles
-		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, arrowCirclePipeline.getHandle());
+		frame.mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, arrowCirclePipeline.getHandle());
 		ArrowCirclePushConstant arrowCircleConstant;
 		arrowCircleConstant.mvp = viewMatrix;
 		for (const ArrowRenderData& arrow : arrows) {
@@ -171,11 +154,10 @@ void ElementRenderer::renderArrows(Frame& frame, const glm::mat4& viewMatrix, co
 			arrowCircleConstant.depth = arrow.depth;
 
 			arrowCirclePipeline.cmdPushConstants(frame.mainCommandBuffer, &arrowCircleConstant);
-			vkCmdDraw(frame.mainCommandBuffer, 6, 1, 0, 0);
+			frame.mainCommandBuffer.draw(6, 1, 0, 0);
 		}
 
-		// arrow
-		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, arrowPipeline.getHandle());
+		frame.mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, arrowPipeline.getHandle());
 		ArrowPushConstant arrowConstant;
 		arrowConstant.mvp = viewMatrix;
 		for (const ArrowRenderData& arrow : arrows) {
@@ -186,7 +168,7 @@ void ElementRenderer::renderArrows(Frame& frame, const glm::mat4& viewMatrix, co
 			arrowConstant.depth = arrow.depth;
 
 			arrowPipeline.cmdPushConstants(frame.mainCommandBuffer, &arrowConstant);
-			vkCmdDraw(frame.mainCommandBuffer, 9, 1, 0, 0);
+			frame.mainCommandBuffer.draw(9, 1, 0, 0);
 		}
 	}
 }

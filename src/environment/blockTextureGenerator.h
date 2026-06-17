@@ -11,8 +11,8 @@ public:
 	void setFont(std::shared_ptr<Font> newFont) { font = std::move(newFont); }
 	std::shared_ptr<Font> getFont() const { return font; }
 
-	void createCustomBlockTexture(const BlockData* blockData, CpuImage& img, int scale) const;
-	void createBusBlockTexture(const BlockData* blockData, CpuImage& img, int scale) const;
+	void createCustomBlockTexture(const BlockData& blockData, CpuImage& img, int scale) const;
+	void createBusBlockTexture(const BlockData& blockData, CpuImage& img, int scale) const;
 
 private:
 	struct Rect {
@@ -41,9 +41,9 @@ private:
 		BOTTOM = 3
 	};
 
-	void drawBlockName(const BlockData* blockData, CpuImage& img, int scale, const Rect& labelArea, std::vector<Rect>& reservedAreas) const;
+	void drawBlockName(const BlockData& blockData, CpuImage& img, int scale, const Rect& labelArea, std::vector<Rect>& reservedAreas) const;
 	void drawConnectionLabels(
-		const BlockData* blockData,
+		const BlockData& blockData,
 		CpuImage& img,
 		int scale,
 		std::vector<Rect>& reservedAreas
@@ -112,7 +112,7 @@ private:
 	static bool intersectsAny(const Rect& candidate, const std::vector<Rect>& occupiedAreas);
 	static bool overlapsAxis(int coord, int rectStart, int rectSize, int padding);
 
-	static PortLabelSide detectPreferredSide(const BlockData* blockData, const BlockData::ConnectionData& connection);
+	static PortLabelSide detectPreferredSide(const BlockData& blockData, const BlockData::ConnectionData& connection);
 	static Vec2Int getPortTexturePosition(const BlockData::ConnectionData& connection, int scale);
 	static int computePortCircleRadius(int bitWidth, int scale);
 

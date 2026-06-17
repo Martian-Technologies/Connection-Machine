@@ -9,7 +9,7 @@ protected:
 	void SetUp() override;
 	void TearDown() override;
 	Environment environment {false};
-	SharedCircuit circuit;
+	Circuit* circuit;
 	int i;
 };
 

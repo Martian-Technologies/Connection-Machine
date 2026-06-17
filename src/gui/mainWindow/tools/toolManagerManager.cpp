@@ -20,7 +20,6 @@ ToolManagerManager::ToolManagerManager(Environment& environment) : environment(e
 	ToolManagerManager::registerTool<PasteTool>();
 	ToolManagerManager::registerTool<LogicToucher>();
 	ToolManagerManager::registerTool<ModeChangerTool>();
-	// ToolManagerManager::registerTool<PortSelector>(); // dont register the tool because it does not go in the menu
 }
 
 void ToolManagerManager::cycleActiveToolMode(int direction) {

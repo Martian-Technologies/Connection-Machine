@@ -1,0 +1,30 @@
+version_2
+Tutorial: "3 bit adder tutorial"
+$switch_1 (0, 0)
+$switch_2 (0, 2)
+$switch_3 (0, 4)
+$res (5, 1)
+$carry (5, 3)
+$b Block:
+Step:
+	Action:
+		Message: "Create a 3 bit adder. Each switches value is 1 bit."
+		Message: "The top bit is the result, the bottom bit is the carry."
+		Block Preview: SWITCH ($switch_1)
+		Block Preview: SWITCH ($switch_2)
+		Block Preview: SWITCH ($switch_3)
+		Block Preview: LIGHT ($res)
+		Block Preview: LIGHT ($carry)
+		View Center: (3, 3)
+	Condition:
+#		Truth Table:
+#			($switch_1) ($switch_2) ($switch_3)
+#			($res) ($carry)
+#			000 -> 00
+#			001 -> 01
+#			010 -> 01
+#			011 -> 10
+#			100 -> 01
+#			101 -> 10
+#			110 -> 10
+#			111 -> 11

@@ -11,59 +11,44 @@
 	#include <tracy/Tracy.hpp>
 #endif
 
-void ChunkRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
-	this->device = device;
+void ChunkRenderer::init(VulkanDevice& device, vk::RenderPass renderPass) {
+	this->device = &device;
 
-	// ==================== STATE BUFFER setup =============================================
-	// create layout and descriptor set
 	DescriptorLayoutBuilder stateBufferBuilder;
-	stateBufferBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	stateBufferDescriptorSetLayout = stateBufferBuilder.build(device->getDevice(), VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR);
+	stateBufferBuilder.addBinding(0, vk::DescriptorType::eStorageBuffer);
+	stateBufferDescriptorSetLayout = stateBufferBuilder.build(this->device->getDevice(), vk::ShaderStageFlagBits::eVertex, vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR);
 
-	// ==================== PIPELINE setup =================================================
-
-	// load shaders
-	VkShaderModule blockVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/block.vert.spv"));
-	VkShaderModule blockFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/block.frag.spv"));
-	VkShaderModule wireVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/wire.vert.spv"));
-	VkShaderModule wireFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/wire.frag.spv"));
+	vk::UniqueShaderModule blockVertShader = createShaderModule(this->device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/block.vert.spv"));
+	vk::UniqueShaderModule blockFragShader = createShaderModule(this->device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/block.frag.spv"));
+	vk::UniqueShaderModule wireVertShader = createShaderModule(this->device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/wire.vert.spv"));
+	vk::UniqueShaderModule wireFragShader = createShaderModule(this->device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/wire.frag.spv"));
 
 	PipelineInformation blockPipelineInfo{};
-	blockPipelineInfo.vertShader = blockVertShader;
-	blockPipelineInfo.fragShader = blockFragShader;
+	blockPipelineInfo.vertShader = blockVertShader.get();
+	blockPipelineInfo.fragShader = blockFragShader.get();
 	blockPipelineInfo.renderPass = renderPass;
 	blockPipelineInfo.vertexBindingDescriptions = BlockInstance::getBindingDescriptions();
 	blockPipelineInfo.vertexAttributeDescriptions = BlockInstance::getAttributeDescriptions();
-	blockPipelineInfo.pushConstants.push_back({VK_SHADER_STAGE_VERTEX_BIT, sizeof(ChunkPushConstants)});
-	blockPipelineInfo.descriptorSets.push_back(stateBufferDescriptorSetLayout);
-	blockPipelineInfo.descriptorSets.push_back(device->getBlockTextureManager().getDescriptorLayout());
-	blockPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
+	blockPipelineInfo.pushConstants.push_back({vk::ShaderStageFlagBits::eVertex, sizeof(ChunkPushConstants)});
+	blockPipelineInfo.descriptorSets.push_back(stateBufferDescriptorSetLayout.get());
+	blockPipelineInfo.descriptorSets.push_back(this->device->getBlockTextureManager().getDescriptorLayout());
+	blockPipelineInfo.sampleCount = this->device->getMaxUsableSampleCount();
 	blockPipeline.init(device, blockPipelineInfo);
 
 	PipelineInformation wirePipelineInfo{};
-	wirePipelineInfo.vertShader = wireVertShader;
-	wirePipelineInfo.fragShader = wireFragShader;
+	wirePipelineInfo.vertShader = wireVertShader.get();
+	wirePipelineInfo.fragShader = wireFragShader.get();
 	wirePipelineInfo.renderPass = renderPass;
 	wirePipelineInfo.vertexBindingDescriptions = WireInstance::getBindingDescriptions();
 	wirePipelineInfo.vertexAttributeDescriptions = WireInstance::getAttributeDescriptions();
-	wirePipelineInfo.pushConstants.push_back({VK_SHADER_STAGE_VERTEX_BIT, sizeof(ChunkPushConstants)});
-	wirePipelineInfo.descriptorSets.push_back(stateBufferDescriptorSetLayout);
-	wirePipelineInfo.sampleCount = device->getMaxUsableSampleCount();
+	wirePipelineInfo.pushConstants.push_back({vk::ShaderStageFlagBits::eVertex, sizeof(ChunkPushConstants)});
+	wirePipelineInfo.descriptorSets.push_back(stateBufferDescriptorSetLayout.get());
+	wirePipelineInfo.sampleCount = this->device->getMaxUsableSampleCount();
 	wirePipeline.init(device, wirePipelineInfo);
-
-	// destroy shader modules since we won't be recreating pipelines
-	destroyShaderModule(device->getDevice(), blockVertShader);
-	destroyShaderModule(device->getDevice(), blockFragShader);
-	destroyShaderModule(device->getDevice(), wireVertShader);
-	destroyShaderModule(device->getDevice(), wireFragShader);
 }
 
 void ChunkRenderer::cleanup() {
-
-	// destroy state buffer layout
-	vkDestroyDescriptorSetLayout(device->getDevice(), stateBufferDescriptorSetLayout, nullptr);
-
-	// destroy pipelines
+	stateBufferDescriptorSetLayout.reset();
 	blockPipeline.cleanup();
 	wirePipeline.cleanup();
 }
@@ -72,16 +57,13 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, const Eval
 #ifdef TRACY_PROFILER
 	ZoneScoped;
 #endif
-	// save chunk data to frame
 	for (auto& chunk : chunks) {
 		frame.lifetime.push(chunk);
 	}
 
-	// shared push constants
 	ChunkPushConstants pushConstants{};
 	pushConstants.mvp = viewMatrix;
 
-	// fill state buffers
 	for (std::shared_ptr<VulkanLogicAllocation> chunk : chunks) {
 		if (chunk->getStateBuffer().has_value()) {
 			chunk->getStateBuffer()->incrementBufferFrame();
@@ -91,7 +73,7 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, const Eval
 				states = simulator->getStates(chunk->getStateSimulatorIds());
 			}
 
-			vmaCopyMemoryToAllocation(device->getAllocator(), states.data(), chunk->getStateBuffer()->getCurrentBuffer().allocation, 0, states.size());
+			device->getAllocator().copyMemoryToAllocation(states.data(), chunk->getStateBuffer()->getCurrentBuffer().allocation.get(), 0, states.size());
 		}
 	}
 	if (simulator != nullptr) {
@@ -103,38 +85,30 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, const Eval
 		#ifdef TRACY_PROFILER
 			ZoneScopedN("block drawing");
 		#endif
-		// bind render pipeline
-		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPipeline.getHandle());
+		frame.mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blockPipeline.getHandle());
 
-		// bind push constants
 		blockPipeline.cmdPushConstants(frame.mainCommandBuffer, &pushConstants);
 
-		// bind texture descriptor
 		std::shared_ptr<BlockTextureArray> blockTexture = device->getBlockTextureManager().getTextureArray();
 		frame.lifetime.push(blockTexture);
-		vkCmdBindDescriptorSets(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPipeline.getLayout(), 1, 1, &blockTexture->descriptor, 0, nullptr);
+		frame.mainCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blockPipeline.getLayout(), 1, blockTexture->descriptor, nullptr);
 
 		for (std::shared_ptr<VulkanLogicAllocation> chunk : chunks) {
 			if (chunk->getBlockBuffer().has_value()) {
+				vk::Buffer vertexBuffers[] = { chunk->getBlockBuffer()->buffer.get() };
+				vk::DeviceSize offsets[] = { 0 };
+				frame.mainCommandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
 
-				// bind vertex buffers
-				VkBuffer vertexBuffers[] = { chunk->getBlockBuffer()->buffer };
-				VkDeviceSize offsets[] = { 0 };
-				vkCmdBindVertexBuffers(frame.mainCommandBuffer, 0, 1, vertexBuffers, offsets);
+				vk::WriteDescriptorSet stateBufferDescriptorWrite{};
+				stateBufferDescriptorWrite.dstSet = nullptr;
+				stateBufferDescriptorWrite.dstBinding = 0;
+				stateBufferDescriptorWrite.descriptorCount = 1;
+				stateBufferDescriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
+				stateBufferDescriptorWrite.pBufferInfo = &chunk->getStateBuffer()->getCurrentBufferInfo();
 
-				// Write state buffer descriptor
-				VkWriteDescriptorSet stateBufferDescriptorWrite = {
-					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-					.dstSet = 0,
-					.dstBinding = 0,
-					.descriptorCount = 1,
-					.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-					.pBufferInfo = &chunk->getStateBuffer()->getCurrentBufferInfo()
-				};
-				vkCmdPushDescriptorSetKHR(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, blockPipeline.getLayout(), 0, 1, &stateBufferDescriptorWrite);
+				frame.mainCommandBuffer.pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, blockPipeline.getLayout(), 0, stateBufferDescriptorWrite);
 
-				// draw
-				vkCmdDraw(frame.mainCommandBuffer, 6, static_cast<uint32_t>(chunk->getNumBlockInstances()), 0, 0);
+				frame.mainCommandBuffer.draw(6, static_cast<uint32_t>(chunk->getNumBlockInstances()), 0, 0);
 			}
 		}
 	}
@@ -144,33 +118,26 @@ void ChunkRenderer::render(Frame& frame, const glm::mat4& viewMatrix, const Eval
 		#ifdef TRACY_PROFILER
 			ZoneScopedN("wire drawing");
 		#endif
-		// bind render pipeline
-		vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wirePipeline.getHandle());
+		frame.mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, wirePipeline.getHandle());
 
-		// bind push constants
 		wirePipeline.cmdPushConstants(frame.mainCommandBuffer, &pushConstants);
 
 		for (std::shared_ptr<VulkanLogicAllocation> chunk : chunks) {
 			if (chunk->getWireBuffer().has_value()) {
+				vk::Buffer vertexBuffers[] = { chunk->getWireBuffer()->buffer.get() };
+				vk::DeviceSize offsets[] = { 0 };
+				frame.mainCommandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
 
-				// bind vertex buffers
-				VkBuffer vertexBuffers[] = { chunk->getWireBuffer()->buffer };
-				VkDeviceSize offsets[] = { 0 };
-				vkCmdBindVertexBuffers(frame.mainCommandBuffer, 0, 1, vertexBuffers, offsets);
+				vk::WriteDescriptorSet stateBufferDescriptorWrite{};
+				stateBufferDescriptorWrite.dstSet = nullptr;
+				stateBufferDescriptorWrite.dstBinding = 0;
+				stateBufferDescriptorWrite.descriptorCount = 1;
+				stateBufferDescriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
+				stateBufferDescriptorWrite.pBufferInfo = &chunk->getStateBuffer()->getCurrentBufferInfo();
 
-				// Write state buffer descriptor
-				VkWriteDescriptorSet stateBufferDescriptorWrite = {
-					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-					.dstSet = 0,
-					.dstBinding = 0,
-					.descriptorCount = 1,
-					.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-					.pBufferInfo = &chunk->getStateBuffer()->getCurrentBufferInfo()
-				};
-				vkCmdPushDescriptorSetKHR(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, wirePipeline.getLayout(), 0, 1, &stateBufferDescriptorWrite);
+				frame.mainCommandBuffer.pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, wirePipeline.getLayout(), 0, stateBufferDescriptorWrite);
 
-				// draw
-				vkCmdDraw(frame.mainCommandBuffer, 6, static_cast<uint32_t>(chunk->getNumWireInstances()), 0, 0);
+				frame.mainCommandBuffer.draw(6, static_cast<uint32_t>(chunk->getNumWireInstances()), 0, 0);
 			}
 		}
 	}

@@ -3,7 +3,7 @@
 #include "singlePlaceTool.h"
 #include "areaPlaceTool.h"
 
-BlockPlacementTool::BlockPlacementTool(const Environment& environment) : CircuitTool(environment) {
+BlockPlacementTool::BlockPlacementTool(Environment& environment) : CircuitTool(environment) {
 	activePlacementTool = std::make_shared<SinglePlaceTool>(environment);
 }
 

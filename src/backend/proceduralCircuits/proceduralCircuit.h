@@ -24,7 +24,7 @@ struct ProceduralCircuitParameters {
 		return parameters == other.parameters;
 	}
 
-	std::map<std::string, int> parameters;
+	std::map<std::string, std::variant<unsigned int, int, float, std::string>> parameters;
 
 	nlohmann::json dumpState() const;
 };
@@ -35,7 +35,17 @@ struct std::hash<ProceduralCircuitParameters> {
 		std::size_t seed = 0;
 		for (const auto& iter : parameters.parameters) {
 			std::size_t a = std::hash<std::string> {}(iter.first);
-			std::size_t b = std::hash<int> {}(iter.second);
+			std::size_t b;
+			if (holds_alternative<unsigned int>(iter.second)) {
+				b = std::hash<unsigned int> {}(std::get<unsigned int>(iter.second));
+			} else if (holds_alternative<int>(iter.second)) {
+				b = std::hash<int> {}(std::get<int>(iter.second));
+			} else if (holds_alternative<float>(iter.second)) {
+				b = std::hash<float> {}(std::get<float>(iter.second));
+			} else {
+				assert(holds_alternative<std::string>(iter.second));
+				b = std::hash<std::string> {}(std::get<std::string>(iter.second));
+			}
 			seed = a + 0x9e3779b9 + (seed << 6) + (seed >> 2); // this is what boost::hash_combine does
 			seed = b + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 		}

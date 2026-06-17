@@ -22,7 +22,7 @@ void TensorCreationTool::undoFinished() {
 }
 
 bool TensorCreationTool::click(const Event* event) {
-	if (!circuit) return false;
+	if (!getCircuit()) return false;
 
 	if (tensorStage == -1) {
 		originPosition = lastPointerPosition;

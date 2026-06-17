@@ -1,17 +1,17 @@
 #include "singleConnectTool.h"
 
 bool SingleConnectTool::makeConnection(const Event* event) {
-	if (!circuit) return false;
+	if (!getCircuit()) return false;
 
 	if (clicked) {
-		if (!circuit->tryRemoveConnection(clickPosition, lastPointerPosition)) {
-			circuit->tryCreateConnection(clickPosition, lastPointerPosition);
+		if (!getCircuit()->tryRemoveConnection(clickPosition, lastPointerPosition)) {
+			getCircuit()->tryCreateConnection(clickPosition, lastPointerPosition);
 		}
 		reset();
 		updateElements();
 		return true;
 	} else {
-		if (!circuit->getBlockContainer().getOutputOrBidirectionalConnectionEnd(lastPointerPosition).has_value()) {
+		if (!getCircuit()->getBlockContainer().getOutputOrBidirectionalConnectionEnd(lastPointerPosition).has_value()) {
 			return false;
 		}
 
@@ -37,30 +37,30 @@ void SingleConnectTool::updateElements() {
 	if (elementCreator.isSetup()) {
 		elementCreator.clear();
 
-		if (!(circuit && pointerInView)) return;
+		if (!(getCircuit() && pointerInView)) return;
 
 		if (clicked) {
-			const Block* outputBlock = circuit->getBlockContainer().getBlock(clickPosition);
+			const Block* outputBlock = getCircuit()->getBlockContainer().getBlock(clickPosition);
 			if (!outputBlock) {
 				reset();
-				bool valid = circuit->getBlockContainer().getOutputOrBidirectionalConnectionEnd(lastPointerPosition).has_value();
+				bool valid = getCircuit()->getBlockContainer().getOutputOrBidirectionalConnectionEnd(lastPointerPosition).has_value();
 				elementCreator.addSelectionElement(SelectionElement(lastPointerPosition, !valid));
 			} else {
-				std::optional<ConnectionEnd> outputConnectionEnd = circuit->getBlockContainer().getOutputOrBidirectionalConnectionEnd(clickPosition);
+				std::optional<ConnectionEnd> outputConnectionEnd = getCircuit()->getBlockContainer().getOutputOrBidirectionalConnectionEnd(clickPosition);
 				if (!outputConnectionEnd) {
 					reset();
-					bool valid = circuit->getBlockContainer().getOutputOrBidirectionalConnectionEnd(lastPointerPosition).has_value();
+					bool valid = getCircuit()->getBlockContainer().getOutputOrBidirectionalConnectionEnd(lastPointerPosition).has_value();
 					elementCreator.addSelectionElement(SelectionElement(lastPointerPosition, !valid));
 				} else {
-					const Block* inputBlock = circuit->getBlockContainer().getBlock(lastPointerPosition);
+					const Block* inputBlock = getCircuit()->getBlockContainer().getBlock(lastPointerPosition);
 					bool valid = false;
 					if (inputBlock) {
 						std::optional<connection_end_id_t> inputEndId = inputBlock->getInputOrBidirectionalConnectionId(lastPointerPosition);
 						if (inputEndId) {
 							elementCreator.addConnectionPreview(ConnectionPreview(
-								clickPosition.free() + circuit->getBlockContainer().getBlockDataManager().getBlockData(outputBlock->type())->getConnectionPortOffset(
+								clickPosition.free() + getCircuit()->getBlockContainer().getBlockDataManager().getBlockData(outputBlock->type())->getConnectionPortOffset(
 									outputConnectionEnd.value().getConnectionId(), outputBlock->getOrientation()).value(),
-								lastPointerPosition.free() + circuit->getBlockContainer().getBlockDataManager().getBlockData(inputBlock->type())->getConnectionPortOffset(
+								lastPointerPosition.free() + getCircuit()->getBlockContainer().getBlockDataManager().getBlockData(inputBlock->type())->getConnectionPortOffset(
 									inputEndId.value(), inputBlock->getOrientation()).value()
 							));
 							valid = true;
@@ -68,7 +68,7 @@ void SingleConnectTool::updateElements() {
 					}
 					if (!valid) {
 						elementCreator.addHalfConnectionPreview(HalfConnectionPreview(
-							clickPosition.free() + circuit->getBlockContainer().getBlockDataManager().getBlockData(outputBlock->type())->getConnectionPortOffset(
+							clickPosition.free() + getCircuit()->getBlockContainer().getBlockDataManager().getBlockData(outputBlock->type())->getConnectionPortOffset(
 									outputConnectionEnd.value().getConnectionId(), outputBlock->getOrientation()).value(),
 							lastPointerFPosition
 						));
@@ -78,7 +78,7 @@ void SingleConnectTool::updateElements() {
 			}
 		} else {
 			// TODO - change to use isvalid function
-			bool valid = circuit->getBlockContainer().getOutputOrBidirectionalConnectionEnd(lastPointerPosition).has_value();
+			bool valid = getCircuit()->getBlockContainer().getOutputOrBidirectionalConnectionEnd(lastPointerPosition).has_value();
 			elementCreator.addSelectionElement(SelectionElement(lastPointerPosition, !valid));
 		}
 	}

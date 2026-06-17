@@ -90,3 +90,52 @@ TEST_F(OrientationTest, GroupClosure) {
 		}
 	}
 }
+
+TEST_F(OrientationTest, RotateFunction) {
+	EXPECT_EQ(rotate(Rotation::ZERO, true), Rotation::NINETY);
+	EXPECT_EQ(rotate(Rotation::NINETY, true), Rotation::ONE_EIGHTY);
+	EXPECT_EQ(rotate(Rotation::ONE_EIGHTY, true), Rotation::TWO_SEVENTY);
+	EXPECT_EQ(rotate(Rotation::TWO_SEVENTY, true), Rotation::ZERO);
+	EXPECT_EQ(rotate(Rotation::ZERO, false), Rotation::TWO_SEVENTY);
+	EXPECT_EQ(rotate(Rotation::TWO_SEVENTY, false), Rotation::ONE_EIGHTY);
+	EXPECT_EQ(rotate(Rotation::ONE_EIGHTY, false), Rotation::NINETY);
+	EXPECT_EQ(rotate(Rotation::NINETY, false), Rotation::ZERO);
+}
+
+TEST_F(OrientationTest, OrientationRotateAndFlipMethods) {
+	Orientation o(Rotation::ZERO, false);
+	o.rotate(true);
+	EXPECT_EQ(o.rotation, Rotation::NINETY);
+	o.rotate(false);
+	EXPECT_EQ(o.rotation, Rotation::ZERO);
+	o.flip();
+	EXPECT_TRUE(o.flipped);
+	o.flip();
+	EXPECT_FALSE(o.flipped);
+}
+
+TEST_F(OrientationTest, OrientationNextAndLastRotation) {
+	Orientation o(Rotation::ZERO, false);
+	o.nextRotation();
+	EXPECT_EQ(o.rotation, Rotation::NINETY);
+	o.lastRotation();
+	EXPECT_EQ(o.rotation, Rotation::ZERO);
+}
+
+TEST_F(OrientationTest, OrientationCompoundAssign) {
+	Orientation a(Rotation::NINETY, false);
+	Orientation b(Rotation::NINETY, false);
+	a *= b;
+	EXPECT_EQ(a.rotation, Rotation::ONE_EIGHTY);
+	EXPECT_FALSE(a.flipped);
+}
+
+TEST_F(OrientationTest, TransformFVectorWithArea) {
+	FSize size(10.0f, 20.0f);
+	FVector v(2.0f, 3.0f);
+	for (auto o : allOrientations()) {
+		FVector t = o.transformFVectorWithArea(v, size);
+		FVector back = o.inverseTransformFVectorWithArea(t, o * size);
+		EXPECT_TRUE(approx_equals(back.dx, v.dx) && approx_equals(back.dy, v.dy)) << "FVector roundtrip failed for " << o.toString();
+	}
+}

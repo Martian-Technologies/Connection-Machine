@@ -18,13 +18,6 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::findFailingCases(unsigned int m
 namespace {
 
 std::optional<connection_end_id_t> getRandomConnectionEnd(const BlockData* blockData, std::mt19937_64& gen, bool wantInput) {
-	if (blockData->isDefaultData()) {
-		if (wantInput) {
-			return connection_end_id_t(0);
-		} else {
-			return connection_end_id_t(1);
-		}
-	}
 	int numConnections = blockData->getBidirectionalConnectionCount().get();
 	if (wantInput) numConnections += blockData->getInputConnectionCount().get();
 	else numConnections += blockData->getOutputConnectionCount().get();
@@ -52,10 +45,11 @@ std::optional<connection_end_id_t> getRandomConnectionEnd(const BlockData* block
 } // namespace
 
 std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::vector<FuzzBlockType>& blockTypesUsed) {
+	resetFuzzSetStateFailCount();
 	std::unique_ptr<FuzzTestcase> testcase = std::make_unique<FuzzTestcase>(blockTypesUsed);
 	Environment environment { false };
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
-	SharedCircuit circuit = environment.getBackend().getCircuit(circuitId);
+	Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	simulator_id_t simulatorId = environment.getBackend().createSimulator(circuitId).value();
 	EvalLogicSimulator* tSimulator = environment.getBackend().getSimulator(simulatorId); // test evaluator
 
@@ -170,19 +164,19 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 		if (block == nullptr) continue;
 		Position pos = block->getPosition();
 		blockIdToPosition[blockId] = pos;
-		simulatorIdsTest.push_back(std::get<simulator_state_reference>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
-		simulatorIdsRef.push_back(std::get<simulator_state_reference>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
+		simulatorIdsTest.push_back(std::get<simulator_gate_id_t>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
+		simulatorIdsRef.push_back(std::get<simulator_gate_id_t>(tSimulator->getVirtualConnectionSimulatorId(Address(pos), 0)));
 		const BlockData* blockData = blockDataManager.getBlockData(block->type());
 		if (blockData == nullptr) continue;
 		if (blockData->isDefaultData()) {
-			std::variant<simulator_state_reference, std::vector<simulator_state_reference>> simIdTest = tSimulator->getPinSimulatorId(pos);
-			std::variant<simulator_state_reference, std::vector<simulator_state_reference>> simIdRef = rSimulator.getPinSimulatorId(pos);
-			if (std::holds_alternative<simulator_state_reference>(simIdTest) && std::holds_alternative<simulator_state_reference>(simIdRef)) {
-				simulatorIdsTest.push_back(std::get<simulator_state_reference>(simIdTest));
-				simulatorIdsRef.push_back(std::get<simulator_state_reference>(simIdRef));
-			} else if (std::holds_alternative<std::vector<simulator_state_reference>>(simIdTest) && std::holds_alternative<std::vector<simulator_state_reference>>(simIdRef)) {
-				std::vector<simulator_state_reference>& vecTest = std::get<std::vector<simulator_state_reference>>(simIdTest);
-				std::vector<simulator_state_reference>& vecRef = std::get<std::vector<simulator_state_reference>>(simIdRef);
+			std::variant<simulator_gate_id_t, std::vector<simulator_gate_id_t>> simIdTest = tSimulator->getPinSimulatorId(pos);
+			std::variant<simulator_gate_id_t, std::vector<simulator_gate_id_t>> simIdRef = rSimulator.getPinSimulatorId(pos);
+			if (std::holds_alternative<simulator_gate_id_t>(simIdTest) && std::holds_alternative<simulator_gate_id_t>(simIdRef)) {
+				simulatorIdsTest.push_back(std::get<simulator_gate_id_t>(simIdTest));
+				simulatorIdsRef.push_back(std::get<simulator_gate_id_t>(simIdRef));
+			} else if (std::holds_alternative<std::vector<simulator_gate_id_t>>(simIdTest) && std::holds_alternative<std::vector<simulator_gate_id_t>>(simIdRef)) {
+				std::vector<simulator_gate_id_t>& vecTest = std::get<std::vector<simulator_gate_id_t>>(simIdTest);
+				std::vector<simulator_gate_id_t>& vecRef = std::get<std::vector<simulator_gate_id_t>>(simIdRef);
 				simulatorIdsTest.insert(simulatorIdsTest.end(), vecTest.begin(), vecTest.end());
 				simulatorIdsRef.insert(simulatorIdsRef.end(), vecRef.begin(), vecRef.end());
 			} else {
@@ -196,23 +190,22 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 				}
 				std::optional<Position> portPositionOpt = block->getConnectionPosition(connectionId);
 				Position portPosition = portPositionOpt.value();
-				std::variant<simulator_state_reference, std::vector<simulator_state_reference>> simIdTest = tSimulator->getPinSimulatorId(portPosition);
-				std::variant<simulator_state_reference, std::vector<simulator_state_reference>> simIdRef = rSimulator.getPinSimulatorId(portPosition);
-				if (std::holds_alternative<simulator_state_reference>(simIdTest) && std::holds_alternative<simulator_state_reference>(simIdRef)) {
-					simulatorIdsTest.push_back(std::get<simulator_state_reference>(simIdTest));
-					simulatorIdsRef.push_back(std::get<simulator_state_reference>(simIdRef));
-				} else if (std::holds_alternative<std::vector<simulator_state_reference>>(simIdTest) && std::holds_alternative<std::vector<simulator_state_reference>>(simIdRef)) {
-					std::vector<simulator_state_reference>& vecTest = std::get<std::vector<simulator_state_reference>>(simIdTest);
-					std::vector<simulator_state_reference>& vecRef = std::get<std::vector<simulator_state_reference>>(simIdRef);
+				std::variant<simulator_gate_id_t, std::vector<simulator_gate_id_t>> simIdTest = tSimulator->getPinSimulatorId(portPosition);
+				std::variant<simulator_gate_id_t, std::vector<simulator_gate_id_t>> simIdRef = rSimulator.getPinSimulatorId(portPosition);
+				if (std::holds_alternative<simulator_gate_id_t>(simIdTest) && std::holds_alternative<simulator_gate_id_t>(simIdRef)) {
+					simulatorIdsTest.push_back(std::get<simulator_gate_id_t>(simIdTest));
+					simulatorIdsRef.push_back(std::get<simulator_gate_id_t>(simIdRef));
+				} else if (std::holds_alternative<std::vector<simulator_gate_id_t>>(simIdTest) && std::holds_alternative<std::vector<simulator_gate_id_t>>(simIdRef)) {
+					std::vector<simulator_gate_id_t>& vecTest = std::get<std::vector<simulator_gate_id_t>>(simIdTest);
+					std::vector<simulator_gate_id_t>& vecRef = std::get<std::vector<simulator_gate_id_t>>(simIdRef);
 					if (vecTest.size() != vecRef.size()){
 						return testcase;
 					}
 					simulatorIdsTest.insert(simulatorIdsTest.end(), vecTest.begin(), vecTest.end());
 					simulatorIdsRef.insert(simulatorIdsRef.end(), vecRef.begin(), vecRef.end());
 
-				} else {
-					return testcase;
-				}
+			} else {
+				return testcase;
 			}
 		}
 	}
@@ -225,8 +218,13 @@ std::unique_ptr<FuzzTestcase> FailingCaseFinder::tryMakeFailingCase(const std::v
 			block_id_t blockId = blockIds[gen() % blockIds.size()];
 			Position pos = blockIdToPosition.at(blockId);
 			logic_state_t state = logic_state_t(gen() % 4);
+			unsigned long long failBefore = fuzzSetStateFailCount();
 			rSimulator.setState(pos, state);
+			unsigned long long refFails = fuzzSetStateFailCount() - failBefore;
+			failBefore = fuzzSetStateFailCount();
 			tSimulator->setState(pos, state);
+			unsigned long long testFails = fuzzSetStateFailCount() - failBefore;
+			if (refFails != testFails) return testcase;
 			testcase->addTestAction(SetBlockStateAction { pos, state });
 		}
 

@@ -18,6 +18,11 @@ public:
 		newAddress.addresses = std::vector<Position>(addresses.begin() + 1, addresses.end());
 		return newAddress;
 	}
+	Address popBottomPosition() const {
+		Address newAddress;
+		newAddress.addresses = std::vector<Position>(addresses.begin(), addresses.end() - 1);
+		return newAddress;
+	}
 
 	std::string toString() const {
 		std::string result;

@@ -2,30 +2,29 @@
 
 #include "gpu/vulkanDevice.h"
 
-AllocatedBuffer createBuffer(VulkanDevice* device, size_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateFlags flags) {
-	// allocate buffer
-	VkBufferCreateInfo bufferInfo = {};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.pNext = nullptr;
+AllocatedBuffer createBuffer(VulkanDevice& device, size_t allocSize, vk::BufferUsageFlags usage, vma::AllocationCreateFlags flags) {
+	vk::BufferCreateInfo bufferInfo{};
 	bufferInfo.size = allocSize;
 	bufferInfo.usage = usage;
-	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	bufferInfo.sharingMode = vk::SharingMode::eExclusive;
 
-	VmaAllocationCreateInfo vmaAllocInfo = {};
-	vmaAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	vma::AllocationCreateInfo vmaAllocInfo{};
+	vmaAllocInfo.usage = vma::MemoryUsage::eAuto;
 	vmaAllocInfo.flags = flags;
 
 	AllocatedBuffer newBuffer;
-	newBuffer.device = device;
+	newBuffer.device = &device;
 
-	// allocate the buffer
-	VkResult result = vmaCreateBuffer(device->getAllocator(), &bufferInfo, &vmaAllocInfo, &newBuffer.buffer, &newBuffer.allocation, &newBuffer.info);
-	if(result != VK_SUCCESS) {
+	auto result = device.getAllocator().createBufferUnique(bufferInfo, vmaAllocInfo, &newBuffer.info);
+	if (result.result != vk::Result::eSuccess) {
 		throwFatalError("failed to create vulkan buffer");
 	}
+	newBuffer.buffer = std::move(result.value.second);
+	newBuffer.allocation = std::move(result.value.first);
 	return newBuffer;
 }
 
 void destroyBuffer(AllocatedBuffer& buffer) {
-	vmaDestroyBuffer(buffer.device->getAllocator(), buffer.buffer, buffer.allocation);
+	buffer.buffer.reset();
+	buffer.allocation.reset();
 }

@@ -187,4 +187,10 @@ struct std::hash<std::vector<T>> {
 	}
 };
 
+template <class T>
+T& valueOr(T* ptr, const T& other) { return ptr ? *ptr : other; }
+
+template <class T>
+const T& valueOr(const T* ptr, const T& other) { return ptr ? *ptr : other; }
+
 #endif /* algorithm_h */

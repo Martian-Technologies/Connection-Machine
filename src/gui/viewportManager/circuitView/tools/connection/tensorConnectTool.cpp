@@ -53,17 +53,17 @@ bool TensorConnectTool::unclick(const Event* event) {
 }
 
 bool TensorConnectTool::confirm(const Event* event) {
-	if (!circuit) return false;
+	if (!getCircuit()) return false;
 	if (!sameSelectionShape(activeOutputSelectionHelper->getSelection(), activeInputSelectionHelper->getSelection())) return false;
-	if (doingDisconnect) circuit->tryRemoveConnection(activeOutputSelectionHelper->getSelection(), activeInputSelectionHelper->getSelection());
-	else circuit->tryCreateConnection(activeOutputSelectionHelper->getSelection(), activeInputSelectionHelper->getSelection());
+	if (doingDisconnect) getCircuit()->tryRemoveConnection(activeOutputSelectionHelper->getSelection(), activeInputSelectionHelper->getSelection());
+	else getCircuit()->tryCreateConnection(activeOutputSelectionHelper->getSelection(), activeInputSelectionHelper->getSelection());
 	reset();
 	toolStackInterface->pushTool(activeOutputSelectionHelper, false);
 	return true;
 }
 
 bool TensorConnectTool::invertMode(const Event* event) {
-	if (!circuit) return false;
+	if (!getCircuit()) return false;
 	doingDisconnect = !doingDisconnect;
 	updateElements();
 	return true;

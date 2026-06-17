@@ -1,16 +1,16 @@
 #include "vulkanSwapchain.h"
 
-void Swapchain::init(VulkanDevice* device, VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size) {
-	this->device = device;
+void Swapchain::init(VulkanDevice& device, vk::SurfaceKHR surface, std::pair<uint32_t, uint32_t> size) {
+	this->device = &device;
 
 	createSwapchain(surface, size, false);
 
-	// create image semaphores
-	VkSemaphoreCreateInfo semaphoreInfo = {};
-	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	vk::SemaphoreCreateInfo semaphoreInfo{};
 	imageSemaphores.resize(swapchain.image_count);
 	for (uint32_t i = 0; i < swapchain.image_count; ++i) {
-		vkCreateSemaphore(device->getDevice(), &semaphoreInfo, nullptr, &imageSemaphores[i]);
+		auto result = device.getDevice().createSemaphoreUnique(semaphoreInfo);
+		if (result.result != vk::Result::eSuccess) throwFatalError("failed to create swapchain semaphore");
+		imageSemaphores[i] = std::move(result.value);
 	}
 }
 
@@ -19,22 +19,18 @@ void Swapchain::cleanup() {
 	vkb::destroy_swapchain(swapchain);
 
 	imageViews.clear();
-
-	for (uint32_t i = 0; i < swapchain.image_count; ++i) {
-		vkDestroySemaphore(device->getDevice(), imageSemaphores[i], nullptr);
-	}
+	imageSemaphores.clear();
 }
 
-void Swapchain::recreate(VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size) {
+void Swapchain::recreate(vk::SurfaceKHR surface, std::pair<uint32_t, uint32_t> size) {
 	destroyFramebuffers();
 	createSwapchain(surface, size, true);
 }
 
 const bool vsync = true;
 
-void Swapchain::createSwapchain(VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size, bool useOld) {
-	// Create swapchain
-	vkb::SwapchainBuilder swapchainBuilder(device->getDevice(), surface);
+void Swapchain::createSwapchain(vk::SurfaceKHR surface, std::pair<uint32_t, uint32_t> size, bool useOld) {
+	vkb::SwapchainBuilder swapchainBuilder(device->getVkbDevice(), static_cast<VkSurfaceKHR>(surface));
 	swapchainBuilder.set_desired_extent(size.first, size.second);
 	if (vsync) swapchainBuilder.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR);
 	else swapchainBuilder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
@@ -48,33 +44,26 @@ void Swapchain::createSwapchain(VkSurfaceKHR surface, std::pair<uint32_t, uint32
 		vkb::destroy_swapchain(swapchain);
 	swapchain = swapchainRet.value();
 
-	// Get image views
 	auto imageViewRet = swapchain.get_image_views();
 	if (!imageViewRet) { throwFatalError("Could not get vulkan swapchain image views. Error: " + imageViewRet.error().message()); }
 	imageViews = imageViewRet.value();
 }
 
-// Destroy Frame buffers and image views
 void Swapchain::destroyFramebuffers() {
-	for (VkFramebuffer framebuffer : framebuffers) {
-        vkDestroyFramebuffer(device->getDevice(), framebuffer, nullptr);
-    }
 	framebuffers.clear();
 	swapchain.destroy_image_views(imageViews);
 }
 
-// Create and initialize framebuffers for use with the swapchain
-void Swapchain::createFramebuffers(const VkRenderPass renderPass, const AllocatedImage& colorImage) {
+void Swapchain::createFramebuffers(vk::RenderPass renderPass, const AllocatedImage& colorImage) {
 	framebuffers.resize(swapchain.image_count);
 
 	for (size_t i = 0; i < swapchain.image_count; i++) {
-		std::array<VkImageView, 2> attachments = {
-            colorImage.imageView,   // multisampled color buffer
-            imageViews[i]      // resolve (swapchain) image
-        };
+		std::array<vk::ImageView, 2> attachments = {
+			colorImage.imageView.get(),
+			vk::ImageView(imageViews[i])
+		};
 
-		VkFramebufferCreateInfo framebufferInfo{};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		vk::FramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.renderPass = renderPass;
 		framebufferInfo.attachmentCount = attachments.size();
 		framebufferInfo.pAttachments = attachments.data();
@@ -82,9 +71,10 @@ void Swapchain::createFramebuffers(const VkRenderPass renderPass, const Allocate
 		framebufferInfo.height = swapchain.extent.height;
 		framebufferInfo.layers = 1;
 
-		if (vkCreateFramebuffer(device->getDevice(), &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create framebuffer!");
+		auto fbResult = device->getDevice().createFramebufferUnique(framebufferInfo);
+		if (fbResult.result != vk::Result::eSuccess) {
+			throwFatalError("failed to create framebuffer!");
 		}
+		framebuffers[i] = std::move(fbResult.value);
 	}
 }
-

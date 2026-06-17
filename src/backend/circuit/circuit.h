@@ -104,6 +104,9 @@ public:
 
 	nlohmann::json dumpState() const;
 
+	bool closed() const { return isClosed; } // this is just for when exiting the app. closing will delete the circuit! and so do not use these
+	void close() { isClosed = true; }
+
 private:
 	void pushOntoStack(Position blockPosition, Difference * difference, MoveType moveType = MoveType::MULTI_BEGIN);
 	void popOffStack(Position position, Orientation transformAmount, bool resetRotation, Difference * difference, MoveType moveType = MoveType::MULTI_FINAL);
@@ -150,6 +153,7 @@ private:
 	unsigned long long editCount = 0;
 
 	std::unique_ptr<Evaluator> evaluator;
+	bool isClosed = false;
 };
 
 #endif /* circuit_h */

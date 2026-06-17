@@ -14,16 +14,17 @@ EvalLogicSimulator::EvalLogicSimulator(
 	DataUpdateEventManager& dataUpdateEventManager
 ) : logicSimulator(std::make_unique<LogicSimulator>(simulatorId, dirtySimulatorIds, dataUpdateEventManager)), circuitManager(circuitManager), circuitId(circuitId),
 	evaluatorInternal(circuitManager.getCircuit(circuitId)->getEvaluator().getEvaluatorInternal()), simulatorId(simulatorId) {
-	const Circuit* circuit = circuitManager.getCircuit(circuitId).get();
+	const Circuit* circuit = circuitManager.getCircuit(circuitId);
 	assert(circuit);
 	circuit->getEvaluator().addSimulator(*this);
 	const EvalLayerState& evalLayerState = circuit->getEvaluator().getEvaluatorInternal().getLayerRunner().getOutputLayer();
 
-	for (std::pair<eval_gate_id, EvalGate> pair : evalLayerState.getGates()) {
-		logicSimulator->addGate(pair.first, getBlockType(pair.second.type));
+	for (auto pair : evalLayerState.getGates()) {
+		simulator_gate_id_t simulatorId = logicSimulator.addGate(getBlockType(pair.second.type));
+		gateIdMapping.try_emplace(pair.first, simulatorId);
 	}
-	for (std::pair<eval_gate_id, EvalGate> pair : evalLayerState.getGates()) {
-		for (std::pair<connection_end_id_t, std::unordered_set<EvalConnectionPoint>> connectionsPair : pair.second.connections) {
+	for (auto pair : evalLayerState.getGates()) {
+		for (const auto& connectionsPair : pair.second.connections) {
 			for (EvalConnectionPoint otherConnectionPoint : connectionsPair.second) {
 				// need to add some logic to not double make connections
 				if (
@@ -299,7 +300,7 @@ SimulatorStateIndexVecVariant EvalLogicSimulator::getVirtualConnectionSimulatorI
 		outputSimulatorIds.push_back(simulatorStateIndex);
 	}
 	return outputSimulatorIds;
-	}
+}
 
 SimulatorStateIndexVecVariant EvalLogicSimulator::getPinSimulatorId(const Address& address) const {
 	std::lock_guard lock(mux);
@@ -353,6 +354,9 @@ std::pair<SimulatorStateIndexVecVariant, SimulatorStateIndexVecVariant> EvalLogi
 }
 
 std::vector<SimulatorStateIndexVecVariant> EvalLogicSimulator::getVirtualConnectionSimulatorIds(const Address& addressOrigin, const std::vector<std::pair<Position, virtual_connection_id_t>>& virtualConnections) const {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	std::lock_guard lock(mux);
 	std::vector<SimulatorStateIndexVecVariant> output;
 	for (std::pair<Position, virtual_connection_id_t> virtualConnection : virtualConnections) {
@@ -364,6 +368,9 @@ std::vector<SimulatorStateIndexVecVariant> EvalLogicSimulator::getVirtualConnect
 }
 
 std::vector<SimulatorStateIndexVecVariant> EvalLogicSimulator::getPinSimulatorIds(const Address& addressOrigin, const std::vector<Position>& positions) const {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	std::lock_guard lock(mux);
 	std::vector<SimulatorStateIndexVecVariant> output;
 	for (Position position : positions) {
@@ -387,6 +394,9 @@ std::vector<SimulatorStateIndexVecVariant> EvalLogicSimulator::getPinSimulatorId
 // }
 
 void EvalLogicSimulator::processEdits() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	std::lock_guard lock(mux);
 	const EvalLayerState& evalLayerState = evaluatorInternal.getLayerRunner().getOutputLayer();
 	// addedGateCount += evalLayerState.getAddedGates().size();
@@ -412,8 +422,8 @@ void EvalLogicSimulator::processEdits() {
 
 	if (simulatorMappingUpdateListeners.empty()) return;
 
-	std::unordered_set<eval_gate_id> idsToUpdate = evalLayerState.getGateIdRemappingsUpdateds();
-	// for (simulator_state_reference simId : dirtySimulatorIds) { // I dont think I need this yet
+	IdSet<eval_gate_id> idsToUpdate = evalLayerState.getGateIdRemappingsUpdateds();
+	// for (simulator_gate_id_t simId : dirtySimulatorIds) { // I dont think I need this yet
 	// 	idsToUpdate.insert()
 	// }
 	for (EvalConnectionPoint connectionPoint : evalLayerState.getConnectionPointRemappingsUpdated()) {
@@ -438,10 +448,10 @@ void EvalLogicSimulator::processEdits() {
 	assert(aboveBusLayerConnectionPointsToUpdateMappedDown.size() == aboveBusLayerConnectionPointsToUpdate.size());
 
 
-	const Circuit* circuit = circuitManager.getCircuit(circuitId).get();
+	const Circuit* circuit = circuitManager.getCircuit(circuitId);
 	for (auto iter : simulatorMappingUpdateListeners) {
 		circuit_id_t otherCircuitId = circuit->getCircuitId(iter.second.address);
-		const Circuit* otherCircuit = circuitManager.getCircuit(otherCircuitId).get();
+		const Circuit* otherCircuit = circuitManager.getCircuit(otherCircuitId);
 		if (!otherCircuit) {
 			logError("Could not find circuit with id {}.", "EvalLogicSimulator::processEdits", otherCircuitId);
 			continue;
@@ -540,14 +550,4 @@ std::pair<SimulatorStateIndexVecVariant, SimulatorStateIndexVecVariant> EvalLogi
 		outputNonPinIds.push_back(pinAndNonPinIds.second);
 	}
 	return {outputPinIds, outputNonPinIds};
-}
-
-std::pair<simulator_state_reference, simulator_state_reference> EvalLogicSimulator::getPinAndNotPinSimulatorId_noMux(EvalConnectionPoint connectionPoint) const {
-	std::optional<simulator_state_reference> nonPinStateIndexOpt = getSimulatorStateIndex_noMux(connectionPoint);
-	std::optional<simulator_state_reference> pinStateIndexOpt = getSimulatorStateIndexConsideringOutput_noMux(connectionPoint);
-	if (!nonPinStateIndexOpt.has_value() || !pinStateIndexOpt.has_value()) {
-		logError("Failed to get sim state indices.", "EvalLogicSimulator::getPinAndNotPinSimulatorId");
-		return {simulator_state_reference(3), simulator_state_reference(3)};
-	}
-	return {pinStateIndexOpt.value(), nonPinStateIndexOpt.value()};
 }

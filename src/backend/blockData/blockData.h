@@ -29,7 +29,7 @@ public:
 		std::variant<unsigned int, std::vector<unsigned int>> bitConfiguration;
 		inline unsigned int getBitWidth() const noexcept;
 		inline unsigned int getFirstLaneId() const noexcept;
-		// TODO: improve the performance of the below functions by improving the data structure used to store bitConfiguration
+		// TODO: improve the performance of the below functions by improving the data structure used to store bitConfiguration (its prob fine)
 		inline unsigned int getLaneId(unsigned int index) const noexcept;
 		inline unsigned int getMaxLaneId() const noexcept;
 		unsigned int getMaxLaneIndex() const noexcept { return getBitWidth() - 1; }
@@ -44,12 +44,38 @@ public:
 		nlohmann::json dumpState() const;
 	};
 
+	struct BlockTextureData {
+		std::string path;
+		bool useFullTexture = true;
+		Vec2Int topLeft = { 0, 0 };
+		Vec2Int size = { 0, 0 };
+		bool renderState = false;
+		virtual_connection_id_t virtualConnectionId = 0;
+		Vec2Int stateOffset = { 0, 256 };
+	};
+
+	typedef std::variant<BlockTextureData> RenderDataType;
+
+	struct BlockDataCopy {
+		BlockType blockType;
+		bool primitive;
+		bool placeable;
+		bool bus;
+		std::string name;
+		std::string path;
+		Size blockSize;
+		unsigned int inputConnectionCount;
+		unsigned int outputConnectionCount;
+		std::unordered_map<connection_end_id_t, ConnectionData> connections;
+		std::unordered_map<virtual_connection_id_t, VirtualConnectionData> virtualConnections;
+		BidirectionalMultiSecondKeyMap<connection_end_id_t, std::string> connectionIdNames;
+		std::vector<RenderDataType>	renderData;
+	};
+
 	BlockData(BlockType blockType, DataUpdateEventManager& dataUpdateEventManager);
+	BlockDataCopy getBlockDataCopy() const;
 
-	inline void sendBlockDataUpdate() { dataUpdateEventManager.sendEvent("blockDataUpdate"); }
-
-	void setDefaultData(bool defaultData);
-	inline bool isDefaultData() const noexcept { return defaultData; }
+	void sendBlockDataUpdate();
 
 	void setPrimitive(bool primitive);
 	inline bool isPrimitive() const noexcept { return primitive; }
@@ -71,6 +97,8 @@ public:
 	void setPath(const std::string& path);
 	inline const std::string& getPath() const noexcept { return path; }
 
+	// just gives what a id a new connection port should use
+	connection_end_id_t getNewConnectionId() const;
 	void removeConnection(connection_end_id_t connectionId);
 	// trys to set a input connection in the block.
 	void setConnectionInput(Vector positionOnBlock, connection_end_id_t connectionId);
@@ -124,27 +152,29 @@ public:
 	inline const VirtualConnectionData* getVirtualConnectionData(virtual_connection_id_t virtualConnectionId) const noexcept;
 	inline unsigned int getVirtualConnectionBitWidth(virtual_connection_id_t virtualConnectionId) const noexcept;
 
-	// Render Block Data
-	void setTexturePath(const std::string& texturePath);
-	inline const std::string& getTexturePath() const noexcept { return texturePath; }
-	void setTextureVirtualConnection(std::optional<virtual_connection_id_t> textureVirtualConnection);
-	inline std::optional<virtual_connection_id_t> getTextureVirtualConnection() const noexcept { return textureVirtualConnection; }
-	void setUsesTileMapTexture(bool usesTileMapTexture);
-	inline bool getUsesTileMapTexture() const noexcept { return usesTileMapTexture; }
-	void setTextureTileSize(Vec2Int tileSize);
-	inline Vec2Int getTextureTileSize() const noexcept { return textureTileSize; }
-	void setTextureSmallestCordTile(Vec2Int smallestCordTile);
-	inline Vec2Int getTextureSmallestCordTile() const noexcept { return textureSmallestCordTile; }
-	void setTextureBlockTileSize(Vec2Int blockSizeInTiles);
-	inline Vec2Int getTextureBlockTileSize() const noexcept { return textureBlockTileSize; }
-	void setTextureBlockStateOffset(Vec2Int textureBlockStateOffset);
-	inline Vec2Int getTextureBlockStateOffset() const noexcept { return textureBlockStateOffset; }
+	// render data
+	template <class T>
+	void newRenderData(unsigned int index = std::numeric_limits<unsigned int>::max());
+	void moveRenderData(unsigned int before, unsigned int after);
+	void removeRenderData(unsigned int index);
+	unsigned int getRenderDataSize() const noexcept { return renderData.size(); }
+	const std::vector<RenderDataType>& getRenderData() const noexcept { return renderData; }
+	const RenderDataType* getRenderData(unsigned int index) const noexcept;
+	template<class T>
+	const bool isRenderDataOfType(unsigned int index) const noexcept;
 
+	// BlockTextureData
+	void setBlockTexturePath(unsigned int index, const std::string& texturePath);
+	void setBlockUseFullTexture(unsigned int index, bool useFullTexture);
+	void setBlockTextureTopLeft(unsigned int index, Vec2Int topLeft);
+	void setBlockTextureSize(unsigned int index, Vec2Int size);
+	void setBlockRenderState(unsigned int index, bool renderState);
+	void setBlockTextureVirtualConnection(unsigned int index, virtual_connection_id_t virtualConnectionId);
+	void setBlockTextureStateOffset(unsigned int index, Vec2Int stateOffset);
 
 private:
 	// Block Data
 	BlockType blockType;
-	bool defaultData = true;
 	bool primitive = true; // true if defined by default (And, Or, Xor...)
 	bool placeable = true;
 	bool bus = false;
@@ -156,21 +186,13 @@ private:
 	std::unordered_map<connection_end_id_t, ConnectionData> connections;
 	std::unordered_map<virtual_connection_id_t, VirtualConnectionData> virtualConnections;
 	BidirectionalMultiSecondKeyMap<connection_end_id_t, std::string> connectionIdNames;
+	std::vector<RenderDataType>	renderData; // first renders on the bottom, last on the top.
 	DataUpdateEventManager& dataUpdateEventManager;
-
-	// Render Block Data
-	std::string texturePath = "";
-	std::optional<virtual_connection_id_t> textureVirtualConnection = std::nullopt;
-	bool usesTileMapTexture = false;
-	Vec2Int textureTileSize = { 0, 0 }; // mean that the whole texture is 1 tile.
-	Vec2Int textureSmallestCordTile = { 0, 0 };
-	Vec2Int textureBlockTileSize = { 1, 1 };
-	Vec2Int textureBlockStateOffset = { 0, 256 };
 };
 
 // defaults for good connection pos
-constexpr float edgeDistance = 0.48f;
-constexpr float sideShift = 0.25f;
+constexpr float edgeDistance = 0.46f;
+constexpr float sideShift = 0.0f;
 
 /* --------- BlockData::ConnectionData --------- */
 
@@ -183,7 +205,6 @@ inline unsigned int BlockData::ConnectionData::getFirstLaneId() const noexcept {
 	if (std::holds_alternative<unsigned int>(bitConfiguration)) return 0;
 	else return std::get<std::vector<unsigned int>>(bitConfiguration).at(0);
 }
-// TODO: improve the performance of the below functions by improving the data structure used to store bitConfiguration
 inline unsigned int BlockData::ConnectionData::getLaneId(unsigned int index) const noexcept {
 	if (std::holds_alternative<unsigned int>(bitConfiguration)) {
 		assert(index < std::get<unsigned int>(bitConfiguration));
@@ -221,30 +242,18 @@ inline unsigned int BlockData::ConnectionData::getIndexOfLaneId(unsigned int lan
 /* --------- BlockData --------- */
 
 inline std::optional<connection_end_id_t> BlockData::getInputConnectionId(Vector positionOnBlock) const noexcept {
-	if (defaultData) {
-		if (positionOnBlock.dx == 0 && positionOnBlock.dy == 0) return 0;
-		return std::nullopt;
-	}
 	for (auto& pair : connections) {
 		if (pair.second.positionOnBlock == positionOnBlock && pair.second.portType == ConnectionData::PortType::INPUT) return pair.first;
 	}
 	return std::nullopt;
 }
 inline std::optional<connection_end_id_t> BlockData::getOutputConnectionId(Vector positionOnBlock) const noexcept {
-	if (defaultData) {
-		if (positionOnBlock.dx == 0 && positionOnBlock.dy == 0) return 1;
-		return std::nullopt;
-	}
 	for (auto& pair : connections) {
 		if (pair.second.positionOnBlock == positionOnBlock && pair.second.portType == ConnectionData::PortType::OUTPUT) return pair.first;
 	}
 	return std::nullopt;
 }
 inline std::optional<connection_end_id_t> BlockData::getInputConnectionId(Vector vector, Orientation orientation) const noexcept {
-	if (defaultData) {
-		if (vector.dx == 0 && vector.dy == 0) return 0;
-		return std::nullopt;
-	}
 	Vector noOrientationVec = orientation.inverseTransformVectorWithArea(vector, orientation * blockSize);
 	for (auto& pair : connections) {
 		if (pair.second.positionOnBlock == noOrientationVec && pair.second.portType == ConnectionData::PortType::INPUT) return pair.first;
@@ -252,10 +261,6 @@ inline std::optional<connection_end_id_t> BlockData::getInputConnectionId(Vector
 	return std::nullopt;
 }
 inline std::optional<connection_end_id_t> BlockData::getOutputConnectionId(Vector vector, Orientation orientation) const noexcept {
-	if (defaultData) {
-		if (vector.dx == 0 && vector.dy == 0) return 1;
-		return std::nullopt;
-	}
 	Vector noOrientationVec = orientation.inverseTransformVectorWithArea(vector, orientation * blockSize);
 	for (auto& pair : connections) {
 		if (pair.second.positionOnBlock == noOrientationVec && pair.second.portType == ConnectionData::PortType::OUTPUT) return pair.first;
@@ -263,7 +268,6 @@ inline std::optional<connection_end_id_t> BlockData::getOutputConnectionId(Vecto
 	return std::nullopt;
 }
 inline std::optional<connection_end_id_t> BlockData::getBidirectionalConnectionId(Vector vector, Orientation orientation) const noexcept {
-	if (defaultData) return std::nullopt;
 	Vector noOrientationVec = orientation.inverseTransformVectorWithArea(vector, orientation * blockSize);
 	for (auto& pair : connections) {
 		if (pair.second.positionOnBlock == noOrientationVec && pair.second.portType == ConnectionData::PortType::BIDIRECTIONAL) return pair.first;
@@ -271,10 +275,6 @@ inline std::optional<connection_end_id_t> BlockData::getBidirectionalConnectionI
 	return std::nullopt;
 }
 inline std::optional<connection_end_id_t> BlockData::getInputOrBidirectionalConnectionId(Vector vector, Orientation orientation) const noexcept {
-	if (defaultData) {
-		if (vector.dx == 0 && vector.dy == 0) return 0;
-		return std::nullopt;
-	}
 	Vector noOrientationVec = orientation.inverseTransformVectorWithArea(vector, orientation * blockSize);
 	for (auto& pair : connections) {
 		if (
@@ -285,10 +285,6 @@ inline std::optional<connection_end_id_t> BlockData::getInputOrBidirectionalConn
 	return std::nullopt;
 }
 inline std::optional<connection_end_id_t> BlockData::getOutputOrBidirectionalConnectionId(Vector vector, Orientation orientation) const noexcept {
-	if (defaultData) {
-		if (vector.dx == 0 && vector.dy == 0) return 1;
-		return std::nullopt;
-	}
 	Vector noOrientationVec = orientation.inverseTransformVectorWithArea(vector, orientation * blockSize);
 	for (auto& pair : connections) {
 		if (pair.second.positionOnBlock == noOrientationVec && (pair.second.portType == ConnectionData::PortType::OUTPUT || pair.second.portType == ConnectionData::PortType::BIDIRECTIONAL)) return pair.first;
@@ -296,100 +292,69 @@ inline std::optional<connection_end_id_t> BlockData::getOutputOrBidirectionalCon
 	return std::nullopt;
 }
 inline std::optional<Vector> BlockData::getConnectionVector(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) {
-		if (connectionId <= 1) return Vector(0);
-		return std::nullopt;
-	}
 	auto iter = connections.find(connectionId);
 	if (iter == connections.end()) return std::nullopt;
 	return iter->second.positionOnBlock;
 }
 inline std::optional<Vector> BlockData::getConnectionVector(connection_end_id_t connectionId, Orientation orientation) const noexcept {
-	if (defaultData) {
-		if (connectionId <= 1) return Vector(0);
-		return std::nullopt;
-	}
 	auto iter = connections.find(connectionId);
 	if (iter == connections.end()) return std::nullopt;
 	return orientation.transformVectorWithArea(iter->second.positionOnBlock, blockSize);
 }
 inline connection_end_id_t BlockData::getConnectionCount() const noexcept {
-	if (defaultData) return 2;
 	return connections.size();
 }
 inline connection_end_id_t BlockData::getInputConnectionCount() const noexcept {
-	if (defaultData) return 1;
 	return inputConnectionCount;
 }
 inline connection_end_id_t BlockData::getOutputConnectionCount() const noexcept {
-	if (defaultData) return 1;
 	return outputConnectionCount;
 }
 inline connection_end_id_t BlockData::getBidirectionalConnectionCount() const noexcept {
-	if (defaultData) return 0;
 	return connections.size() - inputConnectionCount - outputConnectionCount;
 }
 inline bool BlockData::connectionExists(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) return connectionId <= 1;
 	return connections.contains(connectionId);
 }
 inline bool BlockData::isConnectionInput(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) return connectionId == 0;
 	auto iter = connections.find(connectionId);
 	return iter != connections.end() && iter->second.portType == ConnectionData::PortType::INPUT;
 }
 inline bool BlockData::isConnectionOutput(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) return connectionId == 1;
 	auto iter = connections.find(connectionId);
 	return iter != connections.end() && iter->second.portType == ConnectionData::PortType::OUTPUT;
 }
 inline bool BlockData::isConnectionBidirectional(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) return false;
 	auto iter = connections.find(connectionId);
 	return iter != connections.end() && iter->second.portType == ConnectionData::PortType::BIDIRECTIONAL;
 }
 inline bool BlockData::isConnectionInputOrBidirectional(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) return connectionId == 0;
 	auto iter = connections.find(connectionId);
 	if (iter == connections.end()) return false;
 	return iter->second.portType != ConnectionData::PortType::OUTPUT;
 }
 inline bool BlockData::isConnectionOutputOrBidirectional(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) return connectionId == 1;
 	auto iter = connections.find(connectionId);
 	if (iter == connections.end()) return false;
 	return iter->second.portType != ConnectionData::PortType::INPUT;
 }
 inline BlockData::ConnectionData::PortType BlockData::getConnectionPortType(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) {
-		if (connectionId == 0) return ConnectionData::PortType::INPUT;
-		if (connectionId == 1) return ConnectionData::PortType::OUTPUT;
-		return ConnectionData::PortType::NONE;
-	}
 	auto iter = connections.find(connectionId);
 	if (iter == connections.end()) return ConnectionData::PortType::NONE;
 	return iter->second.portType;
 }
 inline const std::unordered_map<connection_end_id_t, BlockData::ConnectionData>& BlockData::getConnections() const noexcept {
-	assert((!defaultData) && "this will be empty if defaultData is true");
 	return connections;
 }
 inline const std::unordered_map<connection_end_id_t, BlockData::ConnectionData> BlockData::getConnectionsSafe() const noexcept {
-	if (defaultData) return {{0, ConnectionData(Vector(0), ConnectionData::PortType::INPUT)}, {1, ConnectionData(Vector(0), ConnectionData::PortType::OUTPUT)}};
 	return connections;
 }
 inline const BlockData::ConnectionData* BlockData::getConnectionData(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) return nullptr;
 	auto iter = connections.find(connectionId);
 	if (iter == connections.end()) return nullptr;
 	return &iter->second;
 }
 inline std::optional<FVector> BlockData::getConnectionPortOffset(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) {
-		if (connectionId == 0) return FVector(0.5f - edgeDistance, 0.5f - sideShift);
-		if (connectionId == 1) return FVector(0.5f + edgeDistance, 0.5f + sideShift);
-		return std::nullopt;
-	}
 	auto iter = connections.find(connectionId);
 	if (iter == connections.end()) return std::nullopt;
 	return iter->second.portOffset;
@@ -400,13 +365,11 @@ inline std::optional<FVector> BlockData::getConnectionPortOffset(connection_end_
 	return orientation.transformFVectorWithArea(offset.value(), FSize(1));
 }
 inline unsigned int BlockData::getConnectionBitWidth(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) return 1;
 	auto iter = connections.find(connectionId);
 	if (iter == connections.end()) return 0;
 	return iter->second.getBitWidth();
 }
 inline const std::variant<unsigned int, std::vector<unsigned int>>* BlockData::getConnectionBitConfiguration(connection_end_id_t connectionId) const noexcept {
-	if (defaultData) return nullptr;
 	auto iter = connections.find(connectionId);
 	if (iter == connections.end()) return nullptr;
 	return &iter->second.bitConfiguration;
@@ -437,33 +400,50 @@ inline unsigned int BlockData::getLaneCount() const noexcept {
 	return laneCount;
 }
 inline bool BlockData::hasBlockState() const noexcept {
-	if (defaultData) return true;
 	return (primitive) && !(bus);
 }
 
 inline virtual_connection_id_t BlockData::getVirtualConnectionCount() const noexcept {
-	if (defaultData) return 1;
 	return virtualConnections.size();
 }
 inline const std::unordered_map<virtual_connection_id_t, BlockData::VirtualConnectionData>& BlockData::getVirtualConnections() const noexcept {
-	assert((!defaultData) && "this will be empty if defaultData is true");
 	return virtualConnections;
 }
 inline const std::unordered_map<virtual_connection_id_t, BlockData::VirtualConnectionData> BlockData::getVirtualConnectionsSafe() const noexcept {
-	if (defaultData) return {{0, VirtualConnectionData(1)}};
 	return virtualConnections;
 }
 inline const BlockData::VirtualConnectionData* BlockData::getVirtualConnectionData(virtual_connection_id_t virtualConnectionId) const noexcept {
-	if (defaultData) return nullptr;
 	auto iter = virtualConnections.find(virtualConnectionId);
 	if (iter == virtualConnections.end()) return nullptr;
 	return &iter->second;
 }
 inline unsigned int BlockData::getVirtualConnectionBitWidth(virtual_connection_id_t virtualConnectionId) const noexcept {
-	if (defaultData) return (unsigned int)(virtualConnectionId == 0);
 	const BlockData::VirtualConnectionData* virtualConnectionData = getVirtualConnectionData(virtualConnectionId);
 	if (virtualConnectionData == nullptr) return 0;
 	return virtualConnectionData->bitWidth;
+}
+
+template <class T>
+void BlockData::newRenderData(unsigned int index) {
+	if (index == std::numeric_limits<unsigned int>::max()) {
+		renderData.emplace_back(std::in_place_type<T>);
+	} else {
+		assert(index < renderData.size());
+		renderData.emplace(renderData.begin() + index, std::in_place_type<T>);
+	}
+	dataUpdateEventManager.sendEvent<std::pair<BlockType, unsigned int>>("blockDataNewRenderData", { blockType, index });
+	sendBlockDataUpdate();
+}
+
+inline const BlockData::RenderDataType* BlockData::getRenderData(unsigned int index) const noexcept {
+	if (index >= renderData.size()) return nullptr;
+	return &renderData[index];
+}
+
+template<class T>
+inline const bool BlockData::isRenderDataOfType(unsigned int index) const noexcept {
+	assert(index < renderData.size());
+	return std::holds_alternative<T>(renderData[index]);
 }
 
 #endif /* blockData_h */

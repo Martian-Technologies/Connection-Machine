@@ -42,11 +42,13 @@ public:
 	VecVecEvalConnectionPoint mapFromBottomConnectionPointsToTopConnectionPointsForOtherEvals(VecEvalConnectionPoint bottomConnectionPoint, Address address) const;
 	// get all the top connection points from bottom connections points for a certain eval at address with the output containing the mappings
 	VecVecEvalConnectionPoint mapFromBottomConnectionPointGroupsToTopConnectionPointsForOtherEvals(VecVecEvalConnectionPoint bottomConnectionPoint, Address address) const;
-	// get all the top connection points from bottom connections points for a certain eval at address with the outputs all mixed together
+
+	EvalConnectionPoint getConnectionPointFromConnectionEndId(connection_end_id_t connectionEndId) const;
+	bool isConnectionIdSinglePin(connection_end_id_t connectionEndId) const;
 
 	const std::unordered_map<Position, std::pair<eval_gate_id, Orientation>>& getPositionRemapping() const { return positionRemapping; }
-	const std::unordered_map<eval_gate_id, std::pair<Position, Orientation>>& getPositionReverseRemapping() const { return positionReverseRemapping; }
-	const std::unordered_map<connection_end_id_t, InternalPointData>& getPortToInternalPointMapping() const { return portToInternalPointMapping; }
+	const IdMap<eval_gate_id, std::pair<Position, Orientation>>& getPositionReverseRemapping() const { return positionReverseRemapping; }
+	const std::map<connection_end_id_t, InternalPointData>& getPortToInternalPointMapping() const { return portToInternalPointMapping; }
 
 	std::vector<std::pair<Position, circuit_id_t>> getSubcircuits() const;
 
@@ -64,8 +66,8 @@ private:
 	// std::set<Position> positionsTo; nothing to do
 	IdProvider<eval_gate_id> evalGateIdProvider;
 	std::unordered_map<Position, std::pair<eval_gate_id, Orientation>> positionRemapping;
-	std::unordered_map<eval_gate_id, std::pair<Position, Orientation>> positionReverseRemapping;
-	std::unordered_map<connection_end_id_t, InternalPointData> portToInternalPointMapping;
+	IdMap<eval_gate_id, std::pair<Position, Orientation>> positionReverseRemapping;
+	std::map<connection_end_id_t, InternalPointData> portToInternalPointMapping;
 	mutable std::unordered_map<SubcircuitEvalLayer*, unsigned int> evaluatorsUsingThisEvaluator;
 	LayerRunner layerRunner;
 	const CircuitManager& circuitManager;

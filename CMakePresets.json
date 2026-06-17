@@ -9,7 +9,7 @@
 		{
 			"name": "debug",
 			"displayName": "Debug",
-			"binaryDir": "build",
+			"binaryDir": "build/build-debug",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
@@ -22,7 +22,7 @@
 		{
 			"name": "debug_cli",
 			"displayName": "Debug CLI",
-			"binaryDir": "build-cli",
+			"binaryDir": "build/build-cli",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
 				"CONNECTION_MACHINE_BUILD_APP": "OFF",
@@ -35,7 +35,7 @@
 		{
 			"name": "debug&profiler",
 			"displayName": "Debug & Profiler",
-			"binaryDir": "build",
+			"binaryDir": "build/build-debug",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
@@ -48,7 +48,7 @@
 		{
 			"name": "release",
 			"displayName": "Release",
-			"binaryDir": "build-release",
+			"binaryDir": "build/build-release",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
@@ -61,7 +61,7 @@
 		{
 			"name": "release_cli",
 			"displayName": "Release CLI",
-			"binaryDir": "build-release-cli",
+			"binaryDir": "build/build-release-cli",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_APP": "OFF",
@@ -74,7 +74,7 @@
 		{
 			"name": "release&profiler",
 			"displayName": "Release & Profiler",
-			"binaryDir": "build-release",
+			"binaryDir": "build/build-release",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
@@ -87,7 +87,7 @@
 		{
 			"name": "distribute",
 			"displayName": "Distribute",
-			"binaryDir": "build-distribute",
+			"binaryDir": "build/build-distribute",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_APP": "ON",
@@ -100,7 +100,7 @@
 		{
 			"name": "tests",
 			"displayName": "Tests",
-			"binaryDir": "build-tests",
+			"binaryDir": "build/build-tests",
 			"cacheVariables": {
 			    "CMAKE_BUILD_TYPE": "Debug",
 			    "CONNECTION_MACHINE_BUILD_TESTS": "ON",
@@ -114,7 +114,7 @@
 		{
 			"name": "tests&Coverage",
 			"displayName": "Tests & Coverage",
-			"binaryDir": "build-tests",
+			"binaryDir": "build/build-tests",
 			"cacheVariables": {
 			    "CMAKE_BUILD_TYPE": "Debug",
 			    "CONNECTION_MACHINE_BUILD_TESTS": "ON",
@@ -128,7 +128,7 @@
 		{
 			"name": "fuzzer",
 			"displayName": "Fuzzer",
-			"binaryDir": "build-fuzzer",
+			"binaryDir": "build/build-fuzzer",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
 				"CONNECTION_MACHINE_BUILD_FUZZER": "ON",
@@ -142,7 +142,7 @@
 		{
 			"name": "fuzzer-opt",
 			"displayName": "Fuzzer Optimized",
-			"binaryDir": "build-fuzzer-opt",
+			"binaryDir": "build/build-fuzzer-opt",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release",
 				"CONNECTION_MACHINE_BUILD_FUZZER": "ON",

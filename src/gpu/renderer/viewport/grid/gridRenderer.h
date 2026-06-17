@@ -15,7 +15,7 @@ class EvalLogicSimulator;
 
 class GridRenderer {
 public:
-	void init(VulkanDevice* device, VkRenderPass& renderPass);
+	void init(VulkanDevice& device, vk::RenderPass renderPass);
 	void cleanup();
 
 	void render(Frame& frame, const glm::mat4& viewMatrix, float viewScale, const EvalLogicSimulator* simulator);
@@ -23,7 +23,6 @@ public:
 private:
 	Pipeline pipeline;
 
-	// push constant data
 	size_t fragmentPushOffset = offsetof(GridPushConstants, background);
 };
 

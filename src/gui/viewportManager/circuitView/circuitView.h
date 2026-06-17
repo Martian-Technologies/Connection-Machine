@@ -33,8 +33,8 @@ public:
 	ToolManager& getToolManager() { return toolManager; }
 	const ToolManager& getToolManager() const { return toolManager; }
 
-	Tutorial& getTutorialManager() { return tutorialManager; }
-	const Tutorial& getTutorialManager() const { return tutorialManager; }
+	TutorialManager& getTutorialManager() { return tutorialManager; }
+	const TutorialManager& getTutorialManager() const { return tutorialManager; }
 
 	ViewManager& getViewManager() { return viewManager; }
 	const ViewManager& getViewManager() const { return viewManager; }
@@ -47,17 +47,17 @@ public:
 	const Address& getAddress() const { return address; }
 
 	// void setBackend(Backend* backend);
-	void setSimulatoruator(simulator_id_t simulatorId, const Address& address = Address());
-	void setSimulatoruator(const EvalLogicSimulator* simulator, const Address& address = Address());
-	void setCircuit(std::shared_ptr<Circuit> circuit);
+	void setSimulator(simulator_id_t simulatorId, const Address& address = Address());
+	void setSimulator(const EvalLogicSimulator* simulator, const Address& address = Address());
 	void setCircuit(circuit_id_t circuitId);
 
 	void viewChanged();
 
 private:
+	Environment& environment;
 	Backend& backend;
 
-	ViewportId viewportId;
+	const ViewportId viewportId;
 	circuit_id_t circuitId;
 	simulator_id_t simulatorId;
 	Address address;
@@ -68,7 +68,7 @@ private:
 	EventRegister eventRegister;
 	ViewManager viewManager;
 	ToolManager toolManager;
-	Tutorial tutorialManager;
+	TutorialManager tutorialManager;
 };
 
 #endif /* circuitView_h */

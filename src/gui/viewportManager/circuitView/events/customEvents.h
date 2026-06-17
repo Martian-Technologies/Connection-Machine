@@ -27,6 +27,17 @@ private:
 	FPosition position;
 };
 
+class VectorEvent : public Event {
+public:
+	inline VectorEvent(const std::string& name, const FVector& vector) : Event(name), vector(vector) { }
+
+	inline Vector getVector() const { return vector.snap(); }
+	inline const FVector& getFVector() const { return vector; }
+
+private:
+	FVector vector;
+};
+
 class DeltaEvent : public Event {
 public:
 	inline DeltaEvent(const std::string& name, float delta) : Event(name), delta(delta) { }

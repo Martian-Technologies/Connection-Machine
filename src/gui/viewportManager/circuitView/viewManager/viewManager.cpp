@@ -1,8 +1,8 @@
 #include "viewManager.h"
 
-#include "backend/position/position.h"
 #include "../events/eventRegister.h"
 #include "../events/customEvents.h"
+#include "backend/backend.h"
 
 void ViewManager::setUpEvents(EventRegister& eventRegister) {
 	this->eventRegister = &eventRegister;
@@ -15,19 +15,21 @@ void ViewManager::setUpEvents(EventRegister& eventRegister) {
 	eventRegister.registerFunction("pointer exit view", std::bind(&ViewManager::pointerExitView, this, std::placeholders::_1));
 }
 
-void ViewManager::setCircuit(Circuit* circuit) {
-	if (circuit == currentCircuit) return;
+void ViewManager::setCircuit(circuit_id_t circuitId) {
+	const Circuit* circuit = backend.getCircuitManager().getCircuit(circuitId);
+	if (!circuit) circuitId = 0;
+	if (circuitId == currentCircuitId) return;
 
-	if (currentCircuit) {
-		perCircuitViewData.insert_or_assign(currentCircuit->getCircuitId(), ViewPositioningData(viewCenter, viewScale));
+	if (backend.getCircuitManager().getCircuit(currentCircuitId) != nullptr) {
+		perCircuitViewData.insert_or_assign(currentCircuitId, ViewPositioningData(viewCenter, viewScale));
 	}
 
 	FPosition oldCenter = viewCenter;
 	float oldScale = viewScale;
 
-	if (circuit) {
-		currentCircuit = circuit;
-		auto iter = perCircuitViewData.find(circuit->getCircuitId());
+	if (circuitId != 0) {
+		currentCircuitId = circuitId;
+		auto iter = perCircuitViewData.find(circuitId);
 		if (iter == perCircuitViewData.end()) {
 			focus();
 		} else {
@@ -35,7 +37,7 @@ void ViewManager::setCircuit(Circuit* circuit) {
 			viewScale = iter->second.viewScale;
 		}
 	} else {
-	    currentCircuit = nullptr;
+	    currentCircuitId = 0;
 	}
 
 	applyLimits();
@@ -122,15 +124,16 @@ bool ViewManager::pointerExitView(const Event* event) {
 }
 
 void ViewManager::focus() {
-	if (!currentCircuit) {
+	const Circuit* circuit = backend.getCircuitManager().getCircuit(currentCircuitId);
+	if (circuit == nullptr) {
 		viewCenter = FPosition();
 		viewScale = 8.0f;
 	} else {
 		bool first = true;
 		Position topLeft;
 		Size size;
-		for (auto& pair : currentCircuit->getBlockContainer()) {
-			if (!currentCircuit->isOnStack(pair.second.getPosition())) {
+		for (auto& pair : circuit->getBlockContainer()) {
+			if (!circuit->isOnStack(pair.second.getPosition())) {
 				if (first) {
 					first = false;
 					topLeft = pair.second.getPosition();

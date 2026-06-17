@@ -3,6 +3,11 @@
 #include "backend/circuit/circuitManager.h"
 #include "backend/evaluator/layers/evalLayerState.h"
 #include "backend/evaluator/layers/subcircuitEvalLayer.h"
+#include "backend/evaluator/layers/junctionMergeEvalLayer.h"
+
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
 
 extern std::thread::id mainThreadId;
 
@@ -38,7 +43,7 @@ EvaluatorInternal::EvaluatorInternal(const Circuit& circuit, Evaluator& evaluato
 		auto portToInternalPointMappingIter = portToInternalPointMapping.find(connectionEndId);
 		if (!block) {
 			if (portToInternalPointMappingIter == portToInternalPointMapping.end()) {
-				portToInternalPointMapping.emplace(connectionEndId, InternalPointData(portType, bitWidth));
+				portToInternalPointMapping.try_emplace(connectionEndId, InternalPointData(portType, bitWidth));
 			} else if (portToInternalPointMappingIter->second.connectionPoint.has_value()) {
 				EvalConnectionPoint connectionPoint = portToInternalPointMappingIter->second.connectionPoint.value();
 				portToInternalPointMappingIter->second.connectionPoint = std::nullopt;
@@ -54,7 +59,7 @@ EvaluatorInternal::EvaluatorInternal(const Circuit& circuit, Evaluator& evaluato
 				internalConnectionEndId = 0;
 			} else {
 				if (portToInternalPointMappingIter == portToInternalPointMapping.end()) {
-					portToInternalPointMapping.emplace(connectionEndId, InternalPointData(portType, bitWidth));
+					portToInternalPointMapping.try_emplace(connectionEndId, InternalPointData(portType, bitWidth));
 				} else if (portToInternalPointMappingIter->second.connectionPoint.has_value()) {
 					EvalConnectionPoint connectionPoint = portToInternalPointMappingIter->second.connectionPoint.value();
 					portToInternalPointMappingIter->second.connectionPoint = std::nullopt;
@@ -68,7 +73,7 @@ EvaluatorInternal::EvaluatorInternal(const Circuit& circuit, Evaluator& evaluato
 		case BlockType::TICK_BUTTON: {
 			if (bitWidth != 1) {
 				if (portToInternalPointMappingIter == portToInternalPointMapping.end()) {
-					portToInternalPointMapping.emplace(connectionEndId, InternalPointData(portType, bitWidth));
+					portToInternalPointMapping.try_emplace(connectionEndId, InternalPointData(portType, bitWidth));
 				} else if (portToInternalPointMappingIter->second.connectionPoint.has_value()) {
 					EvalConnectionPoint connectionPoint = portToInternalPointMappingIter->second.connectionPoint.value();
 					portToInternalPointMappingIter->second.connectionPoint = std::nullopt;
@@ -81,7 +86,7 @@ EvaluatorInternal::EvaluatorInternal(const Circuit& circuit, Evaluator& evaluato
 		case BlockType::LIGHT: {
 			if (bitWidth != 1) {
 				if (portToInternalPointMappingIter == portToInternalPointMapping.end()) {
-					portToInternalPointMapping.emplace(connectionEndId, InternalPointData(portType, bitWidth));
+					portToInternalPointMapping.try_emplace(connectionEndId, InternalPointData(portType, bitWidth));
 				} else if (portToInternalPointMappingIter->second.connectionPoint.has_value()) {
 					EvalConnectionPoint connectionPoint = portToInternalPointMappingIter->second.connectionPoint.value();
 					portToInternalPointMappingIter->second.connectionPoint = std::nullopt;
@@ -102,7 +107,7 @@ EvaluatorInternal::EvaluatorInternal(const Circuit& circuit, Evaluator& evaluato
 			}
 			if (!optInternalConnectionEndId.has_value() || bitWidth != internalBlockData->getConnectionBitWidth(optInternalConnectionEndId.value())) {
 				if (portToInternalPointMappingIter == portToInternalPointMapping.end()) {
-					portToInternalPointMapping.emplace(connectionEndId, InternalPointData(portType, bitWidth));
+					portToInternalPointMapping.try_emplace(connectionEndId, InternalPointData(portType, bitWidth));
 				} else if (portToInternalPointMappingIter->second.connectionPoint.has_value()) {
 					EvalConnectionPoint connectionPoint = portToInternalPointMappingIter->second.connectionPoint.value();
 					portToInternalPointMappingIter->second.connectionPoint = std::nullopt;
@@ -119,11 +124,33 @@ EvaluatorInternal::EvaluatorInternal(const Circuit& circuit, Evaluator& evaluato
 			return;
 		}
 		if (portToInternalPointMappingIter == portToInternalPointMapping.end()) {
-			portToInternalPointMapping.emplace(connectionEndId, InternalPointData(EvalConnectionPoint(positionRemappingIter->second.first, internalConnectionEndId), portType, bitWidth));
+			portToInternalPointMapping.try_emplace(connectionEndId, InternalPointData(EvalConnectionPoint(positionRemappingIter->second.first, internalConnectionEndId), portType, bitWidth));
 		} else if (portToInternalPointMappingIter->second.connectionPoint != EvalConnectionPoint(positionRemappingIter->second.first, internalConnectionEndId)) {
 			EvalConnectionPoint connectionPoint = portToInternalPointMappingIter->second.connectionPoint.value_or(EvalConnectionPoint::null());
 			portToInternalPointMappingIter->second.connectionPoint = EvalConnectionPoint(positionRemappingIter->second.first, internalConnectionEndId);
 			sendPortUpdate(connectionEndId, connectionPoint, EvalConnectionPoint(positionRemappingIter->second.first, internalConnectionEndId));
+		}
+	});
+	receiver.linkFunction("blockDataSetConnection", [&](const DataUpdateEventManager::EventData* event) {
+		const auto* data = event->cast<std::pair<BlockType, connection_end_id_t>>();
+		if (!data) return;
+		BlockType blockType = data->get().first;
+		if (blockType != circuit.getBlockType()) return;
+		connection_end_id_t connectionEndId = data->get().second;
+		auto portToInternalPointMappingIter = portToInternalPointMapping.find(connectionEndId);
+		if (portToInternalPointMappingIter == portToInternalPointMapping.end()) {
+			const BlockData* blockData = circuitManager.getBlockDataManager().getBlockData(blockType);
+			const BlockData::ConnectionData* connectionData = blockData->getConnectionData(connectionEndId);
+			if (connectionData == nullptr) return;
+			assert(connectionData->portType != BlockData::ConnectionData::PortType::BIDIRECTIONAL); // can not happen and if it does some things are undefined
+			portToInternalPointMapping.try_emplace(connectionEndId, InternalPointData(connectionData->portType, connectionData->getBitWidth()));
+			const CircuitBlockData* circuitBlockData = circuitManager.getCircuitBlockDataManager().getCircuitBlockData(circuit.getCircuitId());
+			const Position* portPosition = circuitBlockData->getConnectionIdToPosition(connectionEndId);
+			if (portPosition != nullptr) { // I think this is correct
+				logError("Port position on block was set which is unexpected.", "EvaluatorInternal");
+				return;
+			}
+			sendPortUpdate(connectionEndId, EvalConnectionPoint::null(), EvalConnectionPoint::null());
 		}
 	});
 	receiver.linkFunction("blockDataPortBitConfigurationSet", [&](const DataUpdateEventManager::EventData* event) {
@@ -141,7 +168,7 @@ EvaluatorInternal::EvaluatorInternal(const Circuit& circuit, Evaluator& evaluato
 				assert(circuitBlockData);
 				const Position* internalPortPosition = circuitBlockData->getConnectionIdToPosition(connectionEndId);
 				if (!internalPortPosition) {
-					logError("No internalPortPosition for for connectionEndId {}", "EvaluatorInternal::blockDataPortBitConfigurationSet", connectionEndId);
+					logError("No internalPortPosition for connectionEndId {}", "EvaluatorInternal::blockDataPortBitConfigurationSet", connectionEndId);
 					if (portToInternalPointMappingIter->second.connectionPoint.has_value()) {
 						EvalConnectionPoint connectionPoint = portToInternalPointMappingIter->second.connectionPoint.value();
 						portToInternalPointMappingIter->second.connectionPoint = std::nullopt;
@@ -311,12 +338,14 @@ void EvaluatorInternal::startEdit() {
 }
 
 void EvaluatorInternal::endEdit() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	layerRunner.runAll();
 	const BlockData* blockData = circuitManager.getBlockDataManager().getBlockData(circuit.getBlockType());
 	if (!blockData) return;
 	const CircuitBlockData* circuitBlockData = circuitManager.getCircuitBlockDataManager().getCircuitBlockData(circuit.getCircuitId());
 	assert(circuitBlockData);
-	assert(!blockData->isDefaultData());
 	std::vector<std::tuple<connection_end_id_t, EvalConnectionPoint, EvalConnectionPoint>> connectionEndIdsToUpdate;
 	for (const std::pair<connection_end_id_t, BlockData::ConnectionData>& connectionData : blockData->getConnections()) {
 		const Position* internalPortPosition = circuitBlockData->getConnectionIdToPosition(connectionData.first);
@@ -541,6 +570,43 @@ VecVecEvalConnectionPoint EvaluatorInternal::mapFromBottomConnectionPointGroupsT
 	auto iter = positionRemapping.find(address.getPosition(0));
 	if (iter == positionRemapping.end()) return { };
 	return layerRunner.getReversedMappedConnectionPointGroupsWithAddressForOtherEvals(bottomConnectionPoints, iter->second.first, address.popTopPosition());
+}
+
+EvalConnectionPoint EvaluatorInternal::getConnectionPointFromConnectionEndId(connection_end_id_t connectionEndId) const {
+	auto iter = portToInternalPointMapping.find(connectionEndId);
+	if (iter == portToInternalPointMapping.end()) return EvalConnectionPoint::null();
+	return iter->second.connectionPoint.value_or(EvalConnectionPoint::null());
+}
+
+bool EvaluatorInternal::isConnectionIdSinglePin(connection_end_id_t connectionEndId) const {
+	EvalConnectionPoint topConnectionPoint = getConnectionPointFromConnectionEndId(connectionEndId);
+	if (topConnectionPoint.isNull()) return false; // no point means that they are not connection
+	std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> connectionPointsVariant = layerRunner.getMappedEvalConnectionPoint(topConnectionPoint);
+	if (std::holds_alternative<EvalConnectionPoint>(connectionPointsVariant)) {
+		EvalConnectionPoint connectionPoint = std::get<EvalConnectionPoint>(connectionPointsVariant);
+		const EvalGate* gate = layerRunner.getOutputLayer().getGate(connectionPoint.gateId);
+		if (gate == nullptr) {
+			logError("No gate {} found when checking output layer", "EvalConnectionPoint::isConnectionIdSinglePin", connectionPoint.gateId);
+			return false;
+		}
+		return (gate->type != BlockType::JUNCTION && gate->type != BlockType::JUNCTION_L &&
+			gate->type != BlockType::JUNCTION_H && gate->type != BlockType::JUNCTION_X &&
+			EvalConnectionEndInfo::isConnectionEndIdSinglePin(gate->type, connectionPoint.connectionEndId)
+		);
+	}
+	const std::vector<EvalConnectionPoint>& connectionPoints = std::get<std::vector<EvalConnectionPoint>>(connectionPointsVariant);
+	for (EvalConnectionPoint connectionPoint : connectionPoints) {
+		const EvalGate* gate = layerRunner.getOutputLayer().getGate(connectionPoint.gateId);
+		if (gate == nullptr) {
+			logError("No gate {} found when checking output layer", "EvalConnectionPoint::isConnectionIdSinglePin", connectionPoint.gateId);
+			continue;
+		}
+		if (gate->type != BlockType::JUNCTION && gate->type != BlockType::JUNCTION_L &&
+			gate->type != BlockType::JUNCTION_H && gate->type != BlockType::JUNCTION_X &&
+			EvalConnectionEndInfo::isConnectionEndIdSinglePin(gate->type, connectionPoint.connectionEndId)
+		) return true;
+	}
+	return false;
 }
 
 std::vector<std::pair<Position, circuit_id_t>> EvaluatorInternal::getSubcircuits() const {

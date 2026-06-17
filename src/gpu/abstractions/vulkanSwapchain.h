@@ -2,30 +2,32 @@
 #define vulkanSwapchain_h
 
 #include "gpu/vulkanDevice.h"
+#include "gpu/abstractions/vulkanImage.h"
 
 class Swapchain {
 public:
-	void init(VulkanDevice* device, VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size);
+	void init(VulkanDevice& device, vk::SurfaceKHR surface, std::pair<uint32_t, uint32_t> size);
 	void cleanup();
 
-	void createFramebuffers(VkRenderPass renderPass, const AllocatedImage& colorImage);
-	void recreate(VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size);
+	void createFramebuffers(vk::RenderPass renderPass, const AllocatedImage& colorImage);
+	void recreate(vk::SurfaceKHR surface, std::pair<uint32_t, uint32_t> size);
 
 	inline vkb::Swapchain& getSwapchain() { return swapchain; }
-	inline std::vector<VkFramebuffer>& getFramebuffers() { return framebuffers; }
-	inline std::vector<VkSemaphore>& getImageSemaphores() { return imageSemaphores; }
+	inline vk::SwapchainKHR getSwapchainHandle() { return vk::SwapchainKHR(swapchain.swapchain); }
+	inline std::vector<vk::UniqueFramebuffer>& getFramebuffers() { return framebuffers; }
+	inline std::vector<vk::UniqueSemaphore>& getImageSemaphores() { return imageSemaphores; }
 
 private:
-	void createSwapchain(VkSurfaceKHR surface, std::pair<uint32_t, uint32_t> size, bool useOld);
+	void createSwapchain(vk::SurfaceKHR surface, std::pair<uint32_t, uint32_t> size, bool useOld);
 	void destroyFramebuffers();
 
 private:
 	vkb::Swapchain swapchain;
-	std::vector<VkFramebuffer> framebuffers;
+	std::vector<vk::UniqueFramebuffer> framebuffers;
 	std::vector<VkImageView> imageViews;
-	std::vector<VkSemaphore> imageSemaphores;
+	std::vector<vk::UniqueSemaphore> imageSemaphores;
 
-	VulkanDevice* device;
+	VulkanDevice* device = nullptr;
 };
 
-#endif
+#endif /* vulkanSwapchain_h */

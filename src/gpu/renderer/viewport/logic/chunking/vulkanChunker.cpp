@@ -49,7 +49,7 @@ glm::vec2 computeBusOffset(const glm::vec2& pointA, const glm::vec2& pointB, uin
 // =========================================================================================================
 
 VulkanLogicAllocation::VulkanLogicAllocation(
-	VulkanDevice* device,
+	VulkanDevice& device,
 	const RenderedBlocks& blocks,
 	const RenderedWires& wires,
 	const EvalLogicSimulator* simulator,
@@ -114,8 +114,8 @@ VulkanLogicAllocation::VulkanLogicAllocation(
 		// upload block vertices
 		numBlockInstances = blockInstances.size();
 		size_t blockBufferSize = sizeof(BlockInstance) * numBlockInstances;
-		blockBuffer = createBuffer(device, blockBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-		vmaCopyMemoryToAllocation(device->getAllocator(), blockInstances.data(), blockBuffer->allocation, 0, blockBufferSize);
+		blockBuffer.emplace(createBuffer(device, blockBufferSize, vk::BufferUsageFlagBits::eVertexBuffer, vma::AllocationCreateFlagBits::eHostAccessSequentialWrite));
+		device.getAllocator().copyMemoryToAllocation(blockInstances.data(), blockBuffer->allocation.get(), 0, blockBufferSize);
 
 		indices.clear();
 	}
@@ -232,29 +232,27 @@ VulkanLogicAllocation::VulkanLogicAllocation(
 		// upload wire vertices
 		numWireInstances = wireInstances.size();
 		size_t wireBufferSize = sizeof(WireInstance) * numWireInstances;
-		wireBuffer = createBuffer(device, wireBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-		vmaCopyMemoryToAllocation(device->getAllocator(), wireInstances.data(), wireBuffer->allocation, 0, wireBufferSize);
+		wireBuffer.emplace(createBuffer(device, wireBufferSize, vk::BufferUsageFlagBits::eVertexBuffer, vma::AllocationCreateFlagBits::eHostAccessSequentialWrite));
+		device.getAllocator().copyMemoryToAllocation(wireInstances.data(), wireBuffer->allocation.get(), 0, wireBufferSize);
 	}
 
 	if (!simulatorIds.empty()) {
 		// Create state buffer
 		size_t stateBufferSize = simulatorIds.size() * sizeof(logic_state_t);
 		stateBuffer.emplace();
-		stateBuffer->init(device, stateBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+		stateBuffer->init(device, stateBufferSize, vk::BufferUsageFlagBits::eStorageBuffer, vma::AllocationCreateFlagBits::eHostAccessSequentialWrite);
 		std::vector<logic_state_t> defaultStates(simulatorIds.size(), logic_state_t::HIGH);
 	}
 }
 
 VulkanLogicAllocation::~VulkanLogicAllocation() {
-	if (blockBuffer.has_value()) destroyBuffer(blockBuffer.value());
-	if (wireBuffer.has_value()) destroyBuffer(wireBuffer.value());
 	if (stateBuffer.has_value()) stateBuffer->cleanup();
 }
 
 // LogicGroup
 // =========================================================================================================
 
-void LogicGroup::rebuildAllocation(VulkanDevice* device, const EvalLogicSimulator* simulator, const Address& address) {
+void LogicGroup::rebuildAllocation(VulkanDevice& device, const EvalLogicSimulator* simulator, const Address& address) {
 	if (!blocks.empty() || !wires.empty()) { // if we have data to upload
 		// allocate new date
 		std::shared_ptr<VulkanLogicAllocation> newAllocation = std::make_unique<VulkanLogicAllocation>(device, blocks, wires, simulator, address);
@@ -302,13 +300,16 @@ void LogicGroup::annihilateOrphanGBs() {
 // VulkanChunker
 // =========================================================================================================
 
-VulkanChunker::VulkanChunker(VulkanDevice* device) : device(device) { }
+VulkanChunker::VulkanChunker(VulkanDevice& device) : device(device) { }
 
 VulkanChunker::~VulkanChunker() { std::lock_guard<std::mutex> lock(mux); }
 
 void VulkanChunker::startMakingEdits() { mux.lock(); }
 
 void VulkanChunker::stopMakingEdits() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	for (LogicGroup* logicGroup : logicGroupsToUpdate) logicGroup->rebuildAllocation(device, simulator, address);
 	logicGroupsToUpdate.clear();
 	mux.unlock();
@@ -529,7 +530,7 @@ void VulkanChunker::updateSimulatorIds(const std::vector<SimulatorMappingUpdate>
 	}
 }
 
-void VulkanChunker::setSimulatoruator(const EvalLogicSimulator* simulator, const Address& address) {
+void VulkanChunker::setSimulator(const EvalLogicSimulator* simulator, const Address& address) {
 	if (this->simulator) {
 		this->simulator->disconnectListener(this);
 	}

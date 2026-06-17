@@ -3,7 +3,7 @@
 #include "tensorConnectTool.h"
 #include "singleConnectTool.h"
 
-ConnectionTool::ConnectionTool(const Environment& environment) : CircuitTool(environment) {
+ConnectionTool::ConnectionTool(Environment& environment) : CircuitTool(environment) {
 	activeConnectionTool = std::make_shared<SingleConnectTool>(environment);
 }
 

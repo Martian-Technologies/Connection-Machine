@@ -45,39 +45,39 @@ bool GeneratedCircuitValidator::handleInvalidConnections() {
 		++connectionCounts[conn];
 	}
 
-	int i = 0;
-	while (i < (int)generatedCircuit.connections.size()) {
-		GeneratedCircuit::ConnectionData& conn = generatedCircuit.connections[i];
+	// int i = 0;
+	// while (i < (int)generatedCircuit.connections.size()) {
+	// 	GeneratedCircuit::ConnectionData& conn = generatedCircuit.connections[i];
 
-		GeneratedCircuit::ConnectionData reversePair{
-			.outputBlockId = conn.inputBlockId,
-			.outputId = conn.inputId,
-			.inputBlockId = conn.outputBlockId,
-			.inputId = conn.outputId,
-		};
+	// 	GeneratedCircuit::ConnectionData reversePair{
+	// 		.outputBlockId = conn.inputBlockId,
+	// 		.outputId = conn.inputId,
+	// 		.inputBlockId = conn.outputBlockId,
+	// 		.inputId = conn.outputId,
+	// 	};
 
-		if (--connectionCounts[reversePair] < 0) {
-			generatedCircuit.connections.push_back(reversePair);
-			logInfo(
-				"Added reciprocated connection between: ({} {}) and ({} {})",
-				"GeneratedCircuitValidator",
-				conn.inputBlockId,
-				conn.outputBlockId,
-				reversePair.inputBlockId,
-				reversePair.outputBlockId
-			);
-			connectionCounts[reversePair] = 0;
-		}
-		++i;
-	}
+	// 	if (--connectionCounts[reversePair] < 0) {
+	// 		generatedCircuit.connections.push_back(reversePair);
+	// 		logInfo(
+	// 			"Added reciprocated connection between: ({} {}) and ({} {})",
+	// 			"GeneratedCircuitValidator",
+	// 			conn.inputBlockId,
+	// 			conn.outputBlockId,
+	// 			reversePair.inputBlockId,
+	// 			reversePair.outputBlockId
+	// 		);
+	// 		connectionCounts[reversePair] = 0;
+	// 	}
+	// 	++i;
+	// }
 
 	// check all remaining connections were found
-	for (const auto& [pair, count] : connectionCounts) {
-		if (count != 0) {
-			logWarning("Invalid connection handling, connection frequency: ({} {}) {}", "GeneratedCircuitValidator", pair.outputBlockId, pair.inputBlockId, count);
-			return false;
-		}
-	}
+	// for (const auto& [pair, count] : connectionCounts) {
+	// 	if (count != 0) {
+	// 		logWarning("Invalid connection handling, connection frequency: ({} {}) {}", "GeneratedCircuitValidator", pair.outputBlockId, pair.inputBlockId, count);
+	// 		return false;
+	// 	}
+	// }
 
 	return true;
 }
@@ -129,7 +129,11 @@ bool GeneratedCircuitValidator::setOverlapsUnpositioned() {
 // iterative dfs
 template <class PreVisit, class PostVisit>
 void depthFirstSearch(
-	const std::unordered_map<block_id_t, std::vector<block_id_t>>& adj, block_id_t start, std::unordered_set<block_id_t>& visited, PreVisit preVisit, PostVisit postVisit
+	const std::unordered_map<block_id_t, std::vector<block_id_t>>& adj,
+	block_id_t start,
+	std::unordered_set<block_id_t>& visited,
+	PreVisit preVisit,
+	PostVisit postVisit
 ) {
 	std::stack<block_id_t> stack;
 	stack.push(start);
@@ -175,16 +179,10 @@ bool GeneratedCircuitValidator::handleUnpositionedBlocks() {
 	for (const auto& [id, block] : generatedCircuit.blocks) {
 		if (!visited.count(id)) {
 			components.push_back({});
-			depthFirstSearch(
-				undirectedAdj,
-				id,
-				visited,
-				[&](block_id_t node) {
-					components.back().insert(node);
-					blockToComponent[node] = components.size() - 1;
-				},
-				[&](block_id_t) {}
-			);
+			depthFirstSearch(undirectedAdj, id, visited, [&](block_id_t node) {
+				components.back().insert(node);
+				blockToComponent[node] = components.size() - 1;
+			}, [&](block_id_t) {});
 		}
 	}
 

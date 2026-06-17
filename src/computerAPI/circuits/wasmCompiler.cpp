@@ -3,7 +3,14 @@
 #include "backend/wasm/wasm.h"
 #include "computerAPI/directoryManager.h"
 
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
+
 std::optional<wasmtime::Module> WasmCompiler::compileFile(const std::string& file) {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	std::filesystem::path wasmCompileCommandPath = std::filesystem::absolute(DirectoryManager::getResourceDirectory() / "wasmCompileCommand.json");
 	std::ifstream wasmCompileCommand(wasmCompileCommandPath);
 	if (wasmCompileCommand.is_open()) {

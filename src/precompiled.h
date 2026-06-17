@@ -2,6 +2,7 @@
 #define LGC_PCH
 
 #define M_PI 3.14159265358979323846264338327950288
+#define IMGUI_DEFINE_MATH_OPERATORS // allows imgui math operators
 
 #include <algorithm>
 #include <cassert>
@@ -45,8 +46,8 @@
 #include <sstream>
 #include <span>
 
-#include <fmt/core.h>
-#include <nlohmann/json.hpp>
+#include "fmt/core.h"
+#include "nlohmann/json.hpp"
 
 #include "logging/logging.h"
 #include "util/fatal.h"

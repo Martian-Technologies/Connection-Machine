@@ -9,7 +9,7 @@ struct EvalGate {
 	EvalGateType type;
 	eval_gate_id gateId;
 
-	std::unordered_map<connection_end_id_t, std::unordered_set<EvalConnectionPoint>> connections;
+	std::map<connection_end_id_t, std::unordered_set<EvalConnectionPoint>> connections;
 };
 
 class EvalLayerState {
@@ -28,11 +28,11 @@ public:
 		return &iter->second;
 	}
 
-	const std::unordered_map<eval_gate_id, EvalGate>& getGates() const { return gates; }
+	const IdMap<eval_gate_id, EvalGate>& getGates() const { return gates; }
 
-	const std::unordered_map<eval_gate_id, EvalGateType>& getAddedGates() const { return addedGates; }
+	const IdMap<eval_gate_id, EvalGateType>& getAddedGates() const { return addedGates; }
 
-	const std::unordered_map<eval_gate_id, EvalGateType>& getRemovedGates() const { return removedGates; }
+	const IdMap<eval_gate_id, EvalGateType>& getRemovedGates() const { return removedGates; }
 
 	const std::unordered_map<EvalConnection, unsigned int>& getAddedConnections() const { return addedConnections; }
 
@@ -97,10 +97,10 @@ public:
 	const EvalLayerState* getLastLayerState() const {
 		return lastLayerState;
 	}
-	std::unordered_map<eval_gate_id, eval_gate_id>& getGateIdRemapping() { return gateIdRemapping; }
-	const std::unordered_map<eval_gate_id, eval_gate_id>& getGateIdRemapping() const { return gateIdRemapping; }
-	std::unordered_multimap<eval_gate_id, eval_gate_id>& getGateIdReverseRemapping() { return gateIdReverseRemapping; }
-	const std::unordered_multimap<eval_gate_id, eval_gate_id>& getGateIdReverseRemapping() const { return gateIdReverseRemapping; }
+	IdMap<eval_gate_id, eval_gate_id>& getGateIdRemapping() { return gateIdRemapping; }
+	const IdMap<eval_gate_id, eval_gate_id>& getGateIdRemapping() const { return gateIdRemapping; }
+	IdMultiMap<eval_gate_id, eval_gate_id>& getGateIdReverseRemapping() { return gateIdReverseRemapping; }
+	const IdMultiMap<eval_gate_id, eval_gate_id>& getGateIdReverseRemapping() const { return gateIdReverseRemapping; }
 	std::unordered_map<EvalConnectionPoint, EvalConnectionPoint>& getConnectionPointRemapping() { return connectionPointRemapping; }
 	const std::unordered_map<EvalConnectionPoint, EvalConnectionPoint>& getConnectionPointRemapping() const { return connectionPointRemapping; }
 	std::unordered_multimap<EvalConnectionPoint, EvalConnectionPoint>& getConnectionPointReverseRemapping() { return connectionPointReverseRemapping; }
@@ -110,7 +110,7 @@ public:
 
 	void addGateIdRemappingsUpdated(eval_gate_id gateId) { gateIdRemappingsUpdated.insert(gateId); }
 	void addConnectionPointRemappingsUpdated(EvalConnectionPoint evalConnectionPoint) { connectionPointRemappingsUpdated.insert(evalConnectionPoint); }
-	const std::unordered_set<eval_gate_id>& getGateIdRemappingsUpdateds() const { return gateIdRemappingsUpdated; }
+	const IdSet<eval_gate_id>& getGateIdRemappingsUpdateds() const { return gateIdRemappingsUpdated; }
 	const std::unordered_set<EvalConnectionPoint>& getConnectionPointRemappingsUpdated() const { return connectionPointRemappingsUpdated; }
 
 	eval_gate_id getUnusedEvalGateId() { return evalGateIdProvider.getNewId(); }
@@ -126,22 +126,22 @@ private:
 	std::unique_ptr<EvalLayerState> nextLayerState;
 	const EvalLayerState* lastLayerState;
 
-	std::unordered_map<eval_gate_id, EvalGate> gates;
+	IdMap<eval_gate_id, EvalGate> gates;
 	std::unordered_map<EvalConnection, unsigned int> connectionWeights;
 
 	// all remappings will be eval_gate_id or EvalConnectionPoint
-	std::unordered_map<eval_gate_id, eval_gate_id> gateIdRemapping;
-	std::unordered_multimap<eval_gate_id, eval_gate_id> gateIdReverseRemapping;
+	IdMap<eval_gate_id, eval_gate_id> gateIdRemapping;
+	IdMultiMap<eval_gate_id, eval_gate_id> gateIdReverseRemapping;
 	std::unordered_map<EvalConnectionPoint, EvalConnectionPoint> connectionPointRemapping;
 	std::unordered_multimap<EvalConnectionPoint, EvalConnectionPoint> connectionPointReverseRemapping;
 	std::unordered_set<EvalConnectionPoint> connectionPointRemappingToNothing;
 
-	std::unordered_map<eval_gate_id, EvalGateType> addedGates;
-	std::unordered_map<eval_gate_id, EvalGateType> removedGates;
+	IdMap<eval_gate_id, EvalGateType> addedGates;
+	IdMap<eval_gate_id, EvalGateType> removedGates;
 	std::unordered_map<EvalConnection, unsigned int> addedConnections;
 	std::unordered_map<EvalConnection, unsigned int> removedConnections;
 
-	std::unordered_set<eval_gate_id> gateIdRemappingsUpdated;
+	IdSet<eval_gate_id> gateIdRemappingsUpdated;
 	std::unordered_set<EvalConnectionPoint> connectionPointRemappingsUpdated;
 };
 

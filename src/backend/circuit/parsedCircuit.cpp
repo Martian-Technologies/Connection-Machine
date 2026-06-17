@@ -36,11 +36,13 @@ void ParsedCircuit::addConnectionPort(
 
 void ParsedCircuit::addBlock(block_id_t blockId, FPosition position, Orientation orientation, BlockType type) {
 	blocks.try_emplace(blockId, position, orientation, type);
+	if (position.isInvalid()) ++unpositionedBlockCount;
 	valid = false;
 }
 
 void ParsedCircuit::addBlock(block_id_t blockId, BlockType type) {
 	blocks.emplace(blockId, type);
+	++unpositionedBlockCount;
 	valid = false;
 }
 

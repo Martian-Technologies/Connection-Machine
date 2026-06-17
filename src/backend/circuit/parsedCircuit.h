@@ -118,17 +118,17 @@ public:
 	void setTexturePath(const std::string& texturePath) { this->texturePath = texturePath; }
 	const std::string& getTexturePath() const { return texturePath; }
 
-	void setUsesTileMapTexture(bool usesTileMapTexture) { this->usesTileMapTexture = usesTileMapTexture; }
-	bool getUsesTileMapTexture() const { return usesTileMapTexture; }
+	void setUseFullTexture(bool useFullTexture) { this->useFullTexture = useFullTexture; }
+	bool getUseFullTexture() const { return useFullTexture; }
 
-	void setTextureTileSize(Vec2Int textureTileSize) { this->textureTileSize = textureTileSize; }
-	Vec2Int getTextureTileSize() const { return textureTileSize; }
+	void setRenderState(bool renderState) { this->renderState = renderState; }
+	bool getRenderSate() const { return renderState; }
 
-	void setTextureSmallestCordTile(Vec2Int textureSmallestCordTile) { this->textureSmallestCordTile = textureSmallestCordTile; }
-	Vec2Int getTextureSmallestCordTile() const { return textureSmallestCordTile; }
+	void setSmallestTextureCord(Vec2Int smallestTextureCord) { this->smallestTextureCord = smallestTextureCord; }
+	Vec2Int getSmallestTextureCord() const { return smallestTextureCord; }
 
-	void setTextureBlockTileSize(Vec2Int textureBlockTileSize) { this->textureBlockTileSize = textureBlockTileSize; }
-	Vec2Int getTextureBlockTileSize() const { return textureBlockTileSize; }
+	void setTextureSize(Vec2Int textureSize) { this->textureSize = textureSize; }
+	Vec2Int getTextureSize() const { return textureSize; }
 
 	Size getSize() const { return size; }
 	void setSize(Size size) { this->size = size; valid = false; }
@@ -145,10 +145,10 @@ private:
 	std::string uuid;
 	std::string name;
 	std::string texturePath = "";
-	bool usesTileMapTexture = false;
-	Vec2Int textureTileSize = {0, 0}; // mean that the whole texture is 1 tile.
-	Vec2Int textureSmallestCordTile = {0, 0};
-	Vec2Int textureBlockTileSize = {1, 1};
+	bool useFullTexture = true;
+	bool renderState = false;
+	Vec2Int smallestTextureCord = {0, 0};
+	Vec2Int textureSize = {1, 1};
 
 	// If this represents a custom block:
 	bool isCustomBlock;
@@ -156,6 +156,7 @@ private:
 
 	std::vector<ConnectionPort> ports; // connection id is the index in the vector
 
+	unsigned int unpositionedBlockCount = 0;
 	std::unordered_map<block_id_t, BlockData> blocks;
 	std::vector<ConnectionData> connections;
 

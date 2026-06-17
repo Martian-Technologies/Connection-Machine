@@ -1,6 +1,13 @@
 #include "parsedCircuit.h"
 
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
+
 void CircuitValidator::validate() {
+	#ifdef TRACY_PROFILER
+	ZoneScopedN("Parsed Circuit Validate");
+	#endif
 	bool isValid = true;
 
 	isValid = isValid && validateBlockData();
@@ -14,6 +21,9 @@ void CircuitValidator::validate() {
 }
 
 bool CircuitValidator::validateBlockData() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	Size size = parsedCircuit.getSize();
 	if (size.w == 0)
 		size.w = 1;
@@ -27,6 +37,9 @@ bool CircuitValidator::validateBlockData() {
 }
 
 bool CircuitValidator::validateBlockTypes() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	for (std::pair<const block_id_t, ParsedCircuit::BlockData>& p : parsedCircuit.blocks) {
 		if (p.second.type == BlockType::NONE) {
 			logWarning("Found a NONE type block, converting to buffer", "CircuitValidator");
@@ -38,6 +51,9 @@ bool CircuitValidator::validateBlockTypes() {
 }
 
 bool CircuitValidator::setBlockPositionsInt() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	for (auto& [id, block] : parsedCircuit.blocks) {
 		if (block.position.isInvalid()) continue;
 		if (!isIntegerPosition(block.position)) {
@@ -52,6 +68,9 @@ bool CircuitValidator::setBlockPositionsInt() {
 }
 
 bool CircuitValidator::handleInvalidConnections() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	// map to connection frequencies
 	std::unordered_map<ParsedCircuit::ConnectionData, int, ConnectionHash> connectionCounts;
 
@@ -64,34 +83,13 @@ bool CircuitValidator::handleInvalidConnections() {
 		if (outputBlockData && outputBlockData->type == BlockType::JUNCTION) conn.outputEndId = 0;
 	}
 
-	// ++connectionCounts[conn];
-
-	// int i = 0;
-	// while (i < (int)parsedCircuit.connections.size()) {
-	// 	ParsedCircuit::ConnectionData& conn = parsedCircuit.connections[i];
-
-	// 	ParsedCircuit::ConnectionData reversePair(conn.inputBlockId, conn.inputEndId, conn.outputBlockId, conn.outputEndId);
-
-	// 	if (--connectionCounts[reversePair] < 0) {
-	// 		parsedCircuit.connections.push_back(reversePair);
-	// 		// logInfo("Added reciprocated connection between: ({} {}) and ({} {})", "CircuitValidator", conn.inputBlockId, conn.inputEndId, conn.outputBlockId, conn.outputEndId);
-	// 		connectionCounts[reversePair] = 0;
-	// 	}
-	// 	++i;
-	// }
-
-	// // check all remaining connections were found
-	// for (const auto& [pair, count] : connectionCounts) {
-	// 	if (count != 0) {
-	// 		logWarning("Invalid connection handling, connection frequency: ({} {}) {}", "CircuitValidator", pair.outputBlockId, pair.inputBlockId, count);
-	// 		return false;
-	// 	}
-	// }
-
 	return true;
 }
 
 bool CircuitValidator::setOverlapsUnpositioned() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	for (auto& [id, block] : parsedCircuit.blocks) {
 		if (block.position.isInvalid()) {
 			continue;
@@ -117,14 +115,8 @@ bool CircuitValidator::setOverlapsUnpositioned() {
 		}
 
 		if (hasOverlap) {
-			// set the block position as undefined
-			// logInfo(
-			// 	"Found overlapped block position at {} --> {}, setting to undefined position",
-			// 	"CircuitValidator",
-			// 	block.position.toString(),
-			// 	intPos.toString()
-			// );
 			block.position.setInvalid();
+			++parsedCircuit.unpositionedBlockCount;
 		} else {
 			// mark all positions as occupied
 			occupiedPositions.insert(takenPositions.begin(), takenPositions.end());
@@ -165,6 +157,12 @@ void depthFirstSearch(const std::unordered_map<block_id_t, std::vector<block_id_
 
 // SCC META GRAPH TOPOLOGICAL SORT
 bool CircuitValidator::handleUnpositionedBlocks() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
+	if (parsedCircuit.unpositionedBlockCount == 0) {
+		return true;
+	}
 	// Separate components so that we can place down disconnected components independently
 	std::unordered_map<block_id_t, std::vector<block_id_t>> undirectedAdj;
 	undirectedAdj.reserve(parsedCircuit.blocks.size());

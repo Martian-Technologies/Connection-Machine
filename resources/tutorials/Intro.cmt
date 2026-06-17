@@ -1,0 +1,35 @@
+version_2
+Tutorial: "Intro to Connection Machine"
+$p0 (0, 0)
+$view View Center: (0, 0) 50
+Step:
+    Action:
+        Message: (-5, -2) 2 "Welcome to connection machine!"
+        Message: (-5, -1) 2 "Under the block tab, click the 'SWITCH' block, then place where it is highlighted."
+        Message: (0, 2) 1 "ABCabc123!@#"
+        Message: (0, 4) 2 "ABCabc123!@#"
+        Message: (0, 6) 3 "ABCabc123!@#"
+        Message: (0, 8) 4 "ABCabc123!@#"
+        Message: (0, 10) 5 "ABCabc123!@#"
+        Message: (0, 12) 6 "ABCabc123!@#"
+        Block Preview: SWITCH ($p0)
+    Condition:
+        Block: SWITCH ($p0) ZERO
+Step:
+    Action:
+        View Center: (0, 0) 5
+        Block Preview: SWITCH (10, 10)
+    Condition:
+        Block: SWITCH (10, 10) ZERO
+Step:
+    Action:
+        View Center: (0, 0) 10
+        Block Preview: SWITCH (11, 10)
+    Condition:
+        Block: SWITCH (11, 10) ZERO
+Step:
+    Action:
+        View Center: (0, 0) 15
+        Block Preview: SWITCH (12, 10)
+    Condition:
+        Block: SWITCH (12, 10) ZERO

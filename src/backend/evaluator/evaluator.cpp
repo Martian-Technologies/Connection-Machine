@@ -26,6 +26,9 @@ Evaluator::Evaluator(
 }
 
 void Evaluator::makeEdit(DifferenceSharedPtr difference) {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	startEdit();
 	for (const Difference::Modification& modification : difference->getModifications()) {
 		const auto& [modificationType, modificationData] = modification;
@@ -82,6 +85,9 @@ void Evaluator::startEdit() {
 }
 
 void Evaluator::endEdit() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	evaluatorInternal->endEdit();
 	for (EvalLogicSimulator* simulator : simulatorsUsingThisEvaluator) simulator->processEdits();
 	dataUpdateEventManager.sendEvent("evalUpdate");

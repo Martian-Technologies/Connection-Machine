@@ -45,7 +45,7 @@ circuit_id_t Circuit::getCircuitId(const Address& address) const {
 	circuit_id_t id = circuitManager.getCircuitBlockDataManager().getCircuitId(block->type());
 	for (unsigned int i = 1; i < address.size(); i++) {
 		if (id == 0) return 0;
-		const Circuit* circuit = circuitManager.getCircuit(id).get();
+		const Circuit* circuit = circuitManager.getCircuit(id);
 		block = circuit->getBlockContainer().getBlock(address.getPosition(i));
 		if (!block) return 0;
 		id = circuitManager.getCircuitBlockDataManager().getCircuitId(block->type());
@@ -247,38 +247,47 @@ bool Circuit::tryInsertParsedCircuit(const ParsedCircuit& parsedCircuit, Positio
 	DifferenceSharedPtr difference = std::make_shared<Difference>();
 
 	std::unordered_map<block_id_t, block_id_t> realIds;
-	for (const auto& [oldId, block] : parsedCircuit.getBlocks()) {
-		Position targetPos = block.position.snap();
-		block_id_t newId;
-		if (!blockContainer.tryInsertBlock(targetPos, block.orientation, block.type, difference.get())) {
-			logError("Failed to insert block while inserting block.", "Circuit");
-		} else {
-			realIds[oldId] = blockContainer.getBlock(targetPos)->id();
+	{
+		#ifdef TRACY_PROFILER
+		ZoneScopedN("Insert Blocks");
+		#endif
+		for (const auto& [oldId, block] : parsedCircuit.getBlocks()) {
+			Position targetPos = block.position.snap();
+			block_id_t newId;
+			if (!blockContainer.tryInsertBlock(targetPos, block.orientation, block.type, difference.get())) {
+				logError("Failed to insert block while inserting block.", "Circuit");
+			} else {
+				realIds[oldId] = blockContainer.getBlock(targetPos)->id();
+			}
 		}
 	}
-
-	for (const auto& conn : parsedCircuit.getConns()) {
-		const ParsedCircuit::BlockData* parsedBlock = parsedCircuit.getBlock(conn.outputBlockId);
-		if (!parsedBlock) {
-			logError("Could not get block {} from parsed circuit while inserting block.", "Circuit", conn.outputBlockId);
-			continue;
-		}
-		const BlockData* outputBlockData = blockContainer.getBlockDataManager().getBlockData(parsedBlock->type);
-		if (!outputBlockData) {
-			logError("Could not get block type {} from block data manager while inserting block.", "Circuit", parsedBlock->type);
-			continue;
-		}
-		if (outputBlockData->isConnectionInput(conn.outputEndId)) {
-			// skip inputs
-			continue;
-		}
-		ConnectionEnd output(realIds[conn.outputBlockId], conn.outputEndId);
-		ConnectionEnd input(realIds[conn.inputBlockId], conn.inputEndId);
-		if (blockContainer.connectionExists(output, input)) {
-			continue;
-		}
-		if (!blockContainer.tryCreateConnection(output, input, difference.get())) {
-			logError("Failed to create connection while inserting block (could be a duplicate connection in parsing):[{},{}] -> [{},{}]", "", conn.inputBlockId, conn.inputEndId, conn.outputBlockId, conn.outputEndId);
+	{
+		#ifdef TRACY_PROFILER
+		ZoneScopedN("Insert Connections");
+		#endif
+		for (const auto& conn : parsedCircuit.getConns()) {
+			const ParsedCircuit::BlockData* parsedBlock = parsedCircuit.getBlock(conn.outputBlockId);
+			if (!parsedBlock) {
+				logError("Could not get block {} from parsed circuit while inserting block.", "Circuit", conn.outputBlockId);
+				continue;
+			}
+			const BlockData* outputBlockData = blockContainer.getBlockDataManager().getBlockData(parsedBlock->type);
+			if (!outputBlockData) {
+				logError("Could not get block type {} from block data manager while inserting block.", "Circuit", parsedBlock->type);
+				continue;
+			}
+			if (outputBlockData->isConnectionInput(conn.outputEndId)) {
+				// skip inputs
+				continue;
+			}
+			ConnectionEnd output(realIds[conn.outputBlockId], conn.outputEndId);
+			ConnectionEnd input(realIds[conn.inputBlockId], conn.inputEndId);
+			if (blockContainer.connectionExists(output, input)) {
+				continue;
+			}
+			if (!blockContainer.tryCreateConnection(output, input, difference.get())) {
+				logError("Failed to create connection while inserting block (could be a duplicate connection in parsing):[{},{}] -> [{},{}]", "", conn.inputBlockId, conn.inputEndId, conn.outputBlockId, conn.outputEndId);
+			}
 		}
 	}
 	sendDifference(std::move(difference));
@@ -639,7 +648,7 @@ void Circuit::popOffStack(Position position, Orientation transformAmount, bool r
 
 void Circuit::setBlockType(BlockType blockType) {
 	blockContainer.setBlockType(blockType);
-	blockContainer.getBlockDataManager().getBlockData(blockType)->setName(getCircuitNameNumber());
+	blockContainer.getBlockDataManager().getBlockData(blockType)->setName(getCircuitName());
 }
 
 void Circuit::addConnectionPort(const DataUpdateEventManager::EventData* event) {
@@ -679,7 +688,7 @@ void Circuit::setCircuitName(const std::string& name) {
 	circuitName = name;
 	if (blockContainer.getBlockType() == BlockType::NONE) return;
 	BlockData* blockData = blockContainer.getBlockDataManager().getBlockData(blockContainer.getBlockType());
-	if (blockData) blockData->setName(getCircuitNameNumber());
+	if (blockData) blockData->setName(getCircuitName());
 }
 
 nlohmann::json Circuit::dumpState() const /* GCOVR_EXCL_FUNCTION */ {

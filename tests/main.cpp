@@ -97,8 +97,6 @@ private:
 };
 } // namespace
 
-std::thread::id mainThreadId = std::this_thread::get_id();
-
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
 	::testing::TestEventListeners& listeners =

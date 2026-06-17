@@ -1,69 +1,66 @@
 #ifndef vulkanDevice_h
 #define vulkanDevice_h
 
-#include <volk.h>
+#include "gpu/vulkanCommon.h"
 #include <VkBootstrap.h>
-#include <vk_mem_alloc.h>
 
-#include "gpu/renderer/rml/rmlResourceManager.h"
 #include "gpu/renderer/viewport/blockTextureManager.h"
 
 class BlockTextureManager;
 
 struct QueueInfo {
-	VkQueue queue;
+	vk::Queue queue;
 	uint32_t index;
 };
 
 class VulkanDevice {
 public:
-	VulkanDevice(VkSurfaceKHR surfaceForPresenting);
+	VulkanDevice(vk::SurfaceKHR surfaceForPresenting);
 	~VulkanDevice();
 
 	// queue submission functions
 	void waitIdle();
-	VkResult submitGraphicsQueue(VkSubmitInfo* submitInfo, VkFence fence);
-	VkResult submitPresent(VkPresentInfoKHR* presentInfo);
-	void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+	void waitIdleNoMux();
+	vk::Result submitGraphicsQueue(const vk::SubmitInfo& submitInfo, vk::Fence fence);
+	vk::Result submitPresent(const vk::PresentInfoKHR& presentInfo);
+	void immediateSubmit(std::function<void(vk::CommandBuffer cmd)>&& function);
 
+	inline std::mutex& getGraphicsQueueLock() { return queueMux; }
+	inline const QueueInfo& getGraphicsQueue() const { return graphicsQueue; }
 	inline uint32_t getGraphicsQueueIndex() const { return graphicsQueue.index; }
 	inline uint32_t getPresentQueueIndex() const { return presentQueue.index; }
 
-	inline vkb::Device& getDevice() { return device; }
-	inline const vkb::Device& getDevice() const { return device; }
-	inline VmaAllocator getAllocator() { return vmaAllocator; }
-	inline const VmaAllocator getAllocator() const { return vmaAllocator; }
+	inline vkb::Device& getVkbDevice() { return vkbDevice; }
+	inline const vkb::Device& getVkbDevice() const { return vkbDevice; }
+	inline vk::Device getDevice() const { return vk::Device(vkbDevice.device); }
+	inline vk::PhysicalDevice getPhysicalDevice() const { return physicalDevice; }
+	inline vma::Allocator getAllocator() { return vmaAllocator.get(); }
+	inline vma::Allocator getAllocator() const { return vmaAllocator.get(); }
 
 	inline BlockTextureManager& getBlockTextureManager() { return blockTextureManager; }
-	inline RmlResourceManager& getRmlResourceManager() { return rmlResourceManager; }
 
-	VkSampleCountFlagBits getMaxUsableSampleCount() const { return msaaSamples; }
+	vk::SampleCountFlagBits getMaxUsableSampleCount() const { return msaaSamples; }
 
 private:
 	void createAllocator();
 	void initializeImmediateSubmission();
 
 private:
-	// Device details
-	VkPhysicalDevice physicalDevice;
-	vkb::Device device;
-	VmaAllocator vmaAllocator;
+	vk::PhysicalDevice physicalDevice;
+	vkb::Device vkbDevice;
+	vma::UniqueAllocator vmaAllocator;
 
-	// Queues
 	QueueInfo graphicsQueue;
 	QueueInfo presentQueue;
 	std::mutex queueMux;
 
-	// Immediate submission system
-	VkFence immediateFence;
-    VkCommandBuffer immediateCommandBuffer;
-    VkCommandPool immediateCommandPool;
+	vk::UniqueFence immediateFence;
+	vk::UniqueCommandPool immediateCommandPool;
+	vk::CommandBuffer immediateCommandBuffer;
 	std::mutex immediateSubmitMux;
 
-	// Texture
-	RmlResourceManager rmlResourceManager;
 	BlockTextureManager blockTextureManager;
-	VkSampleCountFlagBits msaaSamples;
+	vk::SampleCountFlagBits msaaSamples;
 };
 
-#endif
+#endif /* vulkanDevice_h */

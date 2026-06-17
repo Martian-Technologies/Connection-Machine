@@ -2,16 +2,18 @@
 
 #include "evalLayerState.h"
 #include "subcircuitEvalLayer.h"
-// #include "junctionAddEvalLayer.h"
 #include "junctionMergeEvalLayer.h"
 #include "switchReplacerEvalLayer.h"
 #include "busReplacerEvalLayer.h"
+
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
 
 LayerRunner::LayerRunner(IdProvider<eval_gate_id>& evalGateIdProvider, Evaluator& evaluator, const CircuitManager& circuitManager) {
 	evalTopLayerState = std::make_unique<EvalLayerState>(evalGateIdProvider);
 	layers.emplace_back(std::make_unique<SubcircuitEvalLayer>(*evalTopLayerState, evaluator, circuitManager));
 	layers.emplace_back(std::make_unique<SwitchReplacerEvalLayer>(layers.back()->getNextState(), circuitManager));
-	// layers.emplace_back(std::make_unique<JunctionAddEvalLayer>(layers.back()->getNextState(), circuitManager));
 	layers.emplace_back(std::make_unique<JunctionMergeEvalLayer>(layers.back()->getNextState(), circuitManager));
 	busLayerIndex = layers.size();
 	layers.emplace_back(std::make_unique<BusReplacerEvalLayer>(layers.back()->getNextState(), circuitManager));
@@ -22,6 +24,9 @@ LayerRunner::LayerRunner(IdProvider<eval_gate_id>& evalGateIdProvider, Evaluator
 LayerRunner::~LayerRunner() = default;
 
 void LayerRunner::runAll() {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	// logInfo("------------------------------------------------");
 	// evalTopLayerState->visualize();
 	// unsigned int index = 0;
@@ -154,6 +159,7 @@ VecVecEvalConnectionPoint LayerRunner::getReversedMappedConnectionPointGroupsWit
 
 std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> LayerRunner::getMappedEvalConnectionPoint(EvalConnectionPoint evalConnectionPoint) const {
 	for (unsigned int i = 0; i < busLayerIndex; i++) {
+		if (evalConnectionPoint.isNull()) return EvalConnectionPoint::null();
 		evalConnectionPoint = layers[i]->getMappedEvalConnectionPoint(evalConnectionPoint);
 	}
 	const BusReplacerEvalLayer* busReplacerEvalLayer = dynamic_cast<const BusReplacerEvalLayer*>(layers[busLayerIndex].get());
@@ -164,13 +170,16 @@ std::variant<EvalConnectionPoint, std::vector<EvalConnectionPoint>> LayerRunner:
 	}
 	std::vector<EvalConnectionPoint> evalConnectionPointsMapped;
 	for (EvalConnectionPoint connectionPoint : std::get<std::vector<EvalConnectionPoint>>(std::move(evalConnectionPoints))) {
-		evalConnectionPointsMapped.push_back(layers.back()->getMappedEvalConnectionPoint(connectionPoint));
+		EvalConnectionPoint mappedPoint = layers.back()->getMappedEvalConnectionPoint(connectionPoint);
+		if (mappedPoint.isNull()) continue;
+		evalConnectionPointsMapped.push_back(mappedPoint);
 	}
 	return evalConnectionPointsMapped;
 }
 
 EvalConnectionPoint LayerRunner::getMappedEvalConnectionPointForOtherEvals(EvalConnectionPoint evalConnectionPoint) const {
 	for (unsigned int i = 0; i < busLayerIndex; i++) {
+		if (evalConnectionPoint.isNull()) return EvalConnectionPoint::null();
 		evalConnectionPoint = layers[i]->getMappedEvalConnectionPoint(evalConnectionPoint);
 	}
 	return evalConnectionPoint;

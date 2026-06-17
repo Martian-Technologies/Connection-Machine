@@ -5,7 +5,7 @@ void EvalLayerState::addGate(eval_gate_id gateId, EvalGateType type) { // TODO: 
 	assert(suc);
 	auto removedGatesIter = removedGates.find(gateId);
 	if (removedGatesIter == removedGates.end() || removedGatesIter->second != type) {
-		addedGates.emplace(gateId, type);
+		addedGates.try_emplace(gateId, type);
 	} else {
 		removedGates.erase(removedGatesIter);
 	}
@@ -36,14 +36,14 @@ void EvalLayerState::removeGate(eval_gate_id gateId) { // TODO: add transparent 
 				addedConnections.erase(addedConnectionIter);
 			} else {
 				assert(addedConnectionIter->second < weight);
-				removedConnections.emplace(connection, weight - addedConnectionIter->second);
+				removedConnections.try_emplace(connection, weight - addedConnectionIter->second);
 				addedConnections.erase(addedConnectionIter);
 			}
 		}
 	}
 	auto addedGatessIter = addedGates.find(gateId);
 	if (addedGatessIter == addedGates.end()) {
-		removedGates.emplace(gateId, iter->second.type);
+		removedGates.try_emplace(gateId, iter->second.type);
 	} else {
 		assert(addedGatessIter->second == iter->second.type);
 		addedGates.erase(addedGatessIter);
@@ -57,19 +57,19 @@ void EvalLayerState::addConnection(const EvalConnection& evalConnection, unsigne
 	assert(gateAIterBoolPair != gates.end());
 	auto connectionsIter = gateAIterBoolPair->second.connections.find(evalConnection.connectionPointA.connectionEndId);
 	if (connectionsIter == gateAIterBoolPair->second.connections.end()) { // connection id does not have connections
-		gateAIterBoolPair->second.connections.emplace(
+		gateAIterBoolPair->second.connections.try_emplace(
 			evalConnection.connectionPointA.connectionEndId,
 			std::unordered_set<EvalConnectionPoint>({evalConnection.connectionPointB})
 		);
-		if (weight != 1) connectionWeights.emplace(evalConnection, weight);
+		if (weight != 1) connectionWeights.try_emplace(evalConnection, weight);
 	} else { // connection id has connections
 		auto connectionIter = connectionsIter->second.find(evalConnection.connectionPointB);
 		if (connectionIter == connectionsIter->second.end()) {
 			connectionsIter->second.insert(evalConnection.connectionPointB);
-			if (weight != 1) connectionWeights.emplace(evalConnection, weight);
+			if (weight != 1) connectionWeights.try_emplace(evalConnection, weight);
 		} else {
 			auto connectionWeightIter = connectionWeights.find(evalConnection);
-			if (connectionWeightIter == connectionWeights.end()) { connectionWeights.emplace(evalConnection, weight + 1); }
+			if (connectionWeightIter == connectionWeights.end()) { connectionWeights.try_emplace(evalConnection, weight + 1); }
 			else connectionWeightIter->second += weight;
 		}
 	}
@@ -84,7 +84,7 @@ void EvalLayerState::addConnection(const EvalConnection& evalConnection, unsigne
 		if (removedConnectionIter == removedConnections.end()) {
 			addedConnections[evalConnection] += weight;
 		} else if (removedConnectionIter->second < weight) {
-			addedConnections.emplace(evalConnection, weight - removedConnectionIter->second);
+			addedConnections.try_emplace(evalConnection, weight - removedConnectionIter->second);
 			removedConnections.erase(removedConnectionIter);
 		} else if (removedConnectionIter->second == weight) {
 			removedConnections.erase(removedConnectionIter);
@@ -136,7 +136,7 @@ void EvalLayerState::removeConnection(const EvalConnection& connection, unsigned
 	} else if (addedConnectionIter->second == weight) {
 		addedConnections.erase(addedConnectionIter);
 	} else if (addedConnectionIter->second < weight) {
-		removedConnections.emplace(connection, weight - addedConnectionIter->second);
+		removedConnections.try_emplace(connection, weight - addedConnectionIter->second);
 		addedConnections.erase(addedConnectionIter);
 	} else {
 		addedConnectionIter->second -= weight;
@@ -150,41 +150,41 @@ void EvalLayerState::changeGateType(eval_gate_id gateId, EvalGateType newType) {
 	gatesIter->second.type = newType;
 	auto addedGatesPair = addedGates.insert_or_assign(gateId, newType);
 	if (!addedGatesPair.second) return;
-	removedGates.emplace(gateId, oldType);
-	for (const std::pair<connection_end_id_t, std::unordered_set<EvalConnectionPoint>>& connectionsPair : gatesIter->second.connections) {
+	removedGates.try_emplace(gateId, oldType);
+	for (const auto& connectionsPair : gatesIter->second.connections) {
 		for (const EvalConnectionPoint& otherConnectionPoint : connectionsPair.second) {
 			EvalConnection evalConnection(EvalConnectionPoint(gateId, connectionsPair.first), otherConnectionPoint);
 			auto weightIter = connectionWeights.find(evalConnection);
 			if (weightIter == connectionWeights.end()) {
 				auto addedConnectionIter = addedConnections.find(evalConnection);
 				if (addedConnectionIter != addedConnections.end()) {
-					removedConnections.emplace(evalConnection, 1);
+					removedConnections.try_emplace(evalConnection, 1);
 					addedConnectionIter->second += 1;
 					continue;
 				}
 				auto removedConnectionIter = removedConnections.find(evalConnection);
 				if (removedConnectionIter != removedConnections.end()) {
 					removedConnectionIter->second += 1;
-					addedConnections.emplace(evalConnection, 1);
+					addedConnections.try_emplace(evalConnection, 1);
 					continue;
 				}
-				removedConnections.emplace(evalConnection, 1);
-				addedConnections.emplace(evalConnection, 1);
+				removedConnections.try_emplace(evalConnection, 1);
+				addedConnections.try_emplace(evalConnection, 1);
 			} else {
 				auto addedConnectionIter = addedConnections.find(evalConnection);
 				if (addedConnectionIter != addedConnections.end()) {
-					removedConnections.emplace(evalConnection, weightIter->second);
+					removedConnections.try_emplace(evalConnection, weightIter->second);
 					addedConnectionIter->second += weightIter->second;
 					continue;
 				}
 				auto removedConnectionIter = removedConnections.find(evalConnection);
 				if (removedConnectionIter != removedConnections.end()) {
 					removedConnectionIter->second += weightIter->second;
-					addedConnections.emplace(evalConnection, weightIter->second);
+					addedConnections.try_emplace(evalConnection, weightIter->second);
 					continue;
 				}
-				removedConnections.emplace(evalConnection, weightIter->second);
-				addedConnections.emplace(evalConnection, weightIter->second);
+				removedConnections.try_emplace(evalConnection, weightIter->second);
+				addedConnections.try_emplace(evalConnection, weightIter->second);
 			}
 		}
 	}
@@ -236,13 +236,19 @@ void EvalLayerState::visualize() const {
 		logInfo("({}, {}) -> ({}, {})", "", pair.first.gateId, pair.first.connectionEndId, pair.second.gateId, pair.second.connectionEndId);
 	}
 	tmpBuf.clear();
-	for (std::pair<eval_gate_id, EvalGateType> pair : addedGates) {
+	for (auto pair : connectionPointRemappingToNothing) {
+		if (tmpBuf.size() != 0) tmpBuf += ", ";
+		tmpBuf += "[" + fmt::to_string(pair.gateId) + " " + fmt::to_string(pair.connectionEndId) + "]";
+	}
+	logInfo("{} Remapping to Nothing: {}", "", connectionPointRemappingToNothing.size(), tmpBuf);
+	tmpBuf.clear();
+	for (auto pair : addedGates) {
 		if (tmpBuf.size() != 0) tmpBuf += ", ";
 		tmpBuf += "[" + fmt::to_string(pair.first) + " " + fmt::to_string((unsigned int)pair.second) + "]";
 	}
 	logInfo("{} addedGates: {}", "", addedGates.size(), tmpBuf);
 	tmpBuf.clear();
-	for (std::pair<eval_gate_id, EvalGateType> pair : removedGates) {
+	for (auto pair : removedGates) {
 		if (tmpBuf.size() != 0) tmpBuf += ", ";
 		tmpBuf += "[" + fmt::to_string(pair.first) + " " + fmt::to_string((unsigned int)pair.second) + "]";
 	}

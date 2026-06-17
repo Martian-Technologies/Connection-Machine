@@ -6,9 +6,9 @@
 TEST_F(GetNonExistingObjects, BlockContainer) {
 	Environment environment(false);
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
-	SharedCircuit circuit = environment.getBackend().getCircuit(circuitId);
+	Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	ASSERT_TRUE(circuit);
-	const BlockContainer blockContainer = circuit->getBlockContainer();
+	const BlockContainer& blockContainer = circuit->getBlockContainer();
 	ASSERT_EQ(blockContainer.getBlock(Position(1, 2)), nullptr);
 	ASSERT_EQ(blockContainer.getBlock(29), nullptr);
 	ASSERT_EQ(blockContainer.getBitwidthOfJunction(Position(-129, 291)), 0);
@@ -29,7 +29,7 @@ TEST_F(GetNonExistingObjects, BlockContainer) {
 TEST_F(GetNonExistingObjects, Circuit) {
 	Environment environment(false);
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
-	SharedCircuit circuit = environment.getBackend().getCircuit(circuitId);
+	Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	ASSERT_NE(circuit, nullptr);
 	// ASSERT_EQ(circuit->getBlockType(), BlockType::NONE);
 	ASSERT_FALSE(circuit->tryRemoveBlock(Position(9, -5)));
@@ -47,7 +47,7 @@ TEST_F(GetNonExistingObjects, Circuit) {
 TEST_F(GetNonExistingObjects, Evaluator) {
 	Environment environment(false);
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
-	SharedCircuit circuit = environment.getBackend().getCircuit(circuitId);
+	Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	ASSERT_NE(circuit, nullptr);
 	std::optional<simulator_id_t> simulatorId = environment.getBackend().createSimulator(circuitId);
 	ASSERT_NE(simulatorId, std::nullopt);
@@ -67,8 +67,8 @@ TEST_F(GetNonExistingObjects, Backend) {
 	Environment environment(false);
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
 	std::optional<simulator_id_t> simulatorId = environment.getBackend().createSimulator(circuitId);
-	ASSERT_EQ(environment.getBackend().getCircuit(0), nullptr);
-	ASSERT_EQ(environment.getBackend().getCircuit(194 + (circuitId == 194)), nullptr);
+	ASSERT_EQ(environment.getBackend().getCircuitManager().getCircuit(0), nullptr);
+	ASSERT_EQ(environment.getBackend().getCircuitManager().getCircuit(194 + (circuitId == 194)), nullptr);
 	ASSERT_EQ(environment.getBackend().getSimulator(0), nullptr);
 	ASSERT_EQ(environment.getBackend().getSimulator(412 + (simulatorId.value_or(0) == 412)), nullptr);
 }

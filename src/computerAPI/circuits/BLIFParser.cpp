@@ -2,7 +2,14 @@
 
 #include "util/algorithm.h"
 
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
+
 std::vector<circuit_id_t> BLIFParser::load(const std::string& path) {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	// Check for cyclic import
 	if (importedFiles.find(path) != importedFiles.end()) {
 		logError("Cyclic import detected: " + path, "BLIFParser");

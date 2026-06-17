@@ -15,7 +15,6 @@ TEST_F(PositionTest, VectorFunctions) {
 	ASSERT_TRUE(a.manhattenLength() == 10);
 	ASSERT_TRUE(approx_equals(a.lengthSquared(), 50.f));
 	ASSERT_TRUE(approx_equals(a.length(), sqrt(50)));
-
 }
 
 TEST_F(PositionTest, VectorComparisons) {
@@ -269,7 +268,7 @@ TEST_F(PositionTest, vectorIter) {
 			ASSERT_EQ(--iter, curIter);
 			area++;
 		}
-		ASSERT_EQ(area, (v.dx+1)*(v.dy+1));
+		ASSERT_EQ(area, (v.dx + 1) * (v.dy + 1));
 	}
 }
 
@@ -290,7 +289,7 @@ TEST_F(PositionTest, sizeIter) {
 			ASSERT_EQ(--iter, curIter);
 			area++;
 		}
-		ASSERT_EQ(area, s.w*s.h);
+		ASSERT_EQ(area, s.w * s.h);
 		ASSERT_EQ(area, s.area());
 	}
 }
@@ -315,6 +314,92 @@ TEST_F(PositionTest, positionIter) {
 			ASSERT_EQ(--iter, curIter);
 			area++;
 		}
-		ASSERT_EQ(area, (abs(p1.x - p2.x)+1) * (abs(p1.y - p2.y)+1));
+		ASSERT_EQ(area, (abs(p1.x - p2.x) + 1) * (abs(p1.y - p2.y) + 1));
 	}
+}
+
+TEST_F(PositionTest, VectorHash) {
+	std::unordered_map<Vector, int> map;
+	map[Vector(1, 2)] = 10;
+	map[Vector(3, 4)] = 20;
+	EXPECT_EQ(map[Vector(1, 2)], 10);
+	EXPECT_EQ(map[Vector(3, 4)], 20);
+	EXPECT_EQ(map.count(Vector(5, 6)), 0u);
+}
+
+TEST_F(PositionTest, PositionPairHash) {
+	std::unordered_map<std::pair<Position, Position>, int> map;
+	auto key = std::make_pair(Position(1, 2), Position(3, 4));
+	map[key] = 42;
+	EXPECT_EQ(map[key], 42);
+	EXPECT_EQ(map.count(std::make_pair(Position(0, 0), Position(1, 1))), 0u);
+}
+
+TEST_F(PositionTest, FVectorSingleArgConstructor) {
+	FVector v(3.5f);
+	EXPECT_FLOAT_EQ(v.dx, 3.5f);
+	EXPECT_FLOAT_EQ(v.dy, 3.5f);
+}
+
+TEST_F(PositionTest, FVectorDotProduct) {
+	FVector a(2.0f, 3.0f);
+	FVector b(4.0f, 5.0f);
+	EXPECT_FLOAT_EQ(a * b, 23.0f);
+}
+
+TEST_F(PositionTest, FVectorLengthAlongProject) {
+	FVector a(3.0f, 0.0f);
+	FVector axis(1.0f, 0.0f);
+	EXPECT_FLOAT_EQ(a.lengthAlongProjectToVec(axis), 3.0f);
+}
+
+TEST_F(PositionTest, VectorWidthInSize) {
+	Size s(5, 5);
+	EXPECT_TRUE(Vector(2, 2).widthInSize(s));
+	EXPECT_FALSE(Vector(5, 2).widthInSize(s));
+	EXPECT_FALSE(Vector(-1, 2).widthInSize(s));
+	EXPECT_FALSE(Vector(2, 5).widthInSize(s));
+	EXPECT_FALSE(Vector(2, -1).widthInSize(s));
+}
+
+TEST_F(PositionTest, FreeConversions) {
+	Vector v(3, 7);
+	FVector fv = v.free();
+	EXPECT_FLOAT_EQ(fv.dx, 3.0f);
+	EXPECT_FLOAT_EQ(fv.dy, 7.0f);
+
+	Size s(4, 6);
+	FSize fs = s.free();
+	EXPECT_FLOAT_EQ(fs.w, 4.0f);
+	EXPECT_FLOAT_EQ(fs.h, 6.0f);
+
+	Position p(5, 9);
+	FPosition fp = p.free();
+	EXPECT_FLOAT_EQ(fp.x, 5.0f);
+	EXPECT_FLOAT_EQ(fp.y, 9.0f);
+}
+
+TEST_F(PositionTest, FSizeTwoArgConstructor) {
+	FSize fs(3.0f, 7.0f);
+	EXPECT_FLOAT_EQ(fs.w, 3.0f);
+	EXPECT_FLOAT_EQ(fs.h, 7.0f);
+}
+
+TEST_F(PositionTest, FSizeIsValid) {
+	EXPECT_TRUE(FSize(0.0f, 5.0f).isValid());
+	EXPECT_FALSE(FSize(3.0f, 5.0f).isValid());
+	EXPECT_TRUE(FSize(0.0f, 0.0f).isValid());
+}
+
+TEST_F(PositionTest, FPositionLengthAlongProject) {
+	FPosition p(3.0f, 0.0f);
+	FVector axis(1.0f, 0.0f);
+	EXPECT_FLOAT_EQ(p.lengthAlongProjectToVec(FPosition(0.0f, 0.0f), axis), 3.0f);
+}
+
+TEST_F(PositionTest, VectorIteratorZeroVector) {
+	Vector::Iterator it = Vector(0, 0).iter();
+	unsigned long long count = 0;
+	for (; it; it++) count++;
+	EXPECT_EQ(count, 1);
 }

@@ -42,7 +42,18 @@ std::string ProceduralCircuitParameters::toString() const {
 	std::string str = "(";
 	for (const auto& iter : parameters) {
 		if (str.size() != 1) str += ", ";
-		str += '"' + iter.first + "\": " + std::to_string(iter.second);
+		for (const auto& iter : parameters) {
+		if (holds_alternative<unsigned int>(iter.second)) {
+			str += '"' + iter.first + ": unsigned int \"" + std::to_string(std::get<unsigned int>(iter.second)) + "\"";
+		} else if (holds_alternative<int>(iter.second)) {
+			str += '"' + iter.first + ": int \"" + std::to_string(std::get<int>(iter.second)) + "\"";
+		} else if (holds_alternative<float>(iter.second)) {
+			str += '"' + iter.first + ": float \"" + std::to_string(std::get<float>(iter.second)) + "\"";
+		} else {
+			str += '"' + iter.first + ": string \"" + std::get<std::string>(iter.second) + "\"";
+		}
+	}
+
 	}
 	return str + ")";
 }
@@ -64,7 +75,7 @@ void ProceduralCircuit::setProceduralCircuitName(const std::string& name) {
 	if (this->proceduralCircuitName == name) return;
 	this->proceduralCircuitName = name;
 	for (const auto& iter : generatedCircuits) {
-		SharedCircuit circuit = circuitManager.getCircuit(iter.second);
+		Circuit* circuit = circuitManager.getCircuit(iter.second);
 		if (circuit) circuit->setCircuitName(name + iter.first.toString());
 	}
 	dataUpdateEventManager.sendEvent<std::string>("proceduralCircuitPathUpdate", getUUID());
@@ -98,8 +109,8 @@ circuit_id_t ProceduralCircuit::getCircuitId(const ProceduralCircuitParameters& 
 	GeneratedCircuit generatedCircuit;
 	this->makeCircuit(realParameters, generatedCircuit);
 	generatedCircuit.markAsCustom();
+	generatedCircuit.setName(getProceduralCircuitName() + " : " + realParameters.toString());
 	GeneratedCircuitValidator validator(generatedCircuit, circuitManager.getBlockDataManager());
-
 	if (!(generatedCircuit.isValid())) return 0;
 
 	// Create the circuit if it has not been generated
@@ -114,7 +125,7 @@ circuit_id_t ProceduralCircuit::getCircuitId(const ProceduralCircuitParameters& 
 	if (type == BlockType::NONE) return 0;
 
 	// Get useful objects
-	SharedCircuit circuit = circuitManager.getCircuit(id);
+	Circuit* circuit = circuitManager.getCircuit(id);
 	BlockData* blockData = circuitManager.getBlockDataManager().getBlockData(type);
 
 	// Settings
@@ -128,7 +139,7 @@ circuit_id_t ProceduralCircuit::getCircuitId(const ProceduralCircuitParameters& 
 
 BlockType ProceduralCircuit::getBlockType(const ProceduralCircuitParameters& parameters) {
 	circuit_id_t circuitId = getCircuitId(parameters);
-	SharedCircuit circuit = circuitManager.getCircuit(circuitId);
+	Circuit* circuit = circuitManager.getCircuit(circuitId);
 	return circuit ? circuit->getBlockType() : BlockType::NONE;
 }
 
@@ -147,13 +158,24 @@ void ProceduralCircuit::regenerateAll() {
 		GeneratedCircuitValidator validator(generatedCircuit, circuitManager.getBlockDataManager());
 		circuitManager.updateExistingCircuit(pair.second, &generatedCircuit);
 		circuitIdToProceduralCircuitParameters[pair.second] = realParameters;
-		SharedCircuit circuit = circuitManager.getCircuit(pair.second);
+		Circuit* circuit = circuitManager.getCircuit(pair.second);
 		circuit->setCircuitName(getProceduralCircuitName() + " (" + realParameters.toString() + ")");
 	}
 }
 
 nlohmann::json ProceduralCircuitParameters::dumpState() const /* GCOVR_EXCL_FUNCTION */ {
-	nlohmann::json stateJson = parameters;
+	nlohmann::json stateJson;
+	for (const auto& iter : parameters) {
+		if (holds_alternative<unsigned int>(iter.second)) {
+			stateJson[iter.first] = std::get<unsigned int>(iter.second);
+		} else if (holds_alternative<int>(iter.second)) {
+			stateJson[iter.first] = std::get<int>(iter.second);
+		} else if (holds_alternative<float>(iter.second)) {
+			stateJson[iter.first] = std::get<float>(iter.second);
+		} else {
+			stateJson[iter.first] = std::get<std::string>(iter.second);
+		}
+	}
 	return stateJson;
 }
 

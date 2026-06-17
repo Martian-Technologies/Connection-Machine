@@ -2,11 +2,7 @@
 
 BlockTextureGenerator::BlockTextureGenerator(std::shared_ptr<Font> font) : font(std::move(font)) {}
 
-void BlockTextureGenerator::createCustomBlockTexture(const BlockData* blockData, CpuImage& img, int scale) const {
-	if (!blockData) {
-		return;
-	}
-
+void BlockTextureGenerator::createCustomBlockTexture(const BlockData& blockData, CpuImage& img, int scale) const {
 	img.addRect(
 		{ 5 * scale / 256, 5 * scale / 256 },
 		img.getSize() - Vec2Int(10 * scale / 256, 10 * scale / 256),
@@ -36,16 +32,12 @@ void BlockTextureGenerator::createCustomBlockTexture(const BlockData* blockData,
 	drawConnectionLabels(blockData, img, scale, reservedAreas);
 }
 
-void BlockTextureGenerator::createBusBlockTexture(const BlockData* blockData, CpuImage& img, int scale) const {
-	if (!blockData) {
-		return;
-	}
-
+void BlockTextureGenerator::createBusBlockTexture(const BlockData& blockData, CpuImage& img, int scale) const {
 	img.fill({ 0, 0, 0, 0 });
 	int minY = 0;
 	int maxY = 0;
 	bool first = true;
-	for (const std::pair<const connection_end_id_t, BlockData::ConnectionData>& connection : blockData->getConnections()) {
+	for (const std::pair<const connection_end_id_t, BlockData::ConnectionData>& connection : blockData.getConnections()) {
 		Vec2Int portTexturePos = getPortTexturePosition(connection.second, scale);
 		int laneCount = connection.second.getBitWidth();
 		int lineSize = std::max(5, std::min(5 * laneCount, 5 * 8)) * scale / 256;
@@ -80,18 +72,16 @@ void BlockTextureGenerator::createBusBlockTexture(const BlockData* blockData, Cp
 }
 
 // Renders the block's display name inside the provided rectangle, rotating if the block is tall
-void BlockTextureGenerator::drawBlockName(const BlockData* blockData, CpuImage& img, int scale, const Rect& labelArea, std::vector<Rect>& reservedAreas) const {
-	if (!blockData || !font || labelArea.empty()) {
-		return;
-	}
+void BlockTextureGenerator::drawBlockName(const BlockData& blockData, CpuImage& img, int scale, const Rect& labelArea, std::vector<Rect>& reservedAreas) const {
+	if (!font || labelArea.empty()) return;
 
 	const CpuImage::Pixel textColor{ 255, 255, 255, 255 };
-	const bool rotate = blockData->getSize().w < blockData->getSize().h;
+	const bool rotate = blockData.getSize().w < blockData.getSize().h;
 	const Rotation rotation = rotate ? Rotation::NINETY : Rotation::ZERO;
 
 	auto [textPosition, textSize] = img.writeStringInArea(
 		font,
-		blockData->getName(),
+		blockData.getName(),
 		labelArea.pos,
 		labelArea.size,
 		textColor,
@@ -118,15 +108,11 @@ void BlockTextureGenerator::drawBlockName(const BlockData* blockData, CpuImage& 
 
 // for each connection port, draws a circle to represent the port and attempts to place a label nearby
 void BlockTextureGenerator::drawConnectionLabels(
-	const BlockData* blockData,
+	const BlockData& blockData,
 	CpuImage& img,
 	int scale,
 	std::vector<Rect>& reservedAreas
 ) const {
-	if (!blockData) {
-		return;
-	}
-
 	const Vec2Int imageSize = img.getSize();
 	const LabelLayoutConfig config = buildLabelLayoutConfig(scale);
 
@@ -134,7 +120,7 @@ void BlockTextureGenerator::drawConnectionLabels(
 	const std::vector<Rect> staticObstacles = reservedAreas;
 	std::vector<Rect> occupiedAreas = reservedAreas;
 
-	for (const std::pair<const connection_end_id_t, BlockData::ConnectionData>& connection : blockData->getConnections()) {
+	for (const std::pair<const connection_end_id_t, BlockData::ConnectionData>& connection : blockData.getConnections()) {
 		Vec2Int portTexturePos = getPortTexturePosition(connection.second, scale);
 		int laneCount = connection.second.getBitWidth();
 		int circleRadius = drawConnectionNodeCircle(img, portTexturePos, laneCount, scale);
@@ -143,7 +129,7 @@ void BlockTextureGenerator::drawConnectionLabels(
 			continue;
 		}
 
-		std::optional<std::string> connectionName = blockData->getConnectionIdToName(connection.first);
+		std::optional<std::string> connectionName = blockData.getConnectionIdToName(connection.first);
 		if (!connectionName || connectionName->empty()) {
 			continue;
 		}
@@ -472,10 +458,10 @@ bool BlockTextureGenerator::overlapsAxis(int coord, int rectStart, int rectSize,
 	return coord >= minRange && coord <= maxRange;
 }
 
-BlockTextureGenerator::PortLabelSide BlockTextureGenerator::detectPreferredSide(const BlockData* blockData, const BlockData::ConnectionData& connection) {
+BlockTextureGenerator::PortLabelSide BlockTextureGenerator::detectPreferredSide(const BlockData& blockData, const BlockData::ConnectionData& connection) {
 	const float epsilon = 1e-3f;
 	if (std::abs(connection.portOffset.dx - 0.5f) <= epsilon && std::abs(connection.portOffset.dy - 0.5f) <= epsilon) {
-		const Size blockSize = blockData->getSize();
+		const Size blockSize = blockData.getSize();
 		const float blockWidth = static_cast<float>(blockSize.w);
 		const float blockHeight = static_cast<float>(blockSize.h);
 		const float centerX = std::clamp(static_cast<float>(connection.positionOnBlock.dx) + 0.5f, 0.0f, blockWidth);
@@ -491,7 +477,7 @@ BlockTextureGenerator::PortLabelSide BlockTextureGenerator::detectPreferredSide(
 
 		Vector positionOnBlock = connection.positionOnBlock;
 
-		if (blockData->getInputConnectionId(positionOnBlock) && blockData->getOutputConnectionId(positionOnBlock)) {
+		if (blockData.getInputConnectionId(positionOnBlock) && blockData.getOutputConnectionId(positionOnBlock)) {
 			switch (connection.portType) {
 			case BlockData::ConnectionData::PortType::OUTPUT:
 				return PortLabelSide::RIGHT;

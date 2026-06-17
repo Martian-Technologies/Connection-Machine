@@ -3,6 +3,7 @@
 #include "../events/eventRegister.h"
 #include "../events/customEvents.h"
 #include "gpu/mainRendererDefs.h"
+#include "../circuitView.h"
 
 void CircuitTool::sendEventToCircuitView(const Event& event) {
 	eventRegister->doEvent(event);
@@ -19,6 +20,16 @@ bool CircuitTool::sendEvent(const Event* event) {
 		}
 	}
 	return false;
+}
+
+Circuit* CircuitTool::getCircuit() {
+	if (circuitView == nullptr) return nullptr;
+	return circuitView->getCircuit();
+}
+
+const Circuit* CircuitTool::getCircuit() const {
+	if (circuitView == nullptr) return nullptr;
+	return circuitView->getCircuit();
 }
 
 void CircuitTool::registerFunction(const std::string& eventName, const EventFunction& function) {
@@ -55,17 +66,15 @@ void CircuitTool::activate() {
 	updateElements();
 }
 
-void CircuitTool::setup(ViewportId viewportId, EventRegister* eventRegister, ToolStackInterface* toolStackInterface, CircuitView* circuitView, Circuit* circuit) {
-	this->toolStackInterface = toolStackInterface;
+void CircuitTool::setup(ViewportId viewportId, EventRegister& eventRegister, ToolStackInterface& toolStackInterface, CircuitView& circuitView) {
+	this->toolStackInterface = &toolStackInterface;
 	this->elementCreator.setup(viewportId);
-	this->eventRegister = eventRegister;
-	this->circuit = circuit;
-	this->circuitView = circuitView;
+	this->eventRegister = &eventRegister;
+	this->circuitView = &circuitView;
 }
 
 void CircuitTool::unsetup() {
-	elementCreator.clear();
-	deactivate();
+	deactivate(true);
 }
 
 bool CircuitTool::enterBlockView(const Event* event) {

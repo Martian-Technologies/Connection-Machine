@@ -6,7 +6,7 @@ void CircuitSelectionTest::SetUp() {
 	i = 0;
 }
 
-void CircuitSelectionTest::TearDown() { circuit.reset(); }
+void CircuitSelectionTest::TearDown() { circuit = nullptr; }
 
 TEST_F(CircuitSelectionTest, ConnectionCreation) {
 	for (i = 0; i < 100; i++) {

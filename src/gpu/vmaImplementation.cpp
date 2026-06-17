@@ -1,2 +1,5 @@
 #define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
+#define VMA_HPP_IMPLEMENTATION 1
+#include "gpu/vulkanCommon.h"
+
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE

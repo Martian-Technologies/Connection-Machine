@@ -3,7 +3,6 @@
 
 #include "gpu/vulkanDevice.h"
 
-VkShaderModule createShaderModule(VkDevice device, std::vector<char> byteCode);
-void destroyShaderModule(VkDevice device, VkShaderModule shader);
+vk::UniqueShaderModule createShaderModule(vk::Device device, std::vector<char> byteCode);
 
-#endif
+#endif /* vulkanShader_h */

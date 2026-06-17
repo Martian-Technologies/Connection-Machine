@@ -6,13 +6,13 @@
 void LogicToucher::activate() {
 	CircuitTool::activate();
 	registerFunction("Tool Primary Activate", std::bind(&LogicToucher::press, this, std::placeholders::_1));
-	registerFunction("tool primary deactivate", std::bind(&LogicToucher::unpress, this, std::placeholders::_1));
+	registerFunction("Tool Primary Deactivate", std::bind(&LogicToucher::unpress, this, std::placeholders::_1));
 	registerFunction("Pointer Move", std::bind(&LogicToucher::pointerMove, this, std::placeholders::_1));
 	setStatusBar("Left click to toggle the state of a block");
 }
 
 bool LogicToucher::press(const Event* event) {
-	if (!circuitView || !circuit) return false;
+	if (!circuitView || !getCircuit()) return false;
 	EvalLogicSimulator* simulator = circuitView->getSimulator();
 	if (!simulator) return false;
 
@@ -23,23 +23,23 @@ bool LogicToucher::press(const Event* event) {
 		return false;
 	} else {
 		clickPosition = lastPointerPosition;
-		const Block* block = circuit->getBlockContainer().getBlock(clickPosition);
+		const Block* block = getCircuit()->getBlockContainer().getBlock(clickPosition);
 		if (block) {
 			switch (block->type()) {
 			case BlockType::CONSTANT_OFF: {
-				circuit->setType(block->getPosition(), BlockType::CONSTANT_ON);
+				getCircuit()->setType(block->getPosition(), BlockType::CONSTANT_ON);
 				sendEventToCircuitView(StateSetEvent("CircuitStateSet", clickPosition, logic_state_t::HIGH));
 			} break;
 			case BlockType::CONSTANT_ON: {
-				circuit->setType(block->getPosition(), BlockType::CONSTANT_OFF);
+				getCircuit()->setType(block->getPosition(), BlockType::CONSTANT_OFF);
 				sendEventToCircuitView(StateSetEvent("CircuitStateSet", clickPosition, logic_state_t::LOW));
 			} break;
 			case BlockType::CONSTANT_Z: {
-				circuit->setType(block->getPosition(), BlockType::CONSTANT_OFF);
+				getCircuit()->setType(block->getPosition(), BlockType::CONSTANT_OFF);
 				sendEventToCircuitView(StateSetEvent("CircuitStateSet", clickPosition, logic_state_t::LOW));
 			} break;
 			case BlockType::CONSTANT_X: {
-				circuit->setType(block->getPosition(), BlockType::CONSTANT_OFF);
+				getCircuit()->setType(block->getPosition(), BlockType::CONSTANT_OFF);
 				sendEventToCircuitView(StateSetEvent("CircuitStateSet", clickPosition, logic_state_t::LOW));
 			} break;
 			default:
@@ -57,12 +57,12 @@ bool LogicToucher::press(const Event* event) {
 }
 
 bool LogicToucher::unpress(const Event* event) {
-	if (!circuitView || !circuit) return false;
+	if (!circuitView || !getCircuit()) return false;
 	EvalLogicSimulator* simulator = circuitView->getSimulator();
 	if (!simulator) return false;
 
 	if (clicked) {
-		const Block* block = circuit->getBlockContainer().getBlock(clickPosition);
+		const Block* block = getCircuit()->getBlockContainer().getBlock(clickPosition);
 		if (block && block->type() == BlockType::BUTTON) {
 			Address address = circuitView->getAddress();
 			address.appendPosition(clickPosition);
@@ -76,35 +76,35 @@ bool LogicToucher::unpress(const Event* event) {
 }
 
 bool LogicToucher::pointerMove(const Event* event) {
-	if (!circuitView || !circuit) return false;
+	if (!circuitView || !getCircuit()) return false;
 	EvalLogicSimulator* simulator = circuitView->getSimulator();
 	if (!simulator) return false;
 
 	if (clicked && lastPointerPosition != clickPosition) {
-		const Block* block = circuit->getBlockContainer().getBlock(clickPosition);
+		const Block* block = getCircuit()->getBlockContainer().getBlock(clickPosition);
 		if (block && block->type() == BlockType::BUTTON) {
 			Address address = circuitView->getAddress();
 			address.appendPosition(clickPosition);
 			simulator->setState(address, logic_state_t::LOW);
 		}
 		clickPosition = lastPointerPosition;
-		block = circuit->getBlockContainer().getBlock(clickPosition);
+		block = getCircuit()->getBlockContainer().getBlock(clickPosition);
 		if (block) {
 			switch (block->type()) {
 			case BlockType::CONSTANT_OFF: {
-				circuit->setType(block->getPosition(), BlockType::CONSTANT_ON);
+				getCircuit()->setType(block->getPosition(), BlockType::CONSTANT_ON);
 				sendEventToCircuitView(StateSetEvent("CircuitStateSet", clickPosition, logic_state_t::HIGH));
 			} break;
 			case BlockType::CONSTANT_ON: {
-				circuit->setType(block->getPosition(), BlockType::CONSTANT_OFF);
+				getCircuit()->setType(block->getPosition(), BlockType::CONSTANT_OFF);
 				sendEventToCircuitView(StateSetEvent("CircuitStateSet", clickPosition, logic_state_t::LOW));
 			} break;
 			case BlockType::CONSTANT_Z: {
-				circuit->setType(block->getPosition(), BlockType::CONSTANT_OFF);
+				getCircuit()->setType(block->getPosition(), BlockType::CONSTANT_OFF);
 				sendEventToCircuitView(StateSetEvent("CircuitStateSet", clickPosition, logic_state_t::LOW));
 			} break;
 			case BlockType::CONSTANT_X: {
-				circuit->setType(block->getPosition(), BlockType::CONSTANT_OFF);
+				getCircuit()->setType(block->getPosition(), BlockType::CONSTANT_OFF);
 				sendEventToCircuitView(StateSetEvent("CircuitStateSet", clickPosition, logic_state_t::LOW));
 			} break;
 			default:

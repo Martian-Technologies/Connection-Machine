@@ -9,16 +9,40 @@
 
 class CircuitBlockData {
 public:
+	struct CircuitBlockDataCopy {
+		BidirectionalMultiSecondKeyMap<connection_end_id_t, Position> connectionIdPosition;
+		BlockType blockType;
+		circuit_id_t id;
+		std::optional<std::string> proceduralCircuitUUID = std::nullopt;
+	};
+
+	CircuitBlockDataCopy getCircuitBlockDataCopy() const {
+		CircuitBlockDataCopy out;
+		out.connectionIdPosition = connectionIdPosition;
+		out.blockType = blockType;
+		out.id = id;
+		out.proceduralCircuitUUID = proceduralCircuitUUID;
+		return out;
+	}
+
 	CircuitBlockData(circuit_id_t id, DataUpdateEventManager& dataUpdateEventManager) : id(id), dataUpdateEventManager(dataUpdateEventManager) { }
 	CircuitBlockData(circuit_id_t id, DataUpdateEventManager& dataUpdateEventManager, const std::string& proceduralCircuitUUID) :
 		id(id), dataUpdateEventManager(dataUpdateEventManager), proceduralCircuitUUID(proceduralCircuitUUID) { }
 	CircuitBlockData(const CircuitBlockData&) = delete;
     CircuitBlockData& operator=(const CircuitBlockData&) = delete;
 
-	inline void setProceduralCircuitUUID(const std::string& proceduralCircuitUUID) { this->proceduralCircuitUUID.emplace(proceduralCircuitUUID); }
+	void sendCircuitBlockDataUpdate() { dataUpdateEventManager.sendEvent("circuitBlockDataUpdate", std::make_pair(blockType, id)); }
+
+	inline void setProceduralCircuitUUID(const std::string& proceduralCircuitUUID) {
+		this->proceduralCircuitUUID.emplace(proceduralCircuitUUID);
+		sendCircuitBlockDataUpdate();
+	}
 	inline const std::optional<std::string>& getProceduralCircuitUUID() const { return proceduralCircuitUUID; }
 
-	inline void setBlockType(BlockType blockType) { this->blockType = blockType; }
+	inline void setBlockType(BlockType blockType) {
+		this->blockType = blockType;
+		sendCircuitBlockDataUpdate();
+	}
 	inline BlockType getBlockType() const { return blockType; }
 
 	inline void removeConnectionIdPosition(connection_end_id_t endId) {
@@ -30,6 +54,7 @@ public:
 			"circuitBlockDataConnectionPositionRemove",
 			{ blockType, endId, position }
 		);
+		sendCircuitBlockDataUpdate();
 	}
 	inline void setConnectionIdPosition(connection_end_id_t endId, Position position) {
 		connectionIdPosition.set(endId, position);
@@ -37,6 +62,7 @@ public:
 			"circuitBlockDataConnectionPositionSet",
 			{ blockType, endId, position }
 		);
+		sendCircuitBlockDataUpdate();
 	}
 	inline const Position* getConnectionIdToPosition(connection_end_id_t endId) const {
 		return connectionIdPosition.get(endId);
@@ -64,7 +90,7 @@ public:
 private:
 	BidirectionalMultiSecondKeyMap<connection_end_id_t, Position> connectionIdPosition;
 	DataUpdateEventManager& dataUpdateEventManager;
-	BlockType blockType;
+	BlockType blockType = BlockType::NONE;
 	circuit_id_t id;
 	std::optional<std::string> proceduralCircuitUUID = std::nullopt;
 

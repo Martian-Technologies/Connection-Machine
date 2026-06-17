@@ -17,8 +17,8 @@ public:
 		SubcircuitData(circuit_id_t circuitId, const EvalLayerState& outputEvalLayer) : circuitId(circuitId), outputEvalLayer(outputEvalLayer) { }
 		circuit_id_t circuitId;
 		const EvalLayerState& outputEvalLayer;
-		std::unordered_map<eval_gate_id, eval_gate_id> otherSimulatorToThisSimulatorIdMapping;
-		std::unordered_map<eval_gate_id, eval_gate_id> thisSimulatorIdMappingToOtherSimulator;
+		IdMap<eval_gate_id, eval_gate_id> otherSimulatorToThisSimulatorIdMapping;
+		IdMap<eval_gate_id, eval_gate_id> thisSimulatorIdMappingToOtherSimulator;
 	};
 	SubcircuitEvalLayer(EvalLayerState& currentState, Evaluator& evaluator, const CircuitManager& circuitManager) :
 		BaseEvalLayer(currentState, circuitManager), evaluator(evaluator) { }
@@ -37,7 +37,7 @@ public:
 	// Only called by EvaluatorInternal
 	void processICEdits(circuit_id_t circuitId, const std::vector<std::tuple<connection_end_id_t, EvalConnectionPoint, EvalConnectionPoint>>& updatedPortIds);
 private:
-	std::unordered_map<eval_gate_id, SubcircuitData> subcircuits;
+	IdMap<eval_gate_id, SubcircuitData> subcircuits;
 	Evaluator& evaluator;
 };
 

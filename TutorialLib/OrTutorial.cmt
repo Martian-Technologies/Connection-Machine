@@ -1,0 +1,86 @@
+# tutorial written after rewrite for version 1
+# new features are comments and macros!
+# along with more flexible parsing
+# Commands:
+# version_x / tells the parser which version this tutorial was written for (currently 1)
+# Tutorial: "<tutorial name>" / stores the tutorial name, must be spelled "Tutorial:" (case sensitive),
+	# tutorial name must have surrounding quotes
+# #<comment> | # <comment> / creates a comment, multiline comments not supported
+# $<macro name> <macro value> / creates usable macros
+# ($<macro name>) / use macro (must be in parenthesis), will be replaced (including parenthesis) with <macro value>
+# Step: / no parameters, creates step, must be spelled "Step:" (case sensitive)
+# Action: / no parameters, crates action, must be spelled "Action:" (case sensitive)
+# Message: "<message>" | Message: <message> / message gets printed to the console for now,
+	# must be spelled "Message:" (case sensitive), message should but does not have to have surrounding quotes,
+	# message must be on one line only, for newlines create a new message
+	# must be under action
+# Block Preview: <block name> <position> <orientation> / first word must be "Block" second word should be "Preview:"
+	# but the only requirement is it must exist, <block name> is the block name (case sensitive) 
+	# (i.e. AND, or a custom name), <position> is the position of the block formatted as (<x>,<y>) or (<x>, <y>),
+	# <orientation> is optional, it is how the block is orientated (ZERO, NINETY, ONE_EIGHTY, TWO_SEVENTY, -_FLIPPED)
+	# must be under action
+# Connection Preview: <out position> <in position> / first word must be "Connection" second word 
+	# should be "Preview:" but the only requirement is it must exist, <out position> is the position
+	# where a block should exist that you are taking the connection out of, <in position> is the position
+	# where a block should exist that you are putting the connection into
+	# must be under action
+# Condition: / no parameters, creates condition, must be spelled "Condition:" (case sensitive)
+# Block: <block name> <position> <orientation> / same as Block Preview:, but only one word, must be under condition
+# Connection: <out position> <in position> / same as Connection Preview:, but only one word, nust be under condition
+# State: <state> <position> <num steps> /
+	# Must be spelled "State:", state is (l,h,z,x)
+	# <position> is which block should be checked for the given state
+	# <num steps> is the number of ticks that should happen before this state check (optional)
+version_1
+Tutorial: "Or Tutorial"
+# position variables (macros)
+$p1 (0, 0)
+$p2 (0, 2)
+$p3 (2, 1)
+$p4 (4, 1)
+$view View Center: (2, 1)
+# steps
+Step:
+	Action:
+		Message: "Welcome to Connection Machine!"
+		Message: "In this tutorial we will learn about the 'OR' block!"
+		Message: "Place down the highlighted blocks to get started."
+		Block Preview: SWITCH ($p1)
+		Block Preview: SWITCH ($p2)
+		Block Preview: OR ($p3)
+		Block Preview: LIGHT ($p4)
+		($view)
+	Condition:
+		Block: SWITCH ($p1)
+		Block: SWITCH ($p2)
+		Block: OR ($p3)
+		Block: LIGHT ($p4)
+Step:
+	Action:
+		Message: "Now, connect the blocks."
+		Connection Preview: ($p1) ($p3)
+		Connection Preview: ($p2) ($p3)
+		Connection Preview: ($p3) ($p4)
+		($view)
+	Condition:
+		Connection: ($p1) ($p3)
+		Connection: ($p2) ($p3)
+		Connection: ($p3) ($p4)
+Step:
+	Action:
+		Message: "Now, flick the switches to test how the 'OR' block reacts."
+	Condition:
+		State: h ($p1) 3
+Step:
+	Condition:
+		State: l ($p1) 3
+Step:
+	Action:
+		Message: "Congrats, you completed this tutorial."
+		Message: "The OR block has the following truth table for 2 inputs:"
+		Message: "A | B | OR"
+		Message: "--+---+---"
+		Message: "0 | 0 |  0"
+		Message: "0 | 1 |  1"
+		Message: "1 | 0 |  1"
+		Message: "1 | 1 |  1"

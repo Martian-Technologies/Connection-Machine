@@ -5,42 +5,43 @@
 #include <glm/glm.hpp>
 
 struct PushConstantDescription {
-	VkShaderStageFlags stage;
+	vk::ShaderStageFlags stage;
 	size_t size;
 };
 
 struct PipelineInformation {
-	VkRenderPass renderPass;
-	VkShaderModule vertShader, fragShader;
-	std::vector<VkVertexInputBindingDescription> vertexBindingDescriptions;
-	std::vector<VkVertexInputAttributeDescription> vertexAttributeDescriptions;
-	VkFrontFace frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	vk::RenderPass renderPass;
+	vk::ShaderModule vertShader;
+	vk::ShaderModule fragShader;
+	std::vector<vk::VertexInputBindingDescription> vertexBindingDescriptions;
+	std::vector<vk::VertexInputAttributeDescription> vertexAttributeDescriptions;
+	vk::FrontFace frontFace = vk::FrontFace::eCounterClockwise;
 	bool alphaBlending = true;
 	bool premultipliedAlpha = false;
 
 	std::vector<PushConstantDescription> pushConstants;
-	std::vector<VkDescriptorSetLayout> descriptorSets;
+	std::vector<vk::DescriptorSetLayout> descriptorSets;
 
-	VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT;
+	vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1;
 };
 
 class Pipeline {
 public:
-	void init(VulkanDevice* device, const PipelineInformation& info);
+	void init(VulkanDevice& device, const PipelineInformation& info);
 	void cleanup();
 
-	void cmdPushConstants(VkCommandBuffer commandBuffer, void* data);
+	void cmdPushConstants(vk::CommandBuffer commandBuffer, void* data);
 
-	inline VkPipeline getHandle() { return handle; }
-	inline VkPipelineLayout getLayout() { return layout; }
+	inline vk::Pipeline getHandle() { return handle.get(); }
+	inline vk::PipelineLayout getLayout() { return layout.get(); }
 
 private:
-	VkPipeline handle;
-    VkPipelineLayout layout;
+	vk::UniquePipeline handle;
+	vk::UniquePipelineLayout layout;
 
-	std::vector<VkPushConstantRange> pushConstants;
+	std::vector<vk::PushConstantRange> pushConstants;
 
-	VulkanDevice* device;
+	VulkanDevice* device = nullptr;
 };
 
-#endif
+#endif /* vulkanPipeline_h */

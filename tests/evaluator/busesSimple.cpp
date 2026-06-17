@@ -10,13 +10,13 @@ protected:
 	void TearDown() override;
 	Environment environment { false };
 	EvalLogicSimulator* simulator = nullptr;
-	SharedCircuit circuit = nullptr;
+	Circuit* circuit = nullptr;
 	logic_state_t L = logic_state_t::LOW;
 	logic_state_t H = logic_state_t::HIGH;
 	logic_state_t Z = logic_state_t::FLOATING;
 	logic_state_t X = logic_state_t::UNDEFINED;
-	SharedCircuit busTristate1Circuit = nullptr;
-	SharedCircuit busTristate2Circuit = nullptr;
+	Circuit* busTristate1Circuit = nullptr;
+	Circuit* busTristate2Circuit = nullptr;
 	BlockType BT1;
 	BlockType BT2;
 	BlockType BUS2;
@@ -24,7 +24,7 @@ protected:
 
 void BusesSimpleEvaluatorTest::SetUp() {
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
-	circuit = environment.getBackend().getCircuit(circuitId);
+	circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	simulator_id_t simulatorId = environment.getBackend().createSimulator(circuitId).value();
 	simulator = environment.getBackend().getSimulator(simulatorId);
 	CircuitFileManager& circuitFileManager = environment.getCircuitFileManager();
@@ -39,7 +39,7 @@ void BusesSimpleEvaluatorTest::SetUp() {
 }
 
 void BusesSimpleEvaluatorTest::TearDown() {
-	circuit.reset();
+	circuit = nullptr;
 	simulator = nullptr;
 }
 

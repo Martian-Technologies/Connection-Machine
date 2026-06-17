@@ -1,0 +1,9 @@
+version_8
+Circuit: "Tri-State"
+UUID: 69a91f95-15a9-4bc0-ad06-2fcd1b545b8c
+size: 1x2
+ports:
+	(IN, 0, (-2, 0), <0, 0>, <0.100000, 0.500000>, "Data", 1)
+	(IN, 1, (-2, -1), <0, 1>, <0.100000, 0.500000>, "Enable", 1)
+	(OUT, 2, (-2, 0), <0, 0>, <0.900000, 0.500000>, "Output", 1)
+blockId 1 TRISTATE_BUFFER -2 -1 ZERO

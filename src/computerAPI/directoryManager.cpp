@@ -59,3 +59,27 @@ std::filesystem::path DirectoryManager::getExecutablePath() {
 std::filesystem::path DirectoryManager::getBundlePath() {
 	return cpplocate::getBundlePath();
 }
+
+std::string DirectoryManager::shortenPath(std::filesystem::path path) {
+	path = std::filesystem::weakly_canonical(path);
+	auto base = getResourceDirectory();
+	auto baseIter = base.begin();
+    auto pathIter = path.begin();
+    for (; baseIter != base.end() && pathIter != path.end(); ++baseIter, ++pathIter) {
+        if (*baseIter != *pathIter) return path.generic_string();
+    }
+	if (baseIter != base.end()) return path.generic_string();
+
+	std::string shortenedPath = "@ResourceDirectory";
+	for (; pathIter != path.end(); pathIter++) shortenedPath += "/" + (*pathIter).generic_string();
+	return shortenedPath;
+}
+
+std::filesystem::path DirectoryManager::extendPath(const std::string& path) {
+	if (path.starts_with("@ResourceDirectory")) {
+        std::filesystem::path extendedPath = getResourceDirectory();
+		extendedPath /= path.c_str() + sizeof("@ResourceDirectory");
+        return extendedPath;
+	}
+	return path;
+}

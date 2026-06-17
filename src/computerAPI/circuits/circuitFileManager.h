@@ -33,6 +33,9 @@ public:
     bool saveToFile(const std::string& path, const std::string& UUID);
     bool save(const std::string& UUID);
     bool saveFile(const std::string& path);
+	bool closeFile(const std::string& path);
+
+	bool isCircuitSaved(const std::string& UUID);
     // bool saveAllDependencies(const std::string& UUID);
 
     // bool saveAsMultiFile(const std::unordered_set<std::string>& UUIDs, const std::string& fileLocation);

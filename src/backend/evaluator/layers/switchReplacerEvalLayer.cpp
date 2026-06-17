@@ -1,7 +1,14 @@
 #include "switchReplacerEvalLayer.h"
 #include "evalLayerState.h"
 
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
+
 void SwitchReplacerEvalLayer::run() {
+	#ifdef TRACY_PROFILER
+	ZoneScopedN("SwitchReplacer Run");
+	#endif
 	for (auto iter : currentState.getRemovedConnections()) {
 		EvalConnection connection = iter.first;
 		if (connection.connectionPointA.connectionEndId == 1) {
@@ -54,7 +61,7 @@ void SwitchReplacerEvalLayer::run() {
 		nextState.removeGate(iter.first);
 	}
 	for (auto iter : currentState.getAddedGates()) {
-		nextState.getGateIdRemapping().emplace(iter.first, iter.first);
+		nextState.getGateIdRemapping().try_emplace(iter.first, iter.first);
 		nextState.getGateIdReverseRemapping().emplace(iter.first, iter.first);
 		nextState.addGate(iter.first, iter.second);
 	}

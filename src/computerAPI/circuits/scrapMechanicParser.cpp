@@ -1,5 +1,9 @@
 #include "scrapMechanicParser.h"
 
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
+
 bool validSMJsonChild(nlohmann::json child) {
 	if (!child.contains("controller") || !child.at("controller").is_object()) {
 		logError("Invalid child {}. \"controller\" not valid.", "ScrapMechanicParser", child.dump());
@@ -37,6 +41,9 @@ FPosition getSMJsonChildPos(nlohmann::json child) {
 }
 
 std::vector<circuit_id_t> ScrapMechanicParser::load(const std::string& path) {
+	#ifdef TRACY_PROFILER
+	ZoneScoped;
+	#endif
 	logInfo("Parsing Scrap Mechanic File (.json)", "ScrapMechanicParser");
 
 	std::ifstream inputFile(path, std::ios::in | std::ios::binary);

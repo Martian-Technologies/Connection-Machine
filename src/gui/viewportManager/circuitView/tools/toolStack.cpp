@@ -2,6 +2,7 @@
 
 #include "toolManager.h"
 #include "../events/customEvents.h"
+#include "environment/environment.h"
 
 void ToolStack::activate() {
 	isActive = true;
@@ -64,8 +65,9 @@ void ToolStack::reset() {
 }
 
 void ToolStack::pushTool(SharedCircuitTool newTool, bool resetTool) {
+	Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	if (circuit) {
-		if (!(circuit->isEditable())) {
+		if (!circuit->isEditable()) {
 			if (newTool->canMakeEdits()) {
 				clearTools(); // Can't select tool that can make edits
 				return;
@@ -75,7 +77,7 @@ void ToolStack::pushTool(SharedCircuitTool newTool, bool resetTool) {
 	if (!toolStack.empty())
 		toolStack.back()->deactivate();
 	toolStack.push_back(newTool);
-	toolStack.back()->setup(viewportId, eventRegister, &toolStackInterface, circuitView, circuit);
+	toolStack.back()->setup(viewportId, eventRegister, toolStackInterface, circuitView);
 	if (resetTool) toolStack.back()->reset();
 	if (pointerInView) {
 		PositionEvent event("Stack Updating Position", lastPointerFPosition);
@@ -136,8 +138,8 @@ void ToolStack::switchToStack(int stack) {
 	toolManager.selectStack(stack);
 }
 
-void ToolStack::setCircuit(Circuit* circuit) {
-	this->circuit = circuit;
+void ToolStack::setCircuit(circuit_id_t circuitId) {
+	this->circuitId = circuitId;
 	reset();
 }
 
@@ -166,6 +168,7 @@ bool ToolStack::pointerMove(const Event* event) {
 }
 
 void ToolStack::verifyNoEdits() {
+	Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	if (circuit && !(circuit->isEditable())) {
 		for (SharedCircuitTool tool : toolStack) {
 			if (tool->canMakeEdits()) {

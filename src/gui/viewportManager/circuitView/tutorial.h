@@ -1,11 +1,14 @@
 #ifndef tutorialManager_h
 #define tutorialManager_h
 
+#include "./viewManager/viewManager.h"
+#include "backend/container/difference.h"
+#include "renderer/elementCreator.h"
+#include <string>
+#include <unordered_map>
+
 class CircuitView;
 class Environment;
-
-#include "renderer/elementCreator.h"
-#include "./viewManager/viewManager.h"
 
 struct TutorialCondition {
 	struct BlockRequirement {
@@ -28,7 +31,7 @@ struct TutorialCondition {
 };
 
 struct TutorialAction {
-	struct BlockPreviewInfo {
+	struct BlockInfo {
 		Position pos;
 		BlockType type;
 		Orientation orientation;
@@ -37,8 +40,19 @@ struct TutorialAction {
 		Position pos1;
 		Position pos2;
 	};
-	std::vector<std::string> messages;
-	std::vector<BlockPreviewInfo> blockPreviews;
+	struct Message {
+		FPosition pos;
+		float scale;
+		std::string message;
+	};
+	struct View {
+		std::optional<FPosition> viewCenter;
+		std::optional<float> zoom;
+	};
+	View viewData;
+	std::vector<Message> messages;
+	std::vector<BlockInfo> blockPreviews;
+	std::vector<BlockInfo> blocks;
 	std::vector<ConnectionPreviewInfo> connectionPreviews;
 };
 
@@ -47,31 +61,39 @@ struct TutorialStep {
 	TutorialAction action;
 };
 
-class Tutorial {
+struct Tutorial {
+    std::vector<TutorialStep> tutorialSteps;
+    std::unordered_map<std::string, std::string> info;
+};
+
+class TutorialManager {
 public:
-	Tutorial(Environment& environment, CircuitView& circuitView);
+	TutorialManager(Environment& environment, CircuitView& circuitView);
 	void StartTutorial();
-	void Stop();
-	void setTutorial(const std::vector<TutorialStep>& steps);
+	void stop();
+	void setTutorial(const Tutorial& tutorial);
+	void forceCompleteStep();
 
 private:
 	void checkTutorial(DifferenceSharedPtr diff, circuit_id_t circuitId);
 	void checkTutorialState(Position pos, logic_state_t state);
 
 	void runCurrentStep();
-    bool isCurrentStepComplete() const;
-    void advanceTutorial();
+	bool isCurrentStepComplete() const;
+    void midStepChecks();
+	void advanceTutorial();
 
-	CircuitView* circuitView;
+	CircuitView& circuitView;
 	ElementCreator elementCreator;
 	Environment& environment;
 	EvalLogicSimulator* simulator;
-	SharedCircuit curentCircuit;
-	ViewManager viewManager;
+	circuit_id_t circuitId;
+	ViewManager& viewManager;
+	DataUpdateEventManager::DataUpdateEventReceiver dataUpdateEventReciever;
 
 	bool tutorialRunning;
 	int tutorialState;
-	std::vector<TutorialStep> tutorialSteps;
+    Tutorial tutorialSteps;
 };
 
-#endif /*tutorialManager_h*/
+#endif /* tutorialManager_h */

@@ -28,13 +28,41 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 		}
 	);
 
-	tryLinkWasmFunc("getParameter",
-		[thisPtrPtr](int32_t keyStrOffset) -> int32_t {
-			const std::map<std::string, int>& parameters = (*thisPtrPtr)->parameters->parameters;
-			auto iter = parameters.find((*thisPtrPtr)->wasmToString(keyStrOffset));
-			return (iter == parameters.end()) ? 0 : iter->second;
+	tryLinkWasmFunc("getParameter_int",
+		[thisPtrPtr](int32_t keyStrOffset) -> uint32_t {
+			auto iter = (*thisPtrPtr)->parameters->parameters.find((*thisPtrPtr)->wasmToString(keyStrOffset));
+			if (iter == (*thisPtrPtr)->parameters->parameters.end()) return 0;
+			return std::get<int>(iter->second);
 		}
 	);
+	tryLinkWasmFunc("getParameter",
+		[thisPtrPtr](int32_t keyStrOffset) -> uint32_t {
+			auto iter = (*thisPtrPtr)->parameters->parameters.find((*thisPtrPtr)->wasmToString(keyStrOffset));
+			if (iter == (*thisPtrPtr)->parameters->parameters.end()) return 0;
+			return std::get<int>(iter->second);
+		}
+	);
+	tryLinkWasmFunc("getParameter_unsigned_int",
+		[thisPtrPtr](int32_t keyStrOffset) -> int32_t {
+			auto iter = (*thisPtrPtr)->parameters->parameters.find((*thisPtrPtr)->wasmToString(keyStrOffset));
+			if (iter == (*thisPtrPtr)->parameters->parameters.end()) return 0;
+			return std::get<unsigned int>(iter->second);
+		}
+	);
+	tryLinkWasmFunc("getParameter_float",
+		[thisPtrPtr](int32_t keyStrOffset) -> float {
+			auto iter = (*thisPtrPtr)->parameters->parameters.find((*thisPtrPtr)->wasmToString(keyStrOffset));
+			if (iter == (*thisPtrPtr)->parameters->parameters.end()) return 0;
+			return std::get<float>(iter->second);
+		}
+	);
+	// tryLinkWasmFunc("getParameter_string", // we are not doign this rn because its work
+	// 	[thisPtrPtr](int32_t keyStrOffset) -> const char* {
+	// 		auto iter = (*thisPtrPtr)->parameters->parameters.find((*thisPtrPtr)->wasmToString(keyStrOffset));
+	// 		if (iter == (*thisPtrPtr)->parameters->parameters.end()) return nullptr;
+	// 		return std::get<std::string>(iter->second).c_str();
+	// 	}
+	// );
 
 	tryLinkWasmFunc("getPrimitiveType",
 		[thisPtrPtr](int32_t nameStrOffset) -> int32_t {
@@ -64,7 +92,7 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 	tryLinkWasmFunc("getNonPrimitiveType",
 		[thisPtrPtr](int32_t UUIDStrOffset) -> int32_t {
 			std::string UUID = (*thisPtrPtr)->wasmToString(UUIDStrOffset);
-			SharedCircuit circuit = (*thisPtrPtr)->circuitManager->getCircuit(UUID);
+			Circuit* circuit = (*thisPtrPtr)->circuitManager->getCircuit(UUID);
 			if (circuit) {
 				return circuit->getBlockType();
 			}
@@ -85,7 +113,7 @@ WasmProceduralCircuit::WasmInstance::WasmInstance(wasmtime::Module module, Circu
 				std::stringstream ss((*thisPtrPtr)->wasmToString(parametersStrOffset));
 				return proceduralCircuit->getBlockType(ProceduralCircuitParameters(ss));
 			}
-			SharedCircuit circuit = (*thisPtrPtr)->circuitManager->getCircuit(UUID);
+			Circuit* circuit = (*thisPtrPtr)->circuitManager->getCircuit(UUID);
 			if (circuit) {
 				logError("To get the BlockType of a Circuit you need to use \"getNonPrimitiveType\" not \"getProceduralCircuitType\".", "WasmProceduralCircuit::WasmInstance");
 			}

@@ -9,20 +9,20 @@ protected:
 	void TearDown() override;
 	Environment environment {false};
 	EvalLogicSimulator* simulator = nullptr;
-	SharedCircuit circuit = nullptr;
+	Circuit* circuit = nullptr;
 	logic_state_t L = logic_state_t::LOW;
 	logic_state_t H = logic_state_t::HIGH;
 	logic_state_t Z = logic_state_t::FLOATING;
 	logic_state_t X = logic_state_t::UNDEFINED;
-    SharedCircuit nestedPassthroughCircuit = nullptr;
-    SharedCircuit nestedPassthroughBrokenCircuit = nullptr;
+    Circuit* nestedPassthroughCircuit = nullptr;
+    Circuit* nestedPassthroughBrokenCircuit = nullptr;
     BlockType NPT;
     BlockType NPTB;
 };
 
 void NestedPassthroughEvaluatorTest::SetUp() {
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
-	circuit = environment.getBackend().getCircuit(circuitId);
+	circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	simulator_id_t simulatorId = environment.getBackend().createSimulator(circuitId).value();
 	simulator = environment.getBackend().getSimulator(simulatorId);
 	ASSERT_TRUE(simulator->isPause());
@@ -37,7 +37,7 @@ void NestedPassthroughEvaluatorTest::SetUp() {
 }
 
 void NestedPassthroughEvaluatorTest::TearDown() {
-	circuit.reset();
+	circuit = nullptr;
 	simulator = nullptr;
 }
 

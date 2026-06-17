@@ -33,11 +33,11 @@ After installing the tools, either launch CMake from the "Developer Command Prom
 Even if you are going to have your IDE manage CMake, it's a good idea to try running it from the terminal first.
 > On Windows, Microsoft's build system will not be set as the CMake compiler by default. Either add MSBuild to your system variables, or use the "Developer Command Prompt for VS ..." application (which already has the variable set up) instead of your regular terminal. 
 
-1. Configure - `cmake --preset debug`
-2. Then Build - `cmake --build --preset debug`
+1. Configure - `cmake --preset release`
+2. Then Build - `cmake --build --preset release`
 3. Run the executable that was generated somewhere in the `build` directory. On Windows this is probably in the `Debug` subdirectory.
 
-You can also build for release with `release` preset
+You can also build for debug with `debug` preset
 > Works for MacOS, Windows (MSVC), and Linux
 
 ## Notes

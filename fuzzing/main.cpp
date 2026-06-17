@@ -4,10 +4,9 @@
 
 #include "computerAPI/directoryManager.h"
 
-std::thread::id mainThreadId = std::this_thread::get_id();
-
 int main(int argc, char** argv) {
 	DirectoryManager::findDirectories();
+	setupFuzzLogCapture();
 	std::filesystem::create_directories(DirectoryManager::getConfigDirectory() / "fuzzing");
 	std::string failingTestcasePath = (DirectoryManager::getConfigDirectory() / "fuzzing" / "failing_testcase.json").string();
 	FailingCaseFinder finder;

@@ -1,12 +1,13 @@
 #include "backend.h"
 
+#include "backend/circuitTests/circuitTestGroupManager.h"
 #include "backend/wasm/wasm.h"
 #include "backend/proceduralCircuits/wasmProceduralCircuit.h"
 
 class CircuitFileManager;
 
 Backend::Backend(CircuitFileManager& fileManager) :
-	circuitManager(dataUpdateEventManager, simulatorManager, fileManager), simulatorManager(circuitManager, dataUpdateEventManager)
+	circuitManager(dataUpdateEventManager, simulatorManager, fileManager), simulatorManager(circuitManager, dataUpdateEventManager), circuitTestGroupManager(dataUpdateEventManager)
 {
 	logInfo("Initializing Backend", "Backend");
 	Wasm::initialize();
@@ -18,15 +19,10 @@ circuit_id_t Backend::createCircuit(const std::string& name, const std::string& 
 }
 
 std::optional<simulator_id_t> Backend::createSimulator(circuit_id_t circuitId) {
-	SharedCircuit circuit = circuitManager.getCircuit(circuitId);
-	if (circuit) {
+	if (circuitManager.getCircuit(circuitId)) {
 		return simulatorManager.createNewSimulator(circuitId);
 	}
 	return std::nullopt;
-}
-
-SharedCircuit Backend::getCircuit(circuit_id_t circuitId) {
-	return circuitManager.getCircuit(circuitId);
 }
 
 EvalLogicSimulator* Backend::getSimulator(simulator_id_t simulator_id) {

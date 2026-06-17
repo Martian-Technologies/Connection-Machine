@@ -26,18 +26,22 @@ public:
 	void doBlockTextureUpdates();
 
 private:
-	void newBlockTypeUpdate(const DataUpdateEventManager::EventData* event);
-	void postBlockSizeChangeUpdate(const DataUpdateEventManager::EventData* event);
-	void blockNameChangeUpdate(const DataUpdateEventManager::EventData* event);
+	void newBlockType_event(const DataUpdateEventManager::EventData* event);
+	void postBlockSizeChange_event(const DataUpdateEventManager::EventData* event);
+	void blockNameChange_event(const DataUpdateEventManager::EventData* event);
 
-	void blockDataSetConnectionUpdate(const DataUpdateEventManager::EventData* event);
-	void blockDataRemoveConnectionUpdate(const DataUpdateEventManager::EventData* event);
-	void blockDataConnectionNameSetUpdate(const DataUpdateEventManager::EventData* event);
-	void blockDataTextureChangeUpdate(const DataUpdateEventManager::EventData* event);
-	void blockDataTextureVirtualConnectionUpdate(const DataUpdateEventManager::EventData* event);
-	void blockDataUsesTileMapTextureChangeUpdate(const DataUpdateEventManager::EventData* event);
-	void blockDataTextureTileChangeUpdate(const DataUpdateEventManager::EventData* event);
-	void updateImageIfNotSpecified(const DataUpdateEventManager::EventData* event);
+	void blockDataSetConnection_event(const DataUpdateEventManager::EventData* event);
+	void blockDataPortBitConfigurationSet_event(const DataUpdateEventManager::EventData* event);
+	void blockDataRemoveConnection_event(const DataUpdateEventManager::EventData* event);
+	void blockDataConnectionNameSet_event(const DataUpdateEventManager::EventData* event);
+
+	void blockDataTexturePathChange_event(const DataUpdateEventManager::EventData* event);
+	void blockDataTextureUseFullTextureChange_event(const DataUpdateEventManager::EventData* event);
+	void blockDataTextureTopLeftChange_event(const DataUpdateEventManager::EventData* event);
+	void blockDataTextureSizeChange_event(const DataUpdateEventManager::EventData* event);
+	void blockDataTextureRenderStateChange_event(const DataUpdateEventManager::EventData* event);
+	void blockDataTextureVirtualConnectionChange_event(const DataUpdateEventManager::EventData* event);
+	void blockDataTextureStateOffsetChange_event(const DataUpdateEventManager::EventData* event);
 
 	struct RenderData {
 		RenderData(BlockRenderDataId blockRenderDataId) : blockRenderDataId(blockRenderDataId) {}
@@ -50,7 +54,7 @@ private:
 	std::shared_ptr<Font> font;
 	std::unique_ptr<BlockTextureGenerator> blockTextureGenerator;
 
-	BlockTextureId getBlockTextureId(const BlockData* blockData, RenderData* renderData);
+	BlockTextureId getBlockTextureId(const BlockData& blockData, RenderData& renderData);
 
 	std::unordered_map<BlockTextureId, unsigned int> blockTextureIdUsage;
 

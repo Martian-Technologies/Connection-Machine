@@ -7,7 +7,7 @@ protected:
     void SetUp() override;
     void TearDown() override;
 	Environment environment {false};
-	SharedCircuit parentCircuit = nullptr;
+	Circuit* parentCircuit = nullptr;
 	EvalLogicSimulator* simulator = nullptr;
     int idx;
 
@@ -20,7 +20,7 @@ protected:
 
 void EvaluatorICTest::SetUp() {
     circuit_id_t circuitId = environment.getBackend().createCircuit();
-    parentCircuit = environment.getBackend().getCircuit(circuitId);
+    parentCircuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
     auto simulatorId = environment.getBackend().createSimulator(circuitId);
     ASSERT_TRUE(simulatorId.has_value());
     simulator = environment.getBackend().getSimulator(simulatorId.value());
@@ -28,13 +28,13 @@ void EvaluatorICTest::SetUp() {
 }
 
 void EvaluatorICTest::TearDown() {
-    parentCircuit.reset();
+    parentCircuit = nullptr;
     simulator = nullptr;
 }
 
 circuit_id_t EvaluatorICTest::createPassThroughIC(const std::string& name) {
     circuit_id_t childId = environment.getBackend().createCircuit(name);
-    SharedCircuit child = environment.getBackend().getCircuit(childId);
+    Circuit* child = environment.getBackend().getCircuitManager().getCircuit(childId);
 
     child->tryInsertBlock(Position(0, 0), Rotation::ZERO, BlockType::JUNCTION);
 
@@ -42,7 +42,6 @@ circuit_id_t EvaluatorICTest::createPassThroughIC(const std::string& name) {
     BlockType icType = cm.setupBlockData(childId);
 
     BlockData* bd = cm.getBlockDataManager().getBlockData(icType);
-    bd->setDefaultData(false);
     bd->setPrimitive(false);
     bd->setPath("Custom");
     bd->setSize(Size(1, 1));
@@ -87,7 +86,7 @@ TEST_F(EvaluatorICTest, NestedICs_PropagateThroughLevels) {
     const BlockType innerICType = getICBlockType(innerICId);
 
     const circuit_id_t outerICId = environment.getBackend().createCircuit("OuterPassThrough");
-    SharedCircuit outerCircuit = environment.getBackend().getCircuit(outerICId);
+    Circuit* outerCircuit = environment.getBackend().getCircuitManager().getCircuit(outerICId);
     ASSERT_TRUE(outerCircuit);
 
     ASSERT_TRUE(outerCircuit->tryInsertBlock(Position(0, 0), Rotation::ZERO, innerICType));
@@ -97,7 +96,6 @@ TEST_F(EvaluatorICTest, NestedICs_PropagateThroughLevels) {
     ASSERT_NE(outerICType, BlockType::NONE);
     BlockData* bd = cm.getBlockDataManager().getBlockData(outerICType);
     ASSERT_TRUE(bd);
-    bd->setDefaultData(false);
     bd->setPrimitive(false);
     bd->setPath("Custom");
     bd->setSize(Size(1, 1));
@@ -213,7 +211,7 @@ TEST_F(EvaluatorICTest, SingleIC_RemapInputToConstantSource) {
 	simulator->setState(Address(pSwitch), logic_state_t::LOW);
 	EXPECT_EQ(simulator->getState(Address(pLight)), logic_state_t::LOW);
 
-	SharedCircuit child = environment.getBackend().getCircuit(icId);
+	Circuit* child = environment.getBackend().getCircuitManager().getCircuit(icId);
 	ASSERT_TRUE(child);
 	ASSERT_TRUE(child->tryInsertBlock(Position(1, 0), Rotation::ZERO, BlockType::JUNCTION));
 	ASSERT_TRUE(child->tryInsertBlock(Position(2, 0), Rotation::ZERO, BlockType::CONSTANT_ON));
@@ -272,7 +270,7 @@ TEST_F(EvaluatorICTest, MultipleICInstances_RemappingPropagatesToAll) {
 	EXPECT_EQ(simulator->getState(Address(pLightA)), logic_state_t::HIGH);
 	EXPECT_EQ(simulator->getState(Address(pLightB)), logic_state_t::LOW);
 
-	SharedCircuit child = environment.getBackend().getCircuit(icId);
+	Circuit* child = environment.getBackend().getCircuitManager().getCircuit(icId);
 	ASSERT_TRUE(child);
 	ASSERT_TRUE(child->tryInsertBlock(Position(1, 0), Rotation::ZERO, BlockType::JUNCTION));
 	ASSERT_TRUE(child->tryInsertBlock(Position(2, 0), Rotation::ZERO, BlockType::CONSTANT_ON));

@@ -44,8 +44,8 @@ void SelectionMakerTool::setMode(const std::string& mode) {
 }
 
 bool SelectionMakerTool::copy(const Event* event) {
-	if (!activeSelectionHelper->isFinished() || !circuit) return false;
-	circuitView->getBackend().setClipboard(std::make_shared<CopiedBlocks>(circuit->getBlockContainer(), activeSelectionHelper->getSelection()));
+	if (!activeSelectionHelper->isFinished() || !getCircuit()) return false;
+	circuitView->getBackend().setClipboard(std::make_shared<CopiedBlocks>(getCircuit()->getBlockContainer(), activeSelectionHelper->getSelection()));
 	return true;
 }
 

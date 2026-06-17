@@ -2,28 +2,28 @@
 #include "environment/environment.h"
 #include "backend/evaluator/simulator/evalLogicSimulator.h"
 
-class NoEditSimulatoruatorTest : public ::testing::Test {
+class NoEditSimulatorTest : public ::testing::Test {
 protected:
 	void SetUp() override;
 	void TearDown() override;
 	Environment environment {false};
 	EvalLogicSimulator* simulator = nullptr;
-	SharedCircuit circuit = nullptr;
+	Circuit* circuit = nullptr;
 };
 
-void NoEditSimulatoruatorTest::SetUp() {
+void NoEditSimulatorTest::SetUp() {
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
-	circuit = environment.getBackend().getCircuit(circuitId);
+	circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	simulator_id_t simulatorId = environment.getBackend().createSimulator(circuitId).value();
 	simulator = environment.getBackend().getSimulator(simulatorId);
 }
 
-void NoEditSimulatoruatorTest::TearDown() {
-	circuit.reset();
+void NoEditSimulatorTest::TearDown() {
+	circuit = nullptr;
 	simulator = nullptr;
 }
 
-TEST_F(NoEditSimulatoruatorTest, PauseUnpause) {
+TEST_F(NoEditSimulatorTest, PauseUnpause) {
 	simulator->setPause(true);
 	EXPECT_TRUE(simulator->isPause());
 	EXPECT_DOUBLE_EQ(simulator->getRealTickrate(), 0.0);
@@ -39,7 +39,7 @@ TEST_F(NoEditSimulatoruatorTest, PauseUnpause) {
 	EXPECT_TRUE(tickPositive);
 }
 
-TEST_F(NoEditSimulatoruatorTest, TickStep) {
+TEST_F(NoEditSimulatorTest, TickStep) {
 	simulator->setPause(true);
 	EXPECT_TRUE(simulator->isPause());
 	simulator->tickStep();
@@ -48,7 +48,7 @@ TEST_F(NoEditSimulatoruatorTest, TickStep) {
 	EXPECT_FALSE(simulator->isViewingReplay());
 }
 
-TEST_F(NoEditSimulatoruatorTest, RealisticMode) {
+TEST_F(NoEditSimulatorTest, RealisticMode) {
 	EXPECT_FALSE(simulator->isRealistic());
 	simulator->setRealistic(true);
 	EXPECT_TRUE(simulator->isRealistic());
@@ -56,14 +56,14 @@ TEST_F(NoEditSimulatoruatorTest, RealisticMode) {
 	EXPECT_FALSE(simulator->isRealistic());
 }
 
-TEST_F(NoEditSimulatoruatorTest, TickrateSetting) {
+TEST_F(NoEditSimulatorTest, TickrateSetting) {
 	simulator->setTickrate(20.0);
 	EXPECT_DOUBLE_EQ(simulator->getTickrate(), 20.0);
 	simulator->setTickrate(100.0);
 	EXPECT_DOUBLE_EQ(simulator->getTickrate(), 100.0);
 }
 
-TEST_F(NoEditSimulatoruatorTest, UseTickrateSetting) {
+TEST_F(NoEditSimulatorTest, UseTickrateSetting) {
 	EXPECT_TRUE(simulator->getUseTickrate());
 	simulator->setUseTickrate(false);
 	EXPECT_FALSE(simulator->getUseTickrate());
@@ -71,7 +71,7 @@ TEST_F(NoEditSimulatoruatorTest, UseTickrateSetting) {
 	EXPECT_TRUE(simulator->getUseTickrate());
 }
 
-TEST_F(NoEditSimulatoruatorTest, EvalName) {
+TEST_F(NoEditSimulatorTest, EvalName) {
 	std::string expectedName = "Sim " + std::to_string(simulator->getSimulatorId()) + " (" + circuit->getCircuitNameNumber() + ")";
 	EXPECT_EQ(simulator->getSimulatorName(), expectedName);
 }

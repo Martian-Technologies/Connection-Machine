@@ -15,6 +15,9 @@ public:
 	// The config directory is the location that config files should placed (shared between "projects")
 	inline static const std::filesystem::path& getConfigDirectory() { return configDirectory; }
 
+	static std::string shortenPath(std::filesystem::path path);
+	static std::filesystem::path extendPath(const std::string& path);
+
 private:
 	static std::filesystem::path resourceDirectory;
 	static std::filesystem::path projectDirectory;

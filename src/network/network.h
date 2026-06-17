@@ -3,7 +3,7 @@
 
 #include "computerAPI/kvStore.h"
 
-class PopUpManager;
+class MainWindow;
 
 class Network {
 public:
@@ -17,9 +17,9 @@ public:
 	};
 
 	bool checkConnectedToInternet();
-	void sendFeedback(PopUpManager& popUpManager, const std::string& title, const std::string& description, const std::vector<Attachment>& attachments);
-	void sendAttachments(PopUpManager& popUpManager, const std::vector<Attachment>& attachments, std::string reportUuid);
-	void checkForUpdates(PopUpManager& popUpManager);
+	void sendFeedback(MainWindow& mainWindow, const std::string& title, const std::string& description, const std::vector<Attachment>& attachments);
+	void sendAttachments(MainWindow& mainWindow, const std::vector<Attachment>& attachments, std::string reportUuid);
+	void checkForUpdates(MainWindow& mainWindow);
 
 	// do not call
 	Network();

@@ -7,7 +7,7 @@ void AreaPlaceTool::activate() {
 }
 
 bool AreaPlaceTool::startPlaceBlock(const Event* event) {
-	if (!circuit) return false;
+	if (!getCircuit()) return false;
 	switch (click) {
 	case 'n':
 		click = 'p';
@@ -15,12 +15,12 @@ bool AreaPlaceTool::startPlaceBlock(const Event* event) {
 		updateElements();
 		break;
 	case 'p':
-		circuit->tryInsertOverArea(clickPosition, lastPointerPosition, orientation, selectedBlock);
+		getCircuit()->tryInsertOverArea(clickPosition, lastPointerPosition, orientation, selectedBlock);
 		click = 'n';
 		updateElements();
 		break;
 	case 'r':
-		circuit->tryRemoveOverArea(clickPosition, lastPointerPosition);
+		getCircuit()->tryRemoveOverArea(clickPosition, lastPointerPosition);
 		click = 'n';
 		updateElements();
 		break;
@@ -29,7 +29,7 @@ bool AreaPlaceTool::startPlaceBlock(const Event* event) {
 }
 
 bool AreaPlaceTool::startDeleteBlocks(const Event* event) {
-	if (!circuit) return false;
+	if (!getCircuit()) return false;
 	switch (click) {
 	case 'n':
 		click = 'r';

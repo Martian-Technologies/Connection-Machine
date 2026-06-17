@@ -136,6 +136,10 @@ using FuzzBlockType = std::variant<
 BlockType getBlockTypeFromFuzzBlockType(const FuzzBlockType& fuzzBlockType, Environment& environment);
 std::vector<BlockType> makeBlockTypesUsableVector(const std::vector<FuzzBlockType>& fuzzBlockTypes, Environment& environment);
 
+void setupFuzzLogCapture();
+unsigned long long fuzzSetStateFailCount();
+void resetFuzzSetStateFailCount();
+
 class FuzzTestcase {
 public:
 	FuzzTestcase(std::vector<FuzzBlockType> blockTypesUsed) : blockTypesUsed(blockTypesUsed) {}

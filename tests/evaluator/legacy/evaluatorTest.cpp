@@ -14,7 +14,7 @@ protected:
 	void TearDown() override;
 	Environment environment {false};
 	EvalLogicSimulator* simulator = nullptr;
-	SharedCircuit circuit = nullptr;
+	Circuit* circuit = nullptr;
 	int i;
 	logic_state_t L = logic_state_t::LOW;
 	logic_state_t H = logic_state_t::HIGH;
@@ -25,7 +25,7 @@ protected:
 // Note that logic simulator is tested separately
 void EvaluatorTest::SetUp() {
 	circuit_id_t circuitId = environment.getBackend().createCircuit();
-	circuit = environment.getBackend().getCircuit(circuitId);
+	circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	auto id = environment.getBackend().createSimulator(circuitId);
 	simulator = environment.getBackend().getSimulator(id.value());
 	i = 0;
@@ -33,7 +33,7 @@ void EvaluatorTest::SetUp() {
 
 void EvaluatorTest::TearDown() {
 	// remove ptr references
-	circuit.reset();
+	circuit = nullptr;
 	simulator = nullptr;
 }
 

@@ -1,14 +1,89 @@
-.model 4bitadder
-.inputs A3 A2 A1 A0 B3 B2 B1 B0 CIN
-.outputs COUT S3 S2 S1 S0
-.subckt fulladder a=A0 b=B0 cin=CIN s=S0 cout=CARRY1
-.subckt fulladder a=A3 b=B3 cin=CARRY3 s=S3 cout=COUT
-.subckt fulladder b=B1 a=A1 cin=CARRY1 s=XX cout=CARRY2
-.subckt fulladder a=JJ b=B2 cin=CARRY2 s=S2 cout=CARRY3
-# for the sake of example,
-.names XX S1 # formal output ‘s’ does not fanout to a primary output
-1 1
-.names A2 JJ # formal input ‘a’ does not fanin from a primary input
-1 1
-.end
-.search FullAdder.blif
+version_8
+import "FullAdder.blif"
+Circuit: "4bitadder"
+UUID: b5a129e0-26ae-4a63-8a41-3be546a1f810
+renderData:
+	(
+	texture: ""
+	textureTileData: (0, 0), (0, 0)
+	)
+size: 2x9
+ports:
+	(OUT, 13, (2, 4), <1, 4>, <0.500000, 0.500000>, "S0", 1)
+	(OUT, 12, (6, 0), <1, 3>, <0.500000, 0.500000>, "S1", 1)
+	(OUT, 11, (2, 5), <1, 2>, <0.500000, 0.500000>, "S2", 1)
+	(OUT, 10, (0, 3), <1, 1>, <0.500000, 0.500000>, "S3", 1)
+	(OUT, 9, (4, 0), <1, 0>, <0.500000, 0.500000>, "COUT", 1)
+	(IN, 8, (-2, 8), <0, 8>, <0.500000, 0.500000>, "CIN", 1)
+	(IN, 7, (-2, 7), <0, 7>, <0.500000, 0.500000>, "B0", 1)
+	(IN, 6, (-2, 5), <0, 6>, <0.500000, 0.500000>, "B1", 1)
+	(IN, 5, (-2, 2), <0, 5>, <0.500000, 0.500000>, "B2", 1)
+	(IN, 4, (-2, 0), <0, 4>, <0.500000, 0.500000>, "B3", 1)
+	(IN, 3, (-2, 6), <0, 3>, <0.500000, 0.500000>, "A0", 1)
+	(IN, 2, (-2, 4), <0, 2>, <0.500000, 0.500000>, "A1", 1)
+	(IN, 1, (-2, 3), <0, 1>, <0.500000, 0.500000>, "A2", 1)
+	(IN, 0, (-2, 1), <0, 0>, <0.500000, 0.500000>, "A3", 1)
+blockId 22 SWITCH 10 -9 ZERO
+	(connId:0) (3 0)
+blockId 21 SWITCH 10 -3 ZERO
+	(connId:0) (6 0)
+blockId 20 SWITCH 10 -7 ZERO
+	(connId:0) (2 0)
+blockId 19 SWITCH 10 -6 ZERO
+	(connId:0) (4 0)
+blockId 18 SWITCH 10 -4 ZERO
+	(connId:0) (3 1)
+blockId 17 SWITCH 10 -8 ZERO
+	(connId:0) (1 1)
+blockId 16 SWITCH 10 -2 ZERO
+	(connId:0) (2 1)
+blockId 15 SWITCH 10 -1 ZERO
+	(connId:0) (4 1)
+blockId 14 SWITCH 10 1 ZERO
+	(connId:0) (4 2)
+blockId 13 LIGHT 24 -9 ZERO
+	(connId:0) (3 4)
+blockId 12 LIGHT 24 -7 ZERO
+	(connId:0) (3 3)
+blockId 11 LIGHT 24 -5 ZERO
+	(connId:0) (1 3)
+blockId 10 LIGHT 24 0 ZERO
+	(connId:0) (7 1)
+blockId 9 LIGHT 24 5 ZERO
+	(connId:0) (4 3)
+blockId 8 AND 18 0 ZERO
+	(connId:0) (2 3)
+	(connId:1) (7 0)
+blockId 7 OR 21 0 ZERO
+	(connId:0) (8 1)
+	(connId:1) (10 0)
+blockId 6 AND 12 -3 ZERO
+	(connId:0) (21 0)
+	(connId:1) (5 0)
+blockId 5 OR 13 -3 ZERO
+	(connId:0) (6 1)
+	(connId:1) (1 0)
+blockId 4 "3f542a1b-dd86-4fc6-bee1-29769277906d" 15 5 ZERO
+	(connId:0) (19 0)
+	(connId:1) (15 0)
+	(connId:2) (14 0)
+	(connId:3) (9 0)
+	(connId:4) (2 2)
+blockId 3 "3f542a1b-dd86-4fc6-bee1-29769277906d" 15 -9 ZERO
+	(connId:0) (22 0)
+	(connId:1) (18 0)
+	(connId:2) (1 4)
+	(connId:3) (12 0)
+	(connId:4) (13 0)
+blockId 2 "3f542a1b-dd86-4fc6-bee1-29769277906d" 15 0 ZERO
+	(connId:0) (20 0)
+	(connId:1) (16 0)
+	(connId:2) (4 4)
+	(connId:3) (8 0)
+	(connId:4) (1 2)
+blockId 1 "3f542a1b-dd86-4fc6-bee1-29769277906d" 15 -5 ZERO
+	(connId:0) (5 1)
+	(connId:1) (17 0)
+	(connId:2) (2 4)
+	(connId:3) (11 0)
+	(connId:4) (3 2)

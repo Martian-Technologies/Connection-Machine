@@ -1,75 +1,82 @@
 #ifndef windowRenderer_h
 #define windowRenderer_h
 
-#include <RmlUi/Core/RenderInterface.h>
-
+#include "gpu/renderer/imgui/imGuiRenderer.h"
 #include "gui/sdl/sdlWindow.h"
 
 #include "gpu/abstractions/vulkanSwapchain.h"
+#include "gpu/abstractions/vulkanImage.h"
 #include "gpu/renderer/frameManager.h"
-#include "gpu/renderer/viewport/viewportRenderData.h"
-#include "gpu/renderer/viewport/viewportRenderer.h"
-#include "gpu/renderer/rml/rmlRenderer.h"
 
 class WindowRenderer {
 public:
-	WindowRenderer(SdlWindow* sdlWindow);
+	WindowRenderer(WindowId windowId, SdlWindow* sdlWindow);
 	~WindowRenderer();
 
-	// no copy
 	WindowRenderer(const WindowRenderer&) = delete;
 	WindowRenderer& operator=(const WindowRenderer&) = delete;
 
-public:
 	void resize(std::pair<uint32_t, uint32_t> windowSize);
 
-	RmlRenderer& getRmlRenderer() { return rmlRenderer; }
-	const RmlRenderer& getRmlRenderer() const { return rmlRenderer; }
+	ImGuiRenderer& getImGuiRenderer() { return *imGuiRenderer; }
+	const ImGuiRenderer& getImGuiRenderer() const { return *imGuiRenderer; }
+	void setImGuiRenderFunc(std::function<void()> imGuiRenderFunc);
 
-	void registerViewportRenderData(ViewportRenderData* viewportRenderData);
-	void deregisterViewportRenderData(ViewportRenderData* viewportRenderData);
-	bool hasViewportRenderData(ViewportRenderData* viewportRenderData);
+	void addSemaphore(vk::Semaphore semaphore, const std::vector<std::shared_ptr<void>>& lifetimeObjects) {
+		semaphoreForThisFrame.push_back(semaphore);
+		addLifetimeObjects(lifetimeObjects);
+	}
+	void addLifetimeObjects(const std::vector<std::shared_ptr<void>>& lifetimeObjects) {
+		for (const std::shared_ptr<void>& obj : lifetimeObjects) frames.getCurrentFrame()->lifetime.push(obj);
+	}
+	VulkanDevice& getDevice() { return *device; }
 
-	inline VulkanDevice* getDevice() { return device; }
+	std::pair<vk::DescriptorSet, std::vector<std::shared_ptr<void>>> getBlockTextureArrayLayer_ImGui(unsigned int layer) {
+		updateImGuiBlockTextureArrayLayers();
+		std::lock_guard lock(imGuiBlockTextureArrayLayersMux);
+		if (imGuiBlockTextureArrayLayers.size() <= layer) {
+			logError("layer index of {} out of range for imGuiBlockTextureArrayLayers with {} layers", "WindowRenderer::getBlockTextureArrayLayer_ImGui", layer, imGuiBlockTextureArrayLayers.size());
+			return { vk::DescriptorSet{}, {} };
+		}
+		return std::make_pair(imGuiBlockTextureArrayLayers[layer]->descriptorSet, std::vector<std::shared_ptr<void>>{ imGuiBlockTextureArrayLayers[layer] } );
+	}
 
 private:
 	void createColorResources();
-	void cleanupColorResources();
 	void renderToCommandBuffer(Frame& frame, uint32_t imageIndex);
 	void createRenderPass();
 	void recreateSwapchain();
 
 private:
-	// screen
+	WindowId windowId;
 	Swapchain swapchain;
 	std::atomic<bool> swapchainRecreationNeeded = false;
 	std::pair<uint32_t, uint32_t> windowSize;
 	std::mutex windowSizeMux;
 
-	// main vulkan
-	VkSurfaceKHR surface;
-	VkRenderPass renderPass;
+	vk::SurfaceKHR surface;
+	vk::UniqueRenderPass renderPass;
+	std::vector<vk::Semaphore> semaphoreForThisFrame;
 
-	// subrenderers
-	RmlRenderer rmlRenderer;
-	ViewportRenderer viewportRenderer;
+	std::optional<ImGuiRenderer> imGuiRenderer;
+	std::mutex imGuiRenderFuncMux;
+	std::function<void()> imGuiRenderFunc = nullptr;
 
-	// render loop
 	FrameManager frames;
 	std::thread renderThread;
 	std::atomic<bool> running = false;
+	std::atomic<bool> renderLoopStopped = true;
 	void renderLoop();
 
-	// connected viewport render interfaces
-	std::set<ViewportRenderData*> viewportRenderDatas;
-	std::mutex viewportRenderersMux;
+	void updateImGuiBlockTextureArrayLayers();
+	std::mutex imGuiBlockTextureArrayLayersMux;
+	std::vector<std::shared_ptr<ImGuiRenderer::ImGuiDescriptorSet>> imGuiBlockTextureArrayLayers;
+	std::shared_ptr<BlockTextureArray> blockTextureArrayImage;
 
-	// handles
 	SdlWindow* sdlWindow;
 	VulkanDevice* device;
 
-
-	AllocatedImage colorImage;
+	std::optional<AllocatedImage> colorImage;
 };
 
 #endif /* windowRenderer_h */

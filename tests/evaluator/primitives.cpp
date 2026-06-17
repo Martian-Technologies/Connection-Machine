@@ -9,18 +9,18 @@ protected:
 	void TearDown() override;
 	Environment environment { false };
 	EvalLogicSimulator* simulator = nullptr;
-	SharedCircuit circuit = nullptr;
+	Circuit* circuit = nullptr;
 };
 
 void PrimitivesEvaluatorTest::SetUp() {
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
-	circuit = environment.getBackend().getCircuit(circuitId);
+	circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	simulator_id_t simulatorId = environment.getBackend().createSimulator(circuitId).value();
 	simulator = environment.getBackend().getSimulator(simulatorId);
 }
 
 void PrimitivesEvaluatorTest::TearDown() {
-	circuit.reset();
+	circuit = nullptr;
 	simulator = nullptr;
 }
 

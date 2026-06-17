@@ -1,19 +1,13 @@
 #include "vulkanShader.h"
 
-VkShaderModule createShaderModule(VkDevice device, std::vector<char> byteCode) {
-	VkShaderModuleCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+vk::UniqueShaderModule createShaderModule(vk::Device device, std::vector<char> byteCode) {
+	vk::ShaderModuleCreateInfo createInfo{};
 	createInfo.codeSize = byteCode.size();
 	createInfo.pCode = reinterpret_cast<const uint32_t*>(byteCode.data());
 
-	VkShaderModule shaderModule;
-	if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+	auto result = device.createShaderModuleUnique(createInfo);
+	if (result.result != vk::Result::eSuccess) {
 		throwFatalError("failed to create vulkan shader module!");
 	}
-
-	return shaderModule;
-}
-
-void destroyShaderModule(VkDevice device, VkShaderModule shader) {
-	vkDestroyShaderModule(device, shader, nullptr);
+	return std::move(result.value);
 }

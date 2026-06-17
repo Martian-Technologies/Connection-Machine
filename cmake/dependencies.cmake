@@ -3,6 +3,7 @@ include(ExternalProject)
 
 function(add_main_dependencies)
 	message("adding main dependencies")
+
 	if (APPLE)
 		find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)
 		list(APPEND EXTERNAL_LINKS ${COREFOUNDATION_FRAMEWORK})
@@ -59,12 +60,15 @@ function(add_main_dependencies)
 	CPMAddPackage(
 		NAME fmt
 		GITHUB_REPOSITORY fmtlib/fmt
-		GIT_TAG 11.2.0
+		GIT_TAG 12.1.0
 		EXCLUDE_FROM_ALL YES
+		# DOWNLOAD_ONLY YES
 		OPTIONS
 			"FMT_INSTALL OFF"
 		SOURCE_DIR "${EXTERNAL_DIR}/fmt"
 	)
+	# add_library(fmt INTERFACE)
+	# target_include_directories(fmt INTERFACE "${EXTERNAL_DIR}/fmt/include")
 	list(APPEND EXTERNAL_LINKS fmt)
 
 	# CPPLocate (they have extreme cmake goofyness)
@@ -147,8 +151,9 @@ function(add_main_dependencies)
 
 	# adding all deps because code spltting became too complex
 
-	# Find vulkan (we don't actually use the headers, we just want shaderc compiler (won't be needed when we switch to slang hopefully))
+	# Find vulkan: provides glslc, the Vulkan::Headers target (with vulkan.hpp), and headers for vulkan.hpp/vma-hpp.
 	find_package(Vulkan REQUIRED COMPONENTS glslc)
+	list(APPEND EXTERNAL_LINKS Vulkan::Headers)
 
 	# Volk vulkan meta loader
 	CPMAddPackage(
@@ -176,6 +181,21 @@ function(add_main_dependencies)
 	endif()
 	set_target_properties(VulkanMemoryAllocator PROPERTIES INTERFACE_COMPILE_OPTIONS "${compile_opts}")
 	list(APPEND EXTERNAL_LINKS VulkanMemoryAllocator)
+
+	# VMA-Hpp (C++ wrapper for VMA; separate repo from the C library)
+	CPMAddPackage(
+		NAME VulkanMemoryAllocator-Hpp
+		GITHUB_REPOSITORY YaaZ/VulkanMemoryAllocator-Hpp
+		GIT_TAG v3.3.0+3
+		EXCLUDE_FROM_ALL YES
+		DOWNLOAD_ONLY YES
+		SOURCE_DIR "${EXTERNAL_DIR}/VulkanMemoryAllocator-Hpp"
+	)
+	add_library(VulkanMemoryAllocator-Hpp INTERFACE)
+	target_include_directories(VulkanMemoryAllocator-Hpp INTERFACE "${EXTERNAL_DIR}/VulkanMemoryAllocator-Hpp/include")
+	target_link_libraries(VulkanMemoryAllocator-Hpp INTERFACE VulkanMemoryAllocator Vulkan::Headers)
+	target_compile_options(VulkanMemoryAllocator-Hpp INTERFACE "$<$<CXX_COMPILER_ID:AppleClang>:-Wno-nullability-completeness>")
+	list(APPEND EXTERNAL_LINKS VulkanMemoryAllocator-Hpp)
 
 	# Vk Bootstrap
 	CPMAddPackage(
@@ -221,6 +241,7 @@ function(add_main_dependencies)
 				"FT_DISABLE_HARFBUZZ ON"
 				"FT_WITH_HARFBUZZ OFF"
 				"FT_DISABLE_BROTLI ON"
+				"FT_ENABLE_ERROR_STRINGS ON"
 			EXCLUDE_FROM_ALL YES
 			SOURCE_DIR "${EXTERNAL_DIR}/freetype"
 		)
@@ -267,19 +288,6 @@ function(add_main_dependencies)
 	endif()
 	add_library(SDL3::SDL3 ALIAS SDL3-static)
 	list(APPEND EXTERNAL_LINKS SDL3::SDL3)
-
-	# RmlUi
-	CPMAddPackage(
-        NAME RmlUi
-        GITHUB_REPOSITORY mikke89/RmlUi
-        GIT_TAG 6.1
-        OPTIONS
-			"RMLUI_BACKEND native"
-		EXCLUDE_FROM_ALL YES
-		SOURCE_DIR "${EXTERNAL_DIR}/RmlUi"
-    )
-	list(APPEND EXTERNAL_LINKS RmlUi::RmlUi)
-	list(APPEND EXTERNAL_LINKS RmlUi::Debugger)
 
 	# httplib
 	if (CONNECTION_MACHINE_DISTRIBUTE_APP)

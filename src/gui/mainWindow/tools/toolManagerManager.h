@@ -17,6 +17,7 @@ public:
 		for (auto view : circuitViews) {
 			view->getToolManager().selectBlock(blockType);
 		}
+		dataUpdateEventManager.sendEvent<BlockType>("setToolBlockTypeUpdate", selectedBlock);
 		sendChangedSignal();
 	}
 
@@ -24,6 +25,7 @@ public:
 		for (auto view : circuitViews) {
 			view->getToolManager().setOrientation(orientation);
 		}
+		dataUpdateEventManager.sendEvent<Orientation>("setToolBlockOrientationUpdate", orientation);
 		sendChangedSignal();
 	}
 
@@ -40,6 +42,8 @@ public:
 				view->getToolManager().selectBlock(selectedBlock);
 			}
 		}
+		dataUpdateEventManager.sendEvent<std::string>("setToolUpdate", activeTool);
+
 		sendChangedSignal();
 	}
 
@@ -56,7 +60,7 @@ public:
 
 		lastToolModes[activeTool] = mode;
 
-		dataUpdateEventManager.sendEvent("setToolModeUpdate");
+		dataUpdateEventManager.sendEvent<std::string>("setToolModeUpdate", mode);
 	}
 
 	void cycleActiveToolMode(int direction = 1);
@@ -104,16 +108,15 @@ public:
 private:
 	struct BaseToolTypeMaker {
 		virtual ~BaseToolTypeMaker() { }
-		virtual SharedCircuitTool getInstance(const Environment& environment) const = 0;
+		virtual SharedCircuitTool getInstance(Environment& environment) const = 0;
 		virtual std::vector<std::string> getModes() const = 0;
 	};
 	template <class T> struct ToolTypeMaker : public BaseToolTypeMaker {
-		SharedCircuitTool getInstance(const Environment& environment) const override final { return std::make_shared<T>(environment); }
+		SharedCircuitTool getInstance(Environment& environment) const override final { return std::make_shared<T>(environment); }
 		std::vector<std::string> getModes() const override final { return T::getModes_(); }
 	};
 
 	inline void sendChangedSignal() {
-		dataUpdateEventManager.sendEvent("setToolUpdate");
 		for (auto pair : listenerFunctions) pair.second(*this);
 	}
 
@@ -125,7 +128,7 @@ private:
 
 	std::map<std::string, std::string> lastToolModes;
 
-	const Environment& environment;
+	Environment& environment;
 	DataUpdateEventManager& dataUpdateEventManager;
 
 	static std::map<std::string, std::unique_ptr<BaseToolTypeMaker>> tools;

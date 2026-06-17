@@ -11,6 +11,7 @@ class CircuitManager;
 class BlockContainer {
 public:
 	BlockContainer(CircuitManager& circuitManager);
+	BlockContainer(const BlockContainer& circuitManager) = delete;
 
 	inline BlockDataManager& getBlockDataManager() const { return blockDataManager; }
 

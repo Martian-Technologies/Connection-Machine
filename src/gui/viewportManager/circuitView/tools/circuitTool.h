@@ -2,9 +2,9 @@
 #define circuitTool_h
 
 #include "../renderer/elementCreator.h"
-#include "backend/circuit/circuit.h"
 #include "toolStackInterface.h"
 #include "../events/eventRegister.h"
+#include "backend/circuit/circuit.h"
 
 class Environment;
 class CircuitView;
@@ -16,7 +16,7 @@ typedef unsigned long long EventRegistrationSignature;
 class CircuitTool {
 	friend class ToolStack;
 public:
-	CircuitTool(const Environment& environment) : environment(environment) {}
+	CircuitTool(Environment& environment) : environment(environment) {}
 	virtual ~CircuitTool() { unregisterFunctions(); }
 	bool isHelper() const { return helper; }
 	inline virtual std::vector<std::string> getModes() const { return {}; }
@@ -25,6 +25,8 @@ public:
 	bool sendEvent(const Event* event);
 	inline virtual bool showInMenu() const { return !isHelper(); }
 	inline virtual bool canMakeEdits() const { return true; };
+	Circuit* getCircuit();
+	const Circuit* getCircuit() const;
 
 protected:
 	void registerFunction(const std::string& eventName, const EventFunction& function);
@@ -37,7 +39,12 @@ protected:
 
 	virtual void reset() { elementCreator.clear(); }
 	virtual void activate();
-	virtual void deactivate() { isActivate = false; unregisterFunctions(); }
+	virtual void deactivate(bool clearRendering = false) {
+		isActivate = false;
+		unregisterFunctions();
+		setStatusBar("");
+		if (clearRendering) elementCreator.clear();
+	}
 
 	virtual void setMode(const std::string& toolMode) { }
 
@@ -47,20 +54,19 @@ protected:
 	FPosition lastPointerFPosition;
 	Position lastPointerPosition;
 
-	Circuit* circuit = nullptr;
 	bool helper = false;
 	bool isActivate = false;
 
 	CircuitView* circuitView;
 	ElementCreator elementCreator;
 	ToolStackInterface* toolStackInterface;
-	const Environment& environment;
+	Environment& environment;
 
 private:
 	// This will also tell the tool to reset.
-	void setup(ViewportId viewportId, EventRegister* eventRegister, ToolStackInterface* toolStackInterface, CircuitView* circuitView, Circuit* circuit);
+	void setup(ViewportId viewportId, EventRegister& eventRegister, ToolStackInterface& toolStackInterface, CircuitView& circuitView);
 	void unsetup();
-	inline void setCircuit(Circuit* circuit) { this->circuit = circuit; reset(); }
+	inline void updatedCircuit() { reset(); }
 
 	bool enterBlockView(const Event* event);
 	bool exitBlockView(const Event* event);

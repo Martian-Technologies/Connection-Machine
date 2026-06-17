@@ -14,24 +14,24 @@ void GetBlockDataCommand::run(const std::vector<std::string>& args, Environment&
 
     int xPos;
     int yPos;
-    circuit_id_t cirID;
+    circuit_id_t circuitId;
     try {
         xPos = std::stoi(args[2]);
         yPos = std::stoi(args[3]);
-        cirID = std::stoi(args[1]);
+        circuitId = std::stoi(args[1]);
     }
     catch (...) {
         logError("Exception occured. Check your arguments, they should be reasonably-sized integers.", "GetBlockDataCommand");
         return;
     }
 
-    SharedCircuit cir = environment.getBackend().getCircuitManager().getCircuit(cirID);
-    if (cir == nullptr) {
+    Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
+    if (circuit == nullptr) {
         logError("Unrecognized circuit ID. Available circuits can be found with the 'list_circuits' command.", "GetBlockDataCommand");
         return;
     }
 
-    const BlockContainer& blockContainer = cir->getBlockContainer();
+    const BlockContainer& blockContainer = circuit->getBlockContainer();
     Position pos = Position(xPos, yPos);
     const Block* block = blockContainer.getBlock(pos);
     if (block == nullptr) {

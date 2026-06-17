@@ -54,8 +54,8 @@ void ModeChangerTool::setMode(const std::string& mode) {
 }
 
 bool ModeChangerTool::click(const Event* event) {
-	if (!activeSelectionHelper->isFinished() || !circuit) return false;
-	circuit->setType(activeSelectionHelper->getSelection(), types[type].first);
+	if (!activeSelectionHelper->isFinished() || !getCircuit()) return false;
+	getCircuit()->setType(activeSelectionHelper->getSelection(), types[type].first);
 	reset();
 	toolStackInterface->pushTool(activeSelectionHelper);
 	return true;

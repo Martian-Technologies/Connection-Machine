@@ -7,23 +7,29 @@
 
 circuit_id_t CircuitManager::createNewCircuit(const std::string& name, const std::string& uuid, bool createSim) {
 	circuit_id_t circuitId = getNewCircuitId();
-	const SharedCircuit circuit = std::make_shared<Circuit>(circuitId, *this, dataUpdateEventManager, name, uuid);
-	circuits.emplace(circuitId, circuit);
-	UUIDToCircuits.emplace(uuid, circuit);
+	auto pair = circuits.emplace(std::piecewise_construct,
+		std::forward_as_tuple(circuitId),
+		std::forward_as_tuple(circuitId, *this, dataUpdateEventManager, name, uuid)
+	);
+	assert(pair.second);
+	UUIDToCircuits.emplace(uuid, circuitId);
 	for (auto& [object, funcData] : listenerFunctions) {
-		circuit->connectListener(object, funcData.second, funcData.first);
+		pair.first->second.connectListener(object, funcData.second, funcData.first);
 	}
 
 	setupBlockData(circuitId);
-	circuit->editCount = 0;
+	pair.first->second.editCount = 0;
 
 	if (createSim) {
 		simulator_id_t simulatorId = simulatorManager.createNewSimulator(circuitId);
 		if (simulatorId != 0) {
 			EvalLogicSimulator* simulator = simulatorManager.getSimulator(simulatorId);
 			simulator->setPause(false);
+			assert(!simulator->isPause());
 			simulator->setUseTickrate(true);
+			assert(simulator->getUseTickrate());
 			simulator->setTickrate(40);
+			assert(simulator->getTickrate() == 40);
 		}
 	}
 
@@ -58,7 +64,7 @@ circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit& parsedCircuit
 		logInfo("Setting a uuid for parsed circuit", "CircuitManager");
 		uuid = generate_uuid_v4();
 	} else {
-		SharedCircuit possibleExistingCircuit = getCircuit(uuid);
+		Circuit* possibleExistingCircuit = getCircuit(uuid);
 		if (possibleExistingCircuit) {
 			// this duplicates check won't really work with open circuits ics because we have no way of knowing
 			// unless we save which paths we have loaded. Though this would require then linking the IC blocktype to
@@ -74,7 +80,7 @@ circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit& parsedCircuit
 	}
 
 	circuit_id_t id = createNewCircuit(parsedCircuit.getName(), uuid, createEval);
-	SharedCircuit circuit = getCircuit(id);
+	Circuit* circuit = getCircuit(id);
 	circuit->tryInsertParsedCircuit(parsedCircuit, Position());
 
 	// if is custom
@@ -92,16 +98,27 @@ circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit& parsedCircuit
 		logError("Did not find newly created block data with block type: {}", "CircuitManager", std::to_string(blockType));
 		return id;
 	}
-	blockData->setDefaultData(false);
 	blockData->setPrimitive(false);
 	blockData->setPath("Custom");
 	blockData->setSize(parsedCircuit.getSize());
 
-	blockData->setTexturePath(parsedCircuit.getTexturePath());
-	blockData->setUsesTileMapTexture(parsedCircuit.getUsesTileMapTexture());
-	blockData->setTextureTileSize(parsedCircuit.getTextureTileSize());
-	blockData->setTextureSmallestCordTile(parsedCircuit.getTextureSmallestCordTile());
-	blockData->setTextureBlockTileSize(parsedCircuit.getTextureBlockTileSize());
+	if (parsedCircuit.getTexturePath() != "") {
+		blockData->newRenderData<BlockData::BlockTextureData>();
+		blockData->setBlockTexturePath(0, parsedCircuit.getTexturePath());
+		if (!parsedCircuit.getUseFullTexture()) {
+			blockData->setBlockTextureSize(0, {
+				parsedCircuit.getTextureSize().x,
+				parsedCircuit.getTextureSize().y
+			});
+			blockData->setBlockTextureTopLeft(0, {
+				parsedCircuit.getSmallestTextureCord().x,
+				parsedCircuit.getSmallestTextureCord().y
+			});
+		}
+		if (parsedCircuit.getRenderSate()) {
+
+		}
+}
 
 	// Circuit Block Data
 	circuitBlockDataManager.newCircuitBlockData(id, blockType);
@@ -135,7 +152,7 @@ circuit_id_t CircuitManager::createNewCircuit(const ParsedCircuit& parsedCircuit
 		blockData->setConnectionPortOffset(port.connectionEndId, port.portOffset);
 	}
 
-	dataUpdateEventManager.sendEvent("blockDataUpdate");
+	dataUpdateEventManager.sendEvent<BlockType>("blockDataUpdate", blockType);
 
 	return id;
 }
@@ -148,7 +165,7 @@ circuit_id_t CircuitManager::createNewCircuit(const GeneratedCircuit& generatedC
 
 	std::string uuid = generate_uuid_v4();
 	circuit_id_t id = createNewCircuit(generatedCircuit.getName(), uuid, createEval);
-	SharedCircuit circuit = getCircuit(id);
+	Circuit* circuit = getCircuit(id);
 	circuit->tryInsertGeneratedCircuit(generatedCircuit, Position());
 
 	if (!generatedCircuit.isCustom()) {
@@ -165,7 +182,6 @@ circuit_id_t CircuitManager::createNewCircuit(const GeneratedCircuit& generatedC
 		logError("Did not find newly created block data with block type: {}", "CircuitManager", std::to_string(blockType));
 		return id;
 	}
-	blockData->setDefaultData(false);
 	blockData->setPrimitive(false);
 	blockData->setPath("Custom");
 	blockData->setSize(generatedCircuit.getSize());
@@ -202,7 +218,7 @@ circuit_id_t CircuitManager::createNewCircuit(const GeneratedCircuit& generatedC
 		}
 	}
 
-	dataUpdateEventManager.sendEvent("blockDataUpdate");
+	dataUpdateEventManager.sendEvent<BlockType>("blockDataUpdate", blockType);
 
 	return id;
 }
@@ -213,7 +229,11 @@ void CircuitManager::updateExistingCircuit(circuit_id_t id, const GeneratedCircu
 		return;
 	}
 
-	SharedCircuit circuit = getCircuit(id);
+	Circuit* circuit = getCircuit(id);
+	if (!circuit) {
+		logError("Could not find circuit with id {}.", "CircuitManager::updateExistingCircuit", id);
+		return;
+	}
 	std::string uuid = circuit->getUUID();
 
 	circuit->clear(true);
@@ -238,7 +258,6 @@ void CircuitManager::updateExistingCircuit(circuit_id_t id, const GeneratedCircu
 		logError("Did not find newly created block data with block type: {}", "CircuitManager", std::to_string(blockType));
 		return;
 	}
-	blockData->setDefaultData(false);
 	blockData->setPrimitive(false);
 	blockData->setPath("Custom");
 	blockData->setSize(generatedCircuit->getSize());
@@ -316,7 +335,16 @@ void CircuitManager::updateExistingCircuit(circuit_id_t id, const GeneratedCircu
 		}
 	}
 
-	dataUpdateEventManager.sendEvent("blockDataUpdate");
+	dataUpdateEventManager.sendEvent<BlockType>("blockDataUpdate", blockType);
+}
+
+void CircuitManager::closeCircuit(circuit_id_t circuitId) {
+	Circuit* circuit = getCircuit(circuitId);
+	if (!circuit) {
+		logError("Could not find circuit with id {}.", "CircuitManager::updateExistingCircuit", circuitId);
+		return;
+	}
+	circuit->close();
 }
 
 nlohmann::json CircuitManager::dumpState() const /* GCOVR_EXCL_FUNCTION */ {
@@ -324,11 +352,11 @@ nlohmann::json CircuitManager::dumpState() const /* GCOVR_EXCL_FUNCTION */ {
 	stateJson["lastId"] = lastId;
 	stateJson["circuits"] = nlohmann::json::object();
 	for (const auto& [circuitId, circuit] : circuits) {
-		stateJson["circuits"][std::to_string(circuitId)] = circuit->dumpState();
+		stateJson["circuits"][std::to_string(circuitId)] = circuit.dumpState();
 	}
 	stateJson["UUIDToCircuits"] = nlohmann::json::object();
-	for (const auto& [uuid, circuit] : UUIDToCircuits) {
-		stateJson["UUIDToCircuits"][uuid] = circuit->getCircuitId();
+	for (const auto& [uuid, circuitId] : UUIDToCircuits) {
+		stateJson["UUIDToCircuits"][uuid] = circuitId;
 	}
 	stateJson["blockDataManager"] = blockDataManager.dumpState();
 	stateJson["circuitBlockDataManager"] = circuitBlockDataManager.dumpState();

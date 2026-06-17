@@ -5,11 +5,15 @@
 #endif
 
 #include "backend/circuit/circuit.h"
+#include "backend/evaluator/layers/junctionMergeEvalLayer.h"
+#include "backend/evaluator/evaluator.h"
+#include "backend/evaluator/evaluatorInternal.h"
 #include "gpu/mainRenderer.h"
-#include "backend/backend.h"
+#include "environment/environment.h"
 
-CircuitRenderManager::CircuitRenderManager(Backend& backend, circuit_id_t circuitId, ViewportId viewportId) : backend(backend), circuitId(circuitId), viewportId(viewportId) {
-	SharedCircuit circuit = backend.getCircuit(circuitId);
+CircuitRenderManager::CircuitRenderManager(Environment& environment, circuit_id_t circuitId, ViewportId viewportId) :
+	environment(environment), backend(environment.getBackend()), circuitId(circuitId), viewportId(viewportId) {
+	Circuit* circuit = backend.getCircuitManager().getCircuit(circuitId);
 	if (!circuit) {
 		logError("Failed to find circuit with Id {}", "CircuitRenderManager", circuitId);
 		return;
@@ -19,10 +23,10 @@ CircuitRenderManager::CircuitRenderManager(Backend& backend, circuit_id_t circui
 }
 
 CircuitRenderManager::~CircuitRenderManager() {
-	SharedCircuit circuit = backend.getCircuit(circuitId);
+	Circuit* circuit = backend.getCircuitManager().getCircuit(circuitId);
 	if (!circuit) return; // not an error because the circuit may have already been destroyed
 	MainRenderer::get().resetCircuit(viewportId);
-	MainRenderer::get().setViewportSimulatoruator(viewportId, nullptr, Address());
+	MainRenderer::get().setViewportSimulator(viewportId, nullptr, Address());
 	circuit->disconnectListener(this);
 }
 
@@ -38,7 +42,7 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 
 	MainRenderer::get().startMakingEdits(viewportId);
 
-	SharedCircuit circuit = backend.getCircuit(circuitId);
+	Circuit* circuit = backend.getCircuitManager().getCircuit(circuitId);
 	if (!circuit) { // not an error because the circuit may have already been destroyed
 		MainRenderer::get().resetViewport(viewportId);
 		circuitId = 0; // dont let this attach to something else
@@ -51,7 +55,7 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 		case Difference::ModificationType::PLACE_BLOCK:
 		{
 			const auto& [position, orientation, blockType] = std::get<Difference::block_modification_t>(modificationData);
-			MainRenderer::get().addBlock(viewportId, blockType, position, orientation);
+			MainRenderer::get().addBlock(viewportId, environment.getBlockRenderDataFeeder().getBlockRenderDataId(blockType), position, orientation);
 			renderedBlocks.emplace(position, RenderedBlock(blockType, orientation));
 			break;
 		}
@@ -65,8 +69,9 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 				logError("Could not find block at {} to remove.", "CircuitRenderManager", position);
 				continue;
 			}
-			if (iter->second.connectionsToOtherBlock.size() != 0) {
-				logError("Trying to remove block at {} that still has {} connections.", "CircuitRenderManager", position, iter->second.connectionsToOtherBlock.size());
+			if (iter->second.inputConnections.size() != 0 || iter->second.outputConnections.size() != 0) {
+				logError("Trying to remove block at {} that still has {} connections.", "CircuitRenderManager", position,
+					iter->second.inputConnections.size() + iter->second.outputConnections.size());
 				continue;
 			}
 			renderedBlocks.erase(iter);
@@ -74,73 +79,197 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 		}
 		case Difference::ModificationType::CREATED_CONNECTION:
 		{
-			const auto& [outputBlockPosition, outputPosition, inputBlockPosition, inputPosition] = std::get<Difference::connection_modification_t>(modificationData);
+			auto [outputBlockPosition, outputPortPosition, inputBlockPosition, inputPortPosition] = std::get<Difference::connection_modification_t>(modificationData);
+			orderConnection(outputBlockPosition, outputPortPosition, inputBlockPosition, inputPortPosition);
 
-			// uses position of output and input CELLS fed into offset function
-			std::pair<Position, Position> newConnection = { outputPosition, inputPosition };
-
-			auto outputIter = renderedBlocks.find(outputBlockPosition);
-			if (outputIter == renderedBlocks.end()) {
+			auto outputBlockIter = renderedBlocks.find(outputBlockPosition);
+			if (outputBlockIter == renderedBlocks.end()) {
 				logError("Could not find block at {} to add output connection to.", "CircuitRenderManager", outputBlockPosition);
+				continue;
 			}
-			outputIter->second.connectionsToOtherBlock.emplace(newConnection, inputBlockPosition);
-
-			std::optional<ConnectionEnd> outputConnectionEnd = circuit->getBlockContainer().getOutputOrBidirectionalConnectionEnd(outputPosition);
-			if (!outputConnectionEnd) continue;
-			std::optional<ConnectionEnd> inputConnectionEnd = circuit->getBlockContainer().getInputOrBidirectionalConnectionEnd(inputPosition);
-			if (!inputConnectionEnd) continue;
-
-			// only need both if it is a different block
-			if (outputBlockPosition != inputBlockPosition) {
-				auto inputIter = renderedBlocks.find(inputBlockPosition);
-				if (inputIter == renderedBlocks.end()) {
-					logError("Could not find block at {} to add input connection to.", "CircuitRenderManager", inputBlockPosition);
-					continue;
+			auto inputBlockIter = renderedBlocks.find(inputBlockPosition);
+			if (inputBlockIter == renderedBlocks.end()) {
+				logError("Could not find block at {} to add input connection to.", "CircuitRenderManager", inputBlockPosition);
+				continue;
+			}
+			outputBlockIter->second.outputConnections[outputPortPosition].connections.emplace(inputPortPosition, inputBlockPosition);
+			const BlockData* outputBlockData = blockDataManager.getBlockData(outputBlockIter->second.type);
+			assert(outputBlockData);
+			std::optional<connection_end_id_t> outputConnectionEndId = outputBlockData->getOutputOrBidirectionalConnectionId(
+				outputPortPosition - outputBlockPosition, outputBlockIter->second.orientation
+			);
+			if (!outputConnectionEndId) continue;
+			const BlockData* inputBlockData = blockDataManager.getBlockData(inputBlockIter->second.type);
+			assert(inputBlockData);
+			std::optional<connection_end_id_t> inputConnectionEndId = inputBlockData->getInputOrBidirectionalConnectionId(
+				inputPortPosition - inputBlockPosition, inputBlockIter->second.orientation
+			);
+			if (!inputConnectionEndId) continue;
+			if (outputBlockPosition == inputBlockPosition) {
+				InputRenderedBlockPort& inputRenderedBlockPort = outputBlockIter->second.inputConnections[inputPortPosition];
+				inputRenderedBlockPort.connections.emplace(outputPortPosition, outputBlockPosition);
+				if ((!inputRenderedBlockPort.ordering.has_value()) &&
+					inputBlockIter->second.type != BlockType::JUNCTION && inputBlockIter->second.type != BlockType::JUNCTION_L &&
+					inputBlockIter->second.type != BlockType::JUNCTION_H && inputBlockIter->second.type != BlockType::JUNCTION_X &&
+					inputBlockIter->second.type != BlockType::LIGHT && !inputBlockData->isBus()
+				) {
+					circuit_id_t inputBlockCircuitId = environment.getBackend().getCircuitManager().getCircuitBlockDataManager().getCircuitId(inputBlockIter->second.type);
+					if (inputBlockCircuitId == 0) {
+						if (!EvalConnectionEndInfo::isConnectionEndIdSinglePin(getEvalGateType(inputBlockIter->second.type), inputConnectionEndId.value())) {
+							inputRenderedBlockPort.ordering.emplace();
+						}
+					} else {
+						const Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(inputBlockCircuitId);
+						assert(circuit);
+						if (!circuit->getEvaluator().getEvaluatorInternal().isConnectionIdSinglePin(inputConnectionEndId.value())) {
+							inputRenderedBlockPort.ordering.emplace();
+						}
+					}
 				}
-				inputIter->second.connectionsToOtherBlock.emplace(newConnection, outputBlockPosition);
-				MainRenderer::get().addWire(viewportId, newConnection, {
-					blockDataManager.getBlockData(outputIter->second.type)->getConnectionPortOffset(outputConnectionEnd.value().getConnectionId(), outputIter->second.orientation).value_or(FVector(0.5)),
-					blockDataManager.getBlockData(inputIter->second.type)->getConnectionPortOffset(inputConnectionEnd.value().getConnectionId(), inputIter->second.orientation).value_or(FVector(0.5))
-					// getOutputOffset(outputIter->second.type, outputConnectionEnd.value().getConnectionId(), outputIter->second.orientation),
-					// getInputOffset(inputIter->second.type, inputConnectionEnd.value().getConnectionId(), inputIter->second.orientation)
-				});
+				if (inputRenderedBlockPort.ordering.has_value()) {
+					for (Position otherOutputPortPosition : inputRenderedBlockPort.ordering.value()) {
+						MainRenderer::get().removeWire(viewportId, std::make_pair(otherOutputPortPosition, inputPortPosition));
+					}
+					inputRenderedBlockPort.ordering->push_back(outputPortPosition);
+					createConnectionsForInputPort(inputBlockPosition, inputPortPosition);
+				} else {
+					MainRenderer::get().addWire(viewportId, { outputPortPosition, inputPortPosition }, {
+						outputBlockData->getConnectionPortOffset(
+							outputConnectionEndId.value(), outputBlockIter->second.orientation
+						).value_or(FVector(0.5)),
+						outputBlockData->getConnectionPortOffset(
+							inputConnectionEndId.value(), outputBlockIter->second.orientation
+						).value_or(FVector(0.5)),
+					});
+				}
 			} else {
-				MainRenderer::get().addWire(viewportId, newConnection, {
-					blockDataManager.getBlockData(outputIter->second.type)->getConnectionPortOffset(outputConnectionEnd.value().getConnectionId(), outputIter->second.orientation).value_or(FVector(0.5)),
-					blockDataManager.getBlockData(outputIter->second.type)->getConnectionPortOffset(inputConnectionEnd.value().getConnectionId(), outputIter->second.orientation).value_or(FVector(0.5))
-					// getOutputOffset(outputIter->second.type, outputConnectionEnd.value().getConnectionId(), outputIter->second.orientation),
-					// getInputOffset(outputIter->second.type, inputConnectionEnd.value().getConnectionId(), outputIter->second.orientation)
-				});
+				InputRenderedBlockPort& inputRenderedBlockPort = inputBlockIter->second.inputConnections[inputPortPosition];
+				inputRenderedBlockPort.connections.emplace(outputPortPosition, outputBlockPosition);
+				if (!inputRenderedBlockPort.ordering.has_value() &&
+					inputBlockIter->second.type != BlockType::JUNCTION && inputBlockIter->second.type != BlockType::JUNCTION_L &&
+					inputBlockIter->second.type != BlockType::JUNCTION_H && inputBlockIter->second.type != BlockType::JUNCTION_X &&
+					inputBlockIter->second.type != BlockType::LIGHT && !inputBlockData->isBus()
+				) {
+					circuit_id_t inputBlockCircuitId = environment.getBackend().getCircuitManager().getCircuitBlockDataManager().getCircuitId(inputBlockIter->second.type);
+					if (inputBlockCircuitId == 0) {
+						if (!EvalConnectionEndInfo::isConnectionEndIdSinglePin(getEvalGateType(inputBlockIter->second.type), inputConnectionEndId.value())) {
+							inputRenderedBlockPort.ordering.emplace();
+						}
+					} else {
+						const Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(inputBlockCircuitId);
+						assert(circuit);
+						if (!circuit->getEvaluator().getEvaluatorInternal().isConnectionIdSinglePin(inputConnectionEndId.value())) {
+							inputRenderedBlockPort.ordering.emplace();
+						}
+					}
+				}
+				if (inputRenderedBlockPort.ordering.has_value()) {
+					for (Position otherOutputPortPosition : inputRenderedBlockPort.ordering.value()) {
+						MainRenderer::get().removeWire(viewportId, std::make_pair(otherOutputPortPosition, inputPortPosition));
+					}
+					inputRenderedBlockPort.ordering->push_back(outputPortPosition);
+					createConnectionsForInputPort(inputBlockPosition, inputPortPosition);
+				} else {
+					MainRenderer::get().addWire(viewportId, { outputPortPosition, inputPortPosition }, {
+						outputBlockData->getConnectionPortOffset(
+							outputConnectionEndId.value(), outputBlockIter->second.orientation
+						).value_or(FVector(0.5)),
+						inputBlockData->getConnectionPortOffset(
+							inputConnectionEndId.value(), inputBlockIter->second.orientation
+						).value_or(FVector(0.5)),
+					});
+				}
 			}
 			break;
 		}
 		case Difference::ModificationType::REMOVED_CONNECTION:
 		{
-			const auto& [outputBlockPosition, outputPosition, inputBlockPosition, inputPosition] = std::get<Difference::connection_modification_t>(modificationData);
+			auto [outputBlockPosition, outputPortPosition, inputBlockPosition, inputPortPosition] = std::get<Difference::connection_modification_t>(modificationData);
+			orderConnection(outputBlockPosition, outputPortPosition, inputBlockPosition, inputPortPosition);
 
-			MainRenderer::get().removeWire(viewportId, { outputPosition, inputPosition });
+			MainRenderer::get().removeWire(viewportId, { outputPortPosition, inputPortPosition });
 
-			auto outputIter = renderedBlocks.find(outputBlockPosition);
-			if (outputIter == renderedBlocks.end()) {
+			auto outputBlockIter = renderedBlocks.find(outputBlockPosition);
+			if (outputBlockIter == renderedBlocks.end()) {
 				logError("Could not find block at {} to remove output connection from.", "CircuitRenderManager", outputBlockPosition);
+				continue;;
 			}
-			auto returnVal = outputIter->second.connectionsToOtherBlock.erase({ outputPosition, inputPosition });
-			if (!returnVal) {
-				if (!outputIter->second.connectionsToOtherBlock.erase({ inputPosition, outputPosition })) {
-					logError("Cound not remove connection {}, {} from output block", "", outputPosition, inputPosition);
+			auto outputRenderedBlockPortIter = outputBlockIter->second.outputConnections.find(outputPortPosition);
+			if (outputRenderedBlockPortIter == outputBlockIter->second.outputConnections.end()) {
+				logError("Could not find port at {} to remove output connection from.", "CircuitRenderManager", outputPortPosition);
+				continue;;
+			}
+			if (outputRenderedBlockPortIter->second.connections.size() == 1) {
+				if (outputRenderedBlockPortIter->second.connections.begin()->first != inputPortPosition) {
+					logError("Failed to erase output connection {} from port {}.", "CircuitRenderManager", inputPortPosition, outputPortPosition);
+					continue;
+				}
+				outputBlockIter->second.outputConnections.erase(outputRenderedBlockPortIter);
+			} else {
+				auto returnVal = outputRenderedBlockPortIter->second.connections.erase(inputPortPosition);
+				if (!returnVal) {
+					logError("Failed to erase output connection {} from port {}.", "CircuitRenderManager", inputPortPosition, outputPortPosition);
+					continue;
 				}
 			}
 
-			// only need both if it is a different block
-			if (outputBlockPosition != inputBlockPosition) {
-				auto inputIter = renderedBlocks.find(inputBlockPosition);
-				if (inputIter == renderedBlocks.end()) {
-					logError("Could not find block at {} to remove input connection from.", "CircuitRenderManager", inputBlockPosition);
+			if (outputBlockPosition == inputBlockPosition) {
+				auto inputRenderedBlockPortIter = outputBlockIter->second.inputConnections.find(inputPortPosition);
+				if (inputRenderedBlockPortIter == outputBlockIter->second.inputConnections.end()) {
+					logError("Could not find port at {} to remove input connection from.", "CircuitRenderManager", inputPortPosition);
+					continue;;
 				}
-				auto returnVal2 = inputIter->second.connectionsToOtherBlock.erase({ outputPosition, inputPosition });
-				if (!returnVal2) {
-					if (!inputIter->second.connectionsToOtherBlock.erase({ inputPosition, outputPosition })) {
-						logError("Cound not remove connection {}, {} from inpuit block", "", outputPosition, inputPosition);
+				if (inputRenderedBlockPortIter->second.connections.size() == 1) {
+					if (inputRenderedBlockPortIter->second.connections.begin()->second != outputPortPosition) {
+						logError("Failed to erase input connection {} from port {}.", "CircuitRenderManager", outputPortPosition, inputPortPosition);
+						continue;;
+					}
+					outputBlockIter->second.inputConnections.erase(inputRenderedBlockPortIter);
+				} else {
+					auto returnVal = inputRenderedBlockPortIter->second.connections.erase(outputPortPosition);
+					if (!returnVal) {
+						logError("Failed to erase input connection {} from port {}.", "CircuitRenderManager", outputPortPosition, inputPortPosition);
+						continue;;
+					}
+					if (inputRenderedBlockPortIter->second.ordering.has_value()) {
+						auto iter = std::find(inputRenderedBlockPortIter->second.ordering->begin(), inputRenderedBlockPortIter->second.ordering->end(), outputPortPosition);
+						inputRenderedBlockPortIter->second.ordering->erase(iter);
+						for (Position otherOutputPortPosition : inputRenderedBlockPortIter->second.ordering.value()) {
+							MainRenderer::get().removeWire(viewportId, std::make_pair(otherOutputPortPosition, inputPortPosition));
+							createConnectionsForInputPort(inputBlockPosition, inputPortPosition);
+						}
+					}
+				}
+			} else {
+				auto inputBlockIter = renderedBlocks.find(inputBlockPosition);
+				if (inputBlockIter == renderedBlocks.end()) {
+					logError("Could not find block at {} to remove input connection from.", "CircuitRenderManager", inputBlockPosition);
+					continue;
+				}
+				auto inputRenderedBlockPortIter = inputBlockIter->second.inputConnections.find(inputPortPosition);
+				if (inputRenderedBlockPortIter == inputBlockIter->second.inputConnections.end()) {
+					logError("Could not find port at {} to remove input connection from.", "CircuitRenderManager", inputPortPosition);
+					continue;;
+				}
+				if (inputRenderedBlockPortIter->second.connections.size() == 1) {
+					if (inputRenderedBlockPortIter->second.connections.begin()->second != outputPortPosition) {
+						logError("Failed to erase input connection {} from port {}.", "CircuitRenderManager", outputPortPosition, inputPortPosition);
+						continue;;
+					}
+					inputBlockIter->second.inputConnections.erase(inputRenderedBlockPortIter);
+				} else {
+					auto returnVal = inputRenderedBlockPortIter->second.connections.erase(outputPortPosition);
+					if (!returnVal) {
+						logError("Failed to erase input connection {} from port {}.", "CircuitRenderManager", outputPortPosition, inputPortPosition);
+						continue;;
+					}
+					if (inputRenderedBlockPortIter->second.ordering.has_value()) {
+						auto iter = std::find(inputRenderedBlockPortIter->second.ordering->begin(), inputRenderedBlockPortIter->second.ordering->end(), outputPortPosition);
+						inputRenderedBlockPortIter->second.ordering->erase(iter);
+						for (Position otherOutputPortPosition : inputRenderedBlockPortIter->second.ordering.value()) {
+							MainRenderer::get().removeWire(viewportId, std::make_pair(otherOutputPortPosition, inputPortPosition));
+							createConnectionsForInputPort(inputBlockPosition, inputPortPosition);
+						}
 					}
 				}
 			}
@@ -148,124 +277,250 @@ void CircuitRenderManager::addDifference(DifferenceSharedPtr diff) {
 		}
 		case Difference::ModificationType::MOVE_BLOCK:
 		{
-			const auto& [curPosition, curOrientation, newPosition, newOrientation, moveType] = std::get<Difference::move_modification_t>(modificationData);
-			if (curPosition == newPosition && curOrientation == newOrientation) continue;
+			const auto& [curBlockPosition, curOrientation, newBlockPosition, newOrientation, moveType] = std::get<Difference::move_modification_t>(modificationData);
+			if (curBlockPosition == newBlockPosition && curOrientation == newOrientation) continue;
 
-			auto iter = renderedBlocks.find(curPosition);
-			if (iter == renderedBlocks.end()) {
-				logError("Could not find block at {} to move.", "CircuitRenderManager", curPosition);
+			auto blockIter = renderedBlocks.find(curBlockPosition);
+			if (blockIter == renderedBlocks.end()) {
+				logError("Could not find block at {} to move.", "CircuitRenderManager", curBlockPosition);
 				continue;
 			}
 
-			if (curPosition != newPosition) {
-				auto newIter = renderedBlocks.emplace(newPosition, std::move(iter->second)).first;
-				renderedBlocks.erase(iter);
-				iter = newIter;
+			if (curBlockPosition != newBlockPosition) {
+				auto newIter = renderedBlocks.emplace(newBlockPosition, std::move(blockIter->second)).first;
+				renderedBlocks.erase(blockIter);
+				blockIter = newIter;
 			}
 
-			iter->second.orientation = newOrientation;
+			blockIter->second.orientation = newOrientation;
 
 			// MOVE BLOCK
-			MainRenderer::get().moveBlock(viewportId, curPosition, newPosition, newOrientation);
+			MainRenderer::get().moveBlock(viewportId, curBlockPosition, newBlockPosition, newOrientation);
 
-			Size blockSize = blockDataManager.getBlockSize(iter->second.type, curOrientation);
+			Size blockSize = blockDataManager.getBlockSize(blockIter->second.type, curOrientation);
 			Orientation transformAmount = newOrientation.relativeTo(curOrientation);
 
 			// MOVE CONNECTIONS
-			std::unordered_map<std::pair<Position, Position>, Position> oldConnectionsToOtherBlock = std::move(iter->second.connectionsToOtherBlock);
-			iter->second.connectionsToOtherBlock.clear();
+			std::unordered_map<Position, OutputRenderedBlockPort> oldOutputConnectionsCopy = std::move(blockIter->second.outputConnections);
+			std::unordered_map<Position, InputRenderedBlockPort> oldInputConnectionsCopy = std::move(blockIter->second.inputConnections);
+			blockIter->second.outputConnections.clear();
+			blockIter->second.inputConnections.clear();
 
-			std::vector<std::pair<std::pair<Position, Position>, std::pair<Position, Position>>> wiresToAdd;
-			std::vector<std::pair<std::pair<Position, Position>, std::pair<FVector, FVector>>> wiresToRender;
+			std::vector<std::pair<Position, Position>> inputPorts;
 
-			for (auto& [posPair, otherBlockPos] : oldConnectionsToOtherBlock) {
-				if ((moveType == MoveType::SINGLE || moveType == MoveType::MULTI_BEGIN) && otherBlockPos.x != 10000000) {
-					MainRenderer::get().removeWire(viewportId, posPair);
-				}
-				if (otherBlockPos == curPosition) {
-					Vector outputVec = transformAmount.transformVectorWithArea(posPair.first - curPosition, blockSize);
-					Position outputPos = newPosition + outputVec;
-					Vector inputVec = transformAmount.transformVectorWithArea(posPair.second - curPosition, blockSize);
-					Position inputPos = newPosition + inputVec;
-					if (moveType == MoveType::SINGLE || moveType == MoveType::MULTI_FINAL) {
-						const BlockData* blockData = circuit->getBlockContainer().getBlockDataManager().getBlockData(iter->second.type);
-						std::optional<connection_end_id_t> outputEndId = blockData->getOutputOrBidirectionalConnectionId(outputVec, newOrientation);
-						if (!outputEndId) continue;
-						std::optional<connection_end_id_t> inputEndId = blockData->getInputOrBidirectionalConnectionId(inputVec, newOrientation);
-						if (!inputEndId) continue;
-						wiresToRender.emplace_back(std::make_pair(outputPos, inputPos), std::make_pair(
-							blockDataManager.getBlockData(iter->second.type)->getConnectionPortOffset(outputEndId.value(), newOrientation).value_or(FVector(0.5)),
-							blockDataManager.getBlockData(iter->second.type)->getConnectionPortOffset(inputEndId.value(), newOrientation).value_or(FVector(0.5))
-							// getOutputOffset(iter->second.type, outputEndId.value(), newOrientation),
-							// getInputOffset(iter->second.type, inputEndId.value(), newOrientation)
-						));
+			for (const auto& [outputPortPosition, outputRenderedBlockPort] : oldOutputConnectionsCopy) {
+				Position newOutputPortPosition = newBlockPosition + transformAmount.transformVectorWithArea(outputPortPosition - curBlockPosition, blockSize);
+				for (const auto& [inputPortPosition, inputBlockPosition] : outputRenderedBlockPort.connections) {
+					if (inputBlockPosition == curBlockPosition) continue;
+					if ((moveType == MoveType::SINGLE || moveType == MoveType::MULTI_BEGIN) && inputBlockPosition.x != 10000000) {
+						MainRenderer::get().removeWire(viewportId, {outputPortPosition, inputPortPosition});
 					}
-					wiresToAdd.emplace_back(std::make_pair(outputPos, inputPos), std::make_pair(newPosition, newPosition));
-				} else {
-					auto otherIter = renderedBlocks.find(otherBlockPos);
-					if (otherIter == renderedBlocks.end()) {
-						logError("Could not find block at {} to move connection.", "CircuitRenderManager", otherBlockPos);
+					auto inputBlockIter = renderedBlocks.find(inputBlockPosition);
+					if (inputBlockIter == renderedBlocks.end()) {
+						logError("Could not find block at {} to move connection.", "CircuitRenderManager", inputBlockPosition);
 						continue;
 					}
-					otherIter->second.connectionsToOtherBlock.erase(posPair);
-					bool isInput = posPair.second.withinArea(curPosition, curPosition + blockSize.getLargestVectorInArea());
-					if (isInput) {
-						Vector inputVec = transformAmount.transformVectorWithArea(posPair.second - curPosition, blockSize);
-						Position inputPos = newPosition + inputVec;
-						if ((moveType == MoveType::SINGLE || moveType == MoveType::MULTI_FINAL) && otherBlockPos.x != 10000000) {
-							std::optional<connection_end_id_t> outputEndId = circuit->getBlockContainer().getBlockDataManager().getOutputOrBidirectionalConnectionId(
-								otherIter->second.type, otherIter->second.orientation, posPair.first - otherBlockPos
-							);
-							if (!outputEndId) continue;
-							std::optional<connection_end_id_t> inputEndId = circuit->getBlockContainer().getBlockDataManager().getInputOrBidirectionalConnectionId(
-								iter->second.type, newOrientation, inputVec
-							);
-							if (!inputEndId) continue;
-							wiresToRender.emplace_back(std::make_pair(posPair.first, inputPos), std::make_pair(
-								blockDataManager.getBlockData(otherIter->second.type)->getConnectionPortOffset(outputEndId.value(), otherIter->second.orientation).value_or(FVector(0.5)),
-								blockDataManager.getBlockData(iter->second.type)->getConnectionPortOffset(inputEndId.value(), newOrientation).value_or(FVector(0.5))
-								// getOutputOffset(otherIter->second.type, outputEndId.value(), otherIter->second.orientation),
-								// getInputOffset(iter->second.type, inputEndId.value(), newOrientation)
-							));
+					auto inputRenderedBlockPortIter = inputBlockIter->second.inputConnections.find(inputPortPosition);
+					if (inputRenderedBlockPortIter == inputBlockIter->second.inputConnections.end()) {
+						logError("Could not find port at {} to move connection.", "CircuitRenderManager", inputPortPosition);
+						continue;
+					}
+					inputPorts.emplace_back(inputBlockPosition, inputPortPosition);
+					blockIter->second.outputConnections[newOutputPortPosition].connections.emplace(inputPortPosition, inputBlockPosition);
+					inputRenderedBlockPortIter->second.connections.erase(outputPortPosition);
+					inputRenderedBlockPortIter->second.connections.emplace(newOutputPortPosition, newBlockPosition);
+					if (inputRenderedBlockPortIter->second.ordering.has_value()) {
+						auto iter = std::find(inputRenderedBlockPortIter->second.ordering->begin(), inputRenderedBlockPortIter->second.ordering->end(), outputPortPosition);
+						if (iter == inputRenderedBlockPortIter->second.ordering->end()) {
+							logError("Could not find port {} in ordering.", "CircuitRenderManager", outputPortPosition);
+							continue;
 						}
-						wiresToAdd.emplace_back(std::make_pair(posPair.first, inputPos), std::make_pair(otherBlockPos, newPosition));
-					} else {
-						Vector outputVec = transformAmount.transformVectorWithArea(posPair.first - curPosition, blockSize);
-						Position outputPos = newPosition + outputVec;
-						if ((moveType == MoveType::SINGLE || moveType == MoveType::MULTI_FINAL) && otherBlockPos.x != 10000000) {
-							std::optional<connection_end_id_t> outputEndId = circuit->getBlockContainer().getBlockDataManager().getOutputOrBidirectionalConnectionId(
-								iter->second.type, newOrientation, outputVec
-							);
-							if (!outputEndId) continue;
-							std::optional<connection_end_id_t> inputEndId = circuit->getBlockContainer().getBlockDataManager().getInputOrBidirectionalConnectionId(
-								otherIter->second.type, otherIter->second.orientation, posPair.second - otherBlockPos
-							);
-							if (!inputEndId) continue;
-							wiresToRender.emplace_back(std::make_pair(outputPos, posPair.second), std::make_pair(
-								blockDataManager.getBlockData(iter->second.type)->getConnectionPortOffset(outputEndId.value(), newOrientation).value_or(FVector(0.5)),
-								blockDataManager.getBlockData(otherIter->second.type)->getConnectionPortOffset(inputEndId.value(), otherIter->second.orientation).value_or(FVector(0.5))
-								// getOutputOffset(iter->second.type, outputEndId.value(), newOrientation),
-								// getInputOffset(otherIter->second.type, inputEndId.value(), otherIter->second.orientation)
-							));
-						}
-						wiresToAdd.emplace_back(std::make_pair(outputPos, posPair.second), std::make_pair(newPosition, otherBlockPos));
+						inputRenderedBlockPortIter->second.ordering->erase(iter);
+						inputRenderedBlockPortIter->second.ordering->push_back(newOutputPortPosition);
 					}
 				}
 			}
-			for (const auto& pairs : wiresToAdd) {
-				if (pairs.second.first == pairs.second.second) {
-					renderedBlocks.find(pairs.second.first)->second.connectionsToOtherBlock.emplace(pairs.first, pairs.second.first);
-				} else {
-					renderedBlocks.find(pairs.second.first)->second.connectionsToOtherBlock.emplace(pairs.first, pairs.second.second);
-					renderedBlocks.find(pairs.second.second)->second.connectionsToOtherBlock.emplace(pairs.first, pairs.second.first);
+			for (const auto& [inputPortPosition, inputRenderedBlockPort] : oldInputConnectionsCopy) {
+				Position newInputPortPosition = newBlockPosition + transformAmount.transformVectorWithArea(inputPortPosition - curBlockPosition, blockSize);
+				if (inputRenderedBlockPort.ordering.has_value()) {
+					blockIter->second.inputConnections[newInputPortPosition].ordering.emplace();
+				}
+				inputPorts.emplace_back(newBlockPosition, newInputPortPosition);
+				for (const auto& [outputPortPosition, outputBlockPosition] : inputRenderedBlockPort.connections) {
+					if ((moveType == MoveType::SINGLE || moveType == MoveType::MULTI_BEGIN) && outputBlockPosition.x != 10000000) {
+						MainRenderer::get().removeWire(viewportId, {outputPortPosition, inputPortPosition});
+					}
+					if (outputBlockPosition == curBlockPosition) {
+						Position newOutputPortPosition = newBlockPosition + transformAmount.transformVectorWithArea(outputPortPosition - curBlockPosition, blockSize);
+						blockIter->second.outputConnections[newOutputPortPosition].connections.emplace(newInputPortPosition, newBlockPosition);
+						if (inputRenderedBlockPort.ordering.has_value()) {
+							blockIter->second.inputConnections[newInputPortPosition].ordering->emplace_back(newOutputPortPosition);
+						}
+						blockIter->second.inputConnections[newInputPortPosition].connections.emplace(newOutputPortPosition, newBlockPosition);
+					} else {
+						auto outputBlockIter = renderedBlocks.find(outputBlockPosition);
+						if (outputBlockIter == renderedBlocks.end()) {
+							logError("Could not find block at {} to move connection.", "CircuitRenderManager", outputBlockPosition);
+							continue;
+						}
+						auto outputRenderedBlockPortIter = outputBlockIter->second.outputConnections.find(outputPortPosition);
+						if (outputRenderedBlockPortIter == outputBlockIter->second.outputConnections.end()) {
+							logError("Could not find port at {} to move connection.", "CircuitRenderManager", outputPortPosition);
+							continue;
+						}
+						outputRenderedBlockPortIter->second.connections.erase(inputPortPosition);
+						outputRenderedBlockPortIter->second.connections.emplace(newInputPortPosition, newBlockPosition);
+						blockIter->second.inputConnections[newInputPortPosition].connections.emplace(outputPortPosition, outputBlockPosition);
+						if (inputRenderedBlockPort.ordering.has_value()) {
+							blockIter->second.inputConnections[newInputPortPosition].ordering->emplace_back(outputPortPosition);
+						}
+					}
 				}
 			}
-			for (const auto& pairs : wiresToRender) {
-				MainRenderer::get().addWire(viewportId, pairs.first, pairs.second);
+			if (moveType == MoveType::SINGLE || moveType == MoveType::MULTI_FINAL) {
+				assert(newBlockPosition.x != 10000000);
+				for (const auto& [inputBlockPosition, inputPortPosition] : inputPorts) {
+					createConnectionsForInputPort(inputBlockPosition, inputPortPosition);
+					// auto inputBlockIter = renderedBlocks.find(inputBlockPosition);
+					// assert(inputBlockIter != renderedBlocks.end());
+					// InputRenderedBlockPort& inputRenderedBlockPort = inputBlockIter->second.inputConnections.at(inputBlockPosition);
+				}
+			} else {
+				assert(newBlockPosition.x == 10000000);
 			}
 		}
+	}
+	}
+	MainRenderer::get().stopMakingEdits(viewportId);
+}
+
+void CircuitRenderManager::createConnectionsForInputPort(Position inputBlockPosition, Position inputPortPosition) {
+	if (inputBlockPosition.x == 10000000) return;
+	auto inputBlockIter = renderedBlocks.find(inputBlockPosition);
+	if (inputBlockIter == renderedBlocks.end()) {
+		logError("Could not find block position {}.", "CircuitRenderManager::createConnectionsForInputPort", inputBlockPosition);
+		return;
+	}
+	auto inputPortIter = inputBlockIter->second.inputConnections.find(inputPortPosition);
+	if (inputPortIter == inputBlockIter->second.inputConnections.end()) return;
+	const BlockDataManager& blockDataManager = environment.getBackend().getCircuitManager().getBlockDataManager();
+	const BlockData* inputBlockData = blockDataManager.getBlockData(inputBlockIter->second.type);
+	assert(inputBlockData);
+	std::optional<connection_end_id_t> inputEndId = inputBlockData->getInputOrBidirectionalConnectionId(
+		inputPortPosition - inputBlockPosition, inputBlockIter->second.orientation);
+	if (!inputEndId) return;
+	FVector inputOffset = inputBlockData->getConnectionPortOffset(inputEndId.value(), inputBlockIter->second.orientation).value_or(FVector(0.5));
+	if (inputPortIter->second.ordering.has_value()) {
+		float spacing = 0.4 / (float)inputPortIter->second.ordering->size();
+		float start = spacing / 2.0 - 0.4 / 2.0f;
+		bool orderOnX = abs(inputOffset.dx - 0.5) < abs(inputOffset.dy - 0.5);
+		sortPortVector(inputPortPosition, orderOnX, inputPortIter->second.ordering.value());
+		for (unsigned int i = 0; i < inputPortIter->second.ordering.value().size(); i++) {
+			Position outputPortPosition = inputPortIter->second.ordering.value()[i];
+			Position outputBlockPosition = inputPortIter->second.connections.at(outputPortPosition);
+			if (outputBlockPosition.x == 10000000) continue;
+			if (inputBlockPosition == outputBlockPosition) {
+				std::optional<connection_end_id_t> outputEndId = inputBlockData->getOutputOrBidirectionalConnectionId(
+					outputPortPosition - inputBlockPosition, inputBlockIter->second.orientation);
+				if (!outputEndId) continue;
+				MainRenderer::get().addWire(viewportId, std::make_pair(outputPortPosition, inputPortPosition), std::make_pair(
+					inputBlockData->getConnectionPortOffset(outputEndId.value(), inputBlockIter->second.orientation).value_or(FVector(0.5)),
+					inputOffset + (orderOnX ? FVector(i * spacing + start, 0) : FVector(0, i * spacing + start))
+				));
+			} else {
+				auto outputBlockIter = renderedBlocks.find(outputBlockPosition);
+				if (outputBlockIter == renderedBlocks.end()) {
+					logError("Could not find block at {} to connection with.", "CircuitRenderManager", outputBlockPosition);
+					continue;
+				}
+				const BlockData* outputBlockData = blockDataManager.getBlockData(outputBlockIter->second.type);
+				assert(outputBlockData);
+				std::optional<connection_end_id_t> outputEndId = outputBlockData->getOutputOrBidirectionalConnectionId(
+					outputPortPosition - outputBlockPosition, outputBlockIter->second.orientation);
+				if (!outputEndId) continue;
+				std::optional<connection_end_id_t> inputEndId = inputBlockData->getInputOrBidirectionalConnectionId(
+					inputPortPosition - inputBlockPosition, inputBlockIter->second.orientation);
+				if (!inputEndId) continue;
+				MainRenderer::get().addWire(viewportId, std::make_pair(outputPortPosition, inputPortPosition), std::make_pair(
+					outputBlockData->getConnectionPortOffset(outputEndId.value(), outputBlockIter->second.orientation).value_or(FVector(0.5)),
+					inputOffset + (orderOnX ? FVector(i * spacing + start, 0) : FVector(0, i * spacing + start))
+				));
+			}
+		}
+	} else {
+		for (const auto& [outputPortPosition, outputBlockPosition] : inputPortIter->second.connections) {
+			if (outputPortPosition == inputPortPosition) {
+				std::optional<connection_end_id_t> outputEndId = inputBlockData->getOutputOrBidirectionalConnectionId(
+					outputPortPosition - inputBlockPosition, inputBlockIter->second.orientation);
+				if (!outputEndId) continue;
+				std::optional<connection_end_id_t> inputEndId = inputBlockData->getInputOrBidirectionalConnectionId(
+					inputPortPosition - inputBlockPosition, inputBlockIter->second.orientation);
+				if (!inputEndId) continue;
+				MainRenderer::get().addWire(viewportId, std::make_pair(outputPortPosition, inputPortPosition), std::make_pair(
+					inputBlockData->getConnectionPortOffset(outputEndId.value(), inputBlockIter->second.orientation).value_or(FVector(0.5)),
+					inputBlockData->getConnectionPortOffset(inputEndId.value(), inputBlockIter->second.orientation).value_or(FVector(0.5))
+				));
+			} else {
+				auto outputBlockIter = renderedBlocks.find(outputBlockPosition);
+				if (outputBlockIter == renderedBlocks.end()) {
+					logError("Could not find block at {} to connection with.", "CircuitRenderManager", outputBlockPosition);
+					continue;
+				}
+				const BlockData* outputBlockData = blockDataManager.getBlockData(outputBlockIter->second.type);
+				assert(outputBlockData);
+				std::optional<connection_end_id_t> outputEndId = outputBlockData->getOutputOrBidirectionalConnectionId(
+					outputPortPosition - outputBlockPosition, outputBlockIter->second.orientation);
+				if (!outputEndId) continue;
+				MainRenderer::get().addWire(viewportId, std::make_pair(outputPortPosition, inputPortPosition), std::make_pair(
+					outputBlockData->getConnectionPortOffset(outputEndId.value(), outputBlockIter->second.orientation).value_or(FVector(0.5)),
+					inputOffset
+				));
+			}
 		}
 	}
+}
 
-	MainRenderer::get().stopMakingEdits(viewportId);
+void CircuitRenderManager::sortPortVector(Position inputPortPosition, bool orderOnX, std::vector<Position>& outputPortPositions) {
+	std::sort(outputPortPositions.begin(), outputPortPositions.end(), [&](Position a, Position b) {
+		if (orderOnX) {
+			if (a.x == b.x) {
+				if (a.x > inputPortPosition.x) return abs(a.y - inputPortPosition.y) > abs(b.y - inputPortPosition.y);
+				return abs(a.y - inputPortPosition.y) < abs(b.y - inputPortPosition.y);
+			}
+			return a.x < b.x;
+		}
+		if (a.y == b.y) {
+			if (a.y > inputPortPosition.y) return abs(a.x - inputPortPosition.x) > abs(b.x - inputPortPosition.x);
+			return abs(a.x - inputPortPosition.x) < abs(b.x - inputPortPosition.x);
+		}
+		return a.y < b.y;
+	});
+}
+
+void CircuitRenderManager::orderConnection(Position& outputBlockPosition, Position& outputPortPosition, Position& inputBlockPosition, Position& inputPortPosition) {
+	auto outputBlockIter = renderedBlocks.find(outputBlockPosition);
+	if (outputBlockIter == renderedBlocks.end()) {
+		logError("Could not find block at {} in renderedBlocks.", "CircuitRenderManager::orderConnection", outputBlockPosition);
+		return;
+	}
+	const BlockData* outputBlockData = environment.getBackend().getBlockDataManager().getBlockData(outputBlockIter->second.type);
+	if (outputBlockData == nullptr) {
+		logError("Could not find block type {}.", "CircuitRenderManager::orderConnection", outputBlockIter->second.type);
+		return;
+	}
+	if (!outputBlockData->getBidirectionalConnectionId(outputPortPosition - outputBlockPosition, outputBlockIter->second.orientation).has_value()) return;
+	auto inputBlockIter = renderedBlocks.find(inputBlockPosition);
+	if (inputBlockIter == renderedBlocks.end()) {
+		logError("Could not find block at {} in renderedBlocks.", "CircuitRenderManager::orderConnection", inputBlockPosition);
+		return;
+	}
+	const BlockData* inputBlockData = environment.getBackend().getBlockDataManager().getBlockData(inputBlockIter->second.type);
+	if (inputBlockData == nullptr) {
+		logError("Could not find block type {}.", "CircuitRenderManager::orderConnection", inputBlockIter->second.type);
+		return;
+	}
+	if (!inputBlockData->getBidirectionalConnectionId(inputPortPosition - inputBlockPosition, inputBlockIter->second.orientation).has_value()) return;
+	if (outputPortPosition.x < inputPortPosition.x || (outputPortPosition.x == inputPortPosition.x && outputPortPosition.y < inputPortPosition.y)) return;
+	std::swap(outputBlockPosition, inputBlockPosition);
+	std::swap(outputPortPosition, inputPortPosition);
 }

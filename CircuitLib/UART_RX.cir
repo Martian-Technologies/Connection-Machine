@@ -1,73 +1,73 @@
-version_6
+version_8
 import "ShiftRegister.cir"
 import "TenPulseClock.cir"
 Circuit: "UART_RX"
 UUID: 2fa0f707-46b7-4b56-a2b3-62d28b966182
-size: <3, 8>
+size: 3x8
 ports:
-	(OUT, 9, 9, <2, 7>, "Q7")
-	(OUT, 8, 10, <2, 6>, "Q6")
-	(OUT, 7, 11, <2, 5>, "Q5")
-	(OUT, 6, 43, <2, 4>, "Q4")
-	(OUT, 5, 45, <2, 3>, "Q3")
-	(OUT, 4, 47, <2, 2>, "Q2")
-	(OUT, 3, 50, <2, 1>, "Q1")
-	(OUT, 2, 12, <2, 0>, "Q0")
-	(IN, 1, 40, <0, 1>, "RX")
-	(IN, 0, 26, <0, 0>, "St")
+	(IN, 0, (1, 11), <0, 0>, <0.500000, 0.500000>, "St", 1)
+	(IN, 1, (13, 13), <0, 1>, <0.500000, 0.500000>, "RX", 1)
+	(OUT, 2, (18, 2), <2, 0>, <0.500000, 0.500000>, "Q0", 1)
+	(OUT, 3, (18, 3), <2, 1>, <0.500000, 0.500000>, "Q1", 1)
+	(OUT, 4, (18, 4), <2, 2>, <0.500000, 0.500000>, "Q2", 1)
+	(OUT, 5, (18, 5), <2, 3>, <0.500000, 0.500000>, "Q3", 1)
+	(OUT, 6, (18, 6), <2, 4>, <0.500000, 0.500000>, "Q4", 1)
+	(OUT, 7, (18, 7), <2, 5>, <0.500000, 0.500000>, "Q5", 1)
+	(OUT, 8, (18, 8), <2, 6>, <0.500000, 0.500000>, "Q6", 1)
+	(OUT, 9, (18, 9), <2, 7>, <0.500000, 0.500000>, "Q7", 1)
 blockId 50 LIGHT 18 3 ZERO
 	(connId:0) (48 15)
 blockId 49 NOR 1 3 ZERO
-	(connId:1) (46 3)
 	(connId:0) (36 1)
+	(connId:1) (46 3)
 blockId 48 "4c1db4db-d14f-4e8c-8361-53b21ec09fd8" 14 0 ZERO
 	(connId:0) (3 1)
+	(connId:1) (24 1)
+	(connId:2) (23 1)
+	(connId:3) (22 1)
+	(connId:4) (21 1)
+	(connId:5) (20 1)
+	(connId:6) (19 1)
+	(connId:7) (18 1)
+	(connId:8) (17 1)
+	(connId:9) (16 1)
 	(connId:10) (13 1)
 	(connId:11) (15 1)
-	(connId:9) (16 1)
-	(connId:8) (17 1)
-	(connId:7) (18 1)
-	(connId:6) (19 1)
-	(connId:5) (20 1)
-	(connId:4) (21 1)
-	(connId:3) (22 1)
-	(connId:2) (23 1)
-	(connId:1) (24 1)
 	(connId:12) (38 1)
 	(connId:13) (40 0)
-	(connId:21) (9 0)
-	(connId:20) (10 0)
-	(connId:19) (11 0)
-	(connId:18) (43 0)
-	(connId:17) (45 0)
-	(connId:16) (47 0)
-	(connId:15) (50 0)
 	(connId:14) (12 0)
+	(connId:15) (50 0)
+	(connId:16) (47 0)
+	(connId:17) (45 0)
+	(connId:18) (43 0)
+	(connId:19) (11 0)
+	(connId:20) (10 0)
+	(connId:21) (9 0)
 blockId 47 LIGHT 18 4 ZERO
 	(connId:0) (48 16)
 blockId 46 "4c1db4db-d14f-4e8c-8361-53b21ec09fd8" 3 0 ZERO
-	(connId:11) (2 1)
+	(connId:0) (44 0)
+	(connId:1) (42 1)
+	(connId:2) (41 1)
 	(connId:3) (49 1)
+	(connId:4) (39 1)
 	(connId:5) (4 1)
+	(connId:6) (37 1)
 	(connId:7) (5 1)
+	(connId:8) (35 1)
 	(connId:9) (6 1)
+	(connId:10) (28 1)
+	(connId:11) (2 1)
 	(connId:12) (25 1)
 	(connId:13) (27 1)
-	(connId:10) (28 1)
-	(connId:8) (35 1)
-	(connId:6) (37 1)
-	(connId:4) (39 1)
-	(connId:2) (41 1)
-	(connId:1) (42 1)
-	(connId:0) (44 0)
-	(connId:21) (1 0)
-	(connId:20) (1 0)
-	(connId:19) (1 0)
-	(connId:18) (1 0)
-	(connId:17) (1 0)
-	(connId:16) (1 0)
-	(connId:15) (1 0)
 	(connId:14) (1 0) (3 0)
+	(connId:15) (1 0)
+	(connId:16) (1 0)
+	(connId:17) (1 0)
+	(connId:18) (1 0)
+	(connId:19) (1 0)
+	(connId:20) (1 0)
+	(connId:21) (1 0)
 blockId 45 LIGHT 18 5 ZERO
 	(connId:0) (48 17)
 blockId 44 "4b9d9242-88e0-4fbb-aa7b-73a0b37ef254" 1 0 ZERO
@@ -107,8 +107,8 @@ blockId 30 AND 0 2 ZERO
 blockId 29 AND 0 10 ZERO
 	(connId:1) (28 0)
 blockId 28 NOR 1 10 ZERO
-	(connId:1) (46 10)
 	(connId:0) (29 1)
+	(connId:1) (46 10)
 blockId 27 AND 1 13 ZERO
 	(connId:1) (46 13)
 blockId 26 BUTTON 1 11 ZERO
@@ -138,8 +138,8 @@ blockId 15 AND 13 11 ZERO
 blockId 14 AND 12 10 ZERO
 	(connId:1) (13 0)
 blockId 13 NOR 13 10 ZERO
-	(connId:1) (48 10)
 	(connId:0) (14 1)
+	(connId:1) (48 10)
 blockId 12 LIGHT 18 2 ZERO
 	(connId:0) (48 14)
 blockId 11 LIGHT 18 7 ZERO
@@ -153,20 +153,20 @@ blockId 8 AND 0 7 ZERO
 blockId 7 AND 0 9 ZERO
 	(connId:1) (6 0)
 blockId 6 NOR 1 9 ZERO
-	(connId:1) (46 9)
 	(connId:0) (7 1)
+	(connId:1) (46 9)
 blockId 5 NOR 1 7 ZERO
-	(connId:1) (46 7)
 	(connId:0) (8 1)
+	(connId:1) (46 7)
 blockId 4 NOR 1 5 ZERO
-	(connId:1) (46 5)
 	(connId:0) (34 1)
+	(connId:1) (46 5)
 blockId 3 AND 9 0 ZERO
-	(connId:1) (48 0)
 	(connId:0) (44 0) (46 14)
+	(connId:1) (48 0)
 blockId 2 AND 2 11 ZERO
-	(connId:1) (46 11)
 	(connId:0) (1 1) (26 0)
+	(connId:1) (46 11)
 blockId 1 NOR 7 5 ZERO
+	(connId:0) (46 14) (46 15) (46 16) (46 17) (46 18) (46 19) (46 20) (46 21)
 	(connId:1) (2 0)
-	(connId:0) (46 21) (46 20) (46 19) (46 18) (46 17) (46 16) (46 15) (46 14)

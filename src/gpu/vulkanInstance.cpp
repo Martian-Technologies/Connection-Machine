@@ -6,18 +6,15 @@
 #endif
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData);
+	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+	VkDebugUtilsMessageTypeFlagsEXT messageType,
+	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+	void* pUserData);
 
 VulkanInstance::VulkanInstance() {
 	logInfo("Initializing Vulkan...", "Vulkan");
 
-	// Initialize volk loader
-
-
-#if defined(__APPLE__) // apple backup
+#if defined(__APPLE__)
 	void* module = dlopen("@executable_path/../Frameworks/libMoltenVK.dylib", RTLD_NOW | RTLD_LOCAL);
 	if (module) {
 		PFN_vkGetInstanceProcAddr vulkanInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(module, "vkGetInstanceProcAddr");
@@ -28,12 +25,13 @@ VulkanInstance::VulkanInstance() {
 		throwFatalError("Failed to find Vulkan loader, Connection Machine requires Vulkan. Please make sure that your graphics drivers are installed and up to date.");
 	}
 
+	// initialize vulkan-hpp dispatcher with the loader function pointer from volk
+	VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
+
 	logInfo("Loader initialized", "Vulkan");
 
-	// Start creating vulkan instance
 	vkb::InstanceBuilder instanceBuilder(vkGetInstanceProcAddr);
 
-	// Get Vulkan system information
 	auto systemInfoRet = vkb::SystemInfo::get_system_info(vkGetInstanceProcAddr);
 	if (!systemInfoRet) { throwFatalError("Could not fetch Vulkan system info. Error: " + systemInfoRet.error().message()); }
 	auto systemInfo = systemInfoRet.value();
@@ -47,14 +45,12 @@ VulkanInstance::VulkanInstance() {
 	logInfo("Debug Utils Available: " + std::string(systemInfo.debug_utils_available ? "Yes" : "No"), "Vulkan");
 
 #ifndef NDEBUG
-	// Enable validation layers
 	if (systemInfo.validation_layers_available){
 		instanceBuilder.enable_validation_layers().set_debug_callback(&vulkanDebugCallback);
 		logInfo("Enabled validation layers", "Vulkan");
 	}
 #endif
 
-	// Create Vulkan Instance
 	instanceBuilder.set_app_name("Connection Machine");
 	instanceBuilder.set_engine_name("Jack Jamison's Wacky-n-Wonderful Connection Machine Render-a-tron 3000 million!");
 	instanceBuilder.require_api_version(1,0,0);
@@ -64,8 +60,8 @@ VulkanInstance::VulkanInstance() {
 
 	logInfo("Vulkan instance created successfully", "Vulkan");
 
-	// Load instance functions
 	volkLoadInstance(instance);
+	VULKAN_HPP_DEFAULT_DISPATCHER.init(vk::Instance(instance.instance));
 
 	logInfo("Vulkan initialized successfully", "Vulkan");
 }
@@ -77,7 +73,7 @@ VulkanInstance::~VulkanInstance() {
 	vkb::destroy_instance(instance);
 }
 
-VulkanDevice* VulkanInstance::getDevice() {
+VulkanDevice& VulkanInstance::getDevice() {
 	if (!device.has_value()) {
 		logInfo("Creating tmp SDL window to create devise");
 		SdlWindow sdlWindow("tmp", 1, 1);
@@ -85,24 +81,23 @@ VulkanDevice* VulkanInstance::getDevice() {
 		if (!surface) {
 			throwFatalError("SdlWindow surface was not created and was stopped VulkanDevice creation.");
 		}
-		device.emplace(surface);
+		device.emplace(vk::SurfaceKHR(surface));
 	}
-	return &device.value();
+	return device.value();
 }
 
-VulkanDevice* VulkanInstance::createOrGetDevice(VkSurfaceKHR surfaceForPresenting) {
-	// create device if one doesn't exist
+VulkanDevice& VulkanInstance::createOrGetDevice(vk::SurfaceKHR surfaceForPresenting) {
 	if (!device.has_value()) {
 		device.emplace(surfaceForPresenting);
 	}
-	return &device.value();
+	return device.value();
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData
+	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+	VkDebugUtilsMessageTypeFlagsEXT messageType,
+	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+	void* pUserData
 ) {
 	switch (messageSeverity) {
 	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
@@ -118,5 +113,5 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebugCallback(
 		break;
 	}
 
-    return VK_FALSE;
+	return VK_FALSE;
 }

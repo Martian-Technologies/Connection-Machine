@@ -27,51 +27,51 @@ struct BlockInstance {
 	uint32_t orientation;
 	glm::vec2 stateStep;
 
-	inline static std::vector<VkVertexInputBindingDescription> getBindingDescriptions() {
-		std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
+	inline static std::vector<vk::VertexInputBindingDescription> getBindingDescriptions() {
+		std::vector<vk::VertexInputBindingDescription> bindingDescriptions(1);
 		bindingDescriptions[0].binding = 0;
 		bindingDescriptions[0].stride = sizeof(BlockInstance);
-		bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+		bindingDescriptions[0].inputRate = vk::VertexInputRate::eInstance;
 
 		return bindingDescriptions;
 	}
 
-	inline static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-		std::vector<VkVertexInputAttributeDescription> attributeDescriptions(7);
+	inline static std::vector<vk::VertexInputAttributeDescription> getAttributeDescriptions() {
+		std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(7);
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
 		attributeDescriptions[0].offset = offsetof(BlockInstance, pos);
 
 		attributeDescriptions[1].binding = 0;
 		attributeDescriptions[1].location = 1;
-		attributeDescriptions[1].format = VK_FORMAT_R32G32_UINT;
+		attributeDescriptions[1].format = vk::Format::eR32G32Uint;
 		attributeDescriptions[1].offset = offsetof(BlockInstance, sizeX);
 
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;
-		attributeDescriptions[2].format = VK_FORMAT_R32_UINT;
+		attributeDescriptions[2].format = vk::Format::eR32Uint;
 		attributeDescriptions[2].offset = offsetof(BlockInstance, texLayer);
 
 		attributeDescriptions[3].binding = 0;
 		attributeDescriptions[3].location = 3;
-		attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
 		attributeDescriptions[3].offset = offsetof(BlockInstance, texPos);
 
 		attributeDescriptions[4].binding = 0;
 		attributeDescriptions[4].location = 4;
-		attributeDescriptions[4].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[4].format = vk::Format::eR32G32Sfloat;
 		attributeDescriptions[4].offset = offsetof(BlockInstance, texSize);
 
 		attributeDescriptions[5].binding = 0;
 		attributeDescriptions[5].location = 5;
-		attributeDescriptions[5].format = VK_FORMAT_R32_UINT;
+		attributeDescriptions[5].format = vk::Format::eR32Uint;
 		attributeDescriptions[5].offset = offsetof(BlockInstance, orientation);
 
 		attributeDescriptions[6].binding = 0;
 		attributeDescriptions[6].location = 6;
-		attributeDescriptions[6].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[6].format = vk::Format::eR32G32Sfloat;
 		attributeDescriptions[6].offset = offsetof(BlockInstance, stateStep);
 
 		return attributeDescriptions;
@@ -84,36 +84,36 @@ struct WireInstance {
 	float wireWidth;
 	uint32_t stateIndex;
 
-	inline static std::vector<VkVertexInputBindingDescription> getBindingDescriptions() {
-		std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
+	inline static std::vector<vk::VertexInputBindingDescription> getBindingDescriptions() {
+		std::vector<vk::VertexInputBindingDescription> bindingDescriptions(1);
 		bindingDescriptions[0].binding = 0;
 		bindingDescriptions[0].stride = sizeof(WireInstance);
-		bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+		bindingDescriptions[0].inputRate = vk::VertexInputRate::eInstance;
 
 		return bindingDescriptions;
 	}
 
-	inline static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-		std::vector<VkVertexInputAttributeDescription> attributeDescriptions(4);
+	inline static std::vector<vk::VertexInputAttributeDescription> getAttributeDescriptions() {
+		std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
 		attributeDescriptions[0].offset = offsetof(WireInstance, pointA);
 
 		attributeDescriptions[1].binding = 0;
 		attributeDescriptions[1].location = 1;
-		attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[1].format = vk::Format::eR32G32Sfloat;
 		attributeDescriptions[1].offset = offsetof(WireInstance, pointB);
 
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;
-		attributeDescriptions[2].format = VK_FORMAT_R32_SFLOAT;
+		attributeDescriptions[2].format = vk::Format::eR32Sfloat;
 		attributeDescriptions[2].offset = offsetof(WireInstance, wireWidth);
 
 		attributeDescriptions[3].binding = 0;
 		attributeDescriptions[3].location = 3;
-		attributeDescriptions[3].format = VK_FORMAT_R32_UINT;
+		attributeDescriptions[3].format = vk::Format::eR32Uint;
 		attributeDescriptions[3].offset = offsetof(WireInstance, stateIndex);
 
 		return attributeDescriptions;
@@ -151,12 +151,14 @@ struct PortStateRange {
 // TODO - maybe these should just be split into two different types
 class VulkanLogicAllocation {
 public:
-	VulkanLogicAllocation(VulkanDevice* device, const RenderedBlocks& blocks, const RenderedWires& wires, const EvalLogicSimulator* simulator, const Address& address);
+	VulkanLogicAllocation(VulkanDevice& device, const RenderedBlocks& blocks, const RenderedWires& wires, const EvalLogicSimulator* simulator, const Address& address);
 	~VulkanLogicAllocation();
 
+	inline std::optional<AllocatedBuffer>& getBlockBuffer() { return blockBuffer; }
 	inline const std::optional<AllocatedBuffer>& getBlockBuffer() const { return blockBuffer; }
 	inline uint32_t getNumBlockInstances() const { return numBlockInstances; }
 
+	inline std::optional<AllocatedBuffer>& getWireBuffer() { return wireBuffer; }
 	inline const std::optional<AllocatedBuffer>& getWireBuffer() const { return wireBuffer; }
 	inline uint32_t getNumWireInstances() const { return numWireInstances; }
 
@@ -176,7 +178,7 @@ private:
 	uint32_t numWireInstances = 0;
 
 	std::optional<NBuffer> stateBuffer;
-	VkDescriptorBufferInfo stateDescriptorBufferInfo;
+	vk::DescriptorBufferInfo stateDescriptorBufferInfo;
 
 	std::vector<simulator_state_reference> simulatorIds;
 	phmap::flat_hash_map<Position, size_t> blockStateIndex;
@@ -189,7 +191,7 @@ class LogicGroup {
 public:
 	inline RenderedBlocks& getRenderedBlocks() { return blocks; }
 	inline RenderedWires& getRenderedWires() { return wires; }
-	void rebuildAllocation(VulkanDevice* device, const EvalLogicSimulator* simulator, const Address& address);
+	void rebuildAllocation(VulkanDevice& device, const EvalLogicSimulator* simulator, const Address& address);
 
 	std::optional<std::shared_ptr<VulkanLogicAllocation>> getAllocation();
 
@@ -215,7 +217,7 @@ struct ChunkIntersection {
 
 class VulkanChunker {
 public:
-	VulkanChunker(VulkanDevice* device);
+	VulkanChunker(VulkanDevice& device);
 	~VulkanChunker();
 
 	void startMakingEdits();
@@ -229,7 +231,7 @@ public:
 	void regenerateAllChunksWithBlock(BlockRenderDataId blockRenderDataId);
 
 	void updateSimulatorIds(const std::vector<SimulatorMappingUpdate>& simulatorMappingUpdates);
-	void setSimulatoruator(const EvalLogicSimulator* simulator, const Address& address);
+	void setSimulator(const EvalLogicSimulator* simulator, const Address& address);
 
 	std::vector<std::shared_ptr<VulkanLogicAllocation>> getAllocations(Position min, Position max);
 
@@ -243,10 +245,9 @@ private:
 	std::unordered_map<Position, std::set<LogicGroup*>> chunkToGroups;
 	std::mutex mux; // sync can be relaxed in the future
 
-	// while edits are being made
 	std::unordered_set<LogicGroup*> logicGroupsToUpdate;
 
-	VulkanDevice* device = nullptr;
+	VulkanDevice& device;
 	const EvalLogicSimulator* simulator = nullptr;
 	Address address;
 };

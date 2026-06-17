@@ -2,6 +2,7 @@
 #define backend_h
 
 #include "backend/evaluator/simulatorManager.h"
+#include "backend/circuitTests/circuitTestGroupManager.h"
 #include "evaluator/simulator/simulatorDefs.h"
 #include "dataUpdateEventManager.h"
 #include "circuit/circuitManager.h"
@@ -29,9 +30,11 @@ public:
 	inline SimulatorManager& getSimulatorManager() { return simulatorManager; }
 	inline const SimulatorManager& getSimulatorManager() const { return simulatorManager; }
 
+	inline CircuitTestGroupManager& getCircuitTestGroupManager() { return circuitTestGroupManager; }
+	inline const CircuitTestGroupManager& getCircuitTestGroupManager() const { return circuitTestGroupManager; }
+
 	inline DataUpdateEventManager& getDataUpdateEventManager() { return dataUpdateEventManager; }
 
-	SharedCircuit getCircuit(circuit_id_t circuitId);
 	EvalLogicSimulator* getSimulator(simulator_id_t simulatorId);
 
 	const SharedCopiedBlocks getClipboard() const { return clipboard; }
@@ -47,6 +50,7 @@ private:
 	DataUpdateEventManager dataUpdateEventManager; // this needs to be constructed first
 	CircuitManager circuitManager;
 	SimulatorManager simulatorManager;
+	CircuitTestGroupManager circuitTestGroupManager;
 };
 
 #endif /* backend_h */

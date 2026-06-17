@@ -9,7 +9,7 @@ void CircuitTest::SetUp() {
 	i = 0;
 }
 
-void CircuitTest::TearDown() { circuit.reset(); }
+void CircuitTest::TearDown() { circuit = nullptr; }
 
 TEST_F(CircuitTest, BlockContainerBasicOperations) {
 	for (int i = 0; i < loopsPerTest; i++) {
@@ -363,7 +363,7 @@ TEST_F(CircuitTest, ConnectionRemovalConnectionEnd) {
 
 TEST_F(CircuitTest, CircuitPlacement) {
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(generate_uuid_v4(), "Circuit", false);
-	SharedCircuit circuit2 = environment.getBackend().getCircuitManager().getCircuit(circuitId);
+	Circuit* circuit2 = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	const BlockType blockType = environment.getBackend().getCircuitManager().setupBlockData(circuitId);
 
 	ASSERT_NE(blockType, NONE);

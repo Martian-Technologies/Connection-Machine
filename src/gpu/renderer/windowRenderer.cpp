@@ -1,4 +1,6 @@
 #include "windowRenderer.h"
+#include "app.h"
+#include "imgui/imgui_impl_vulkan.h"
 
 #ifdef TRACY_PROFILER
 #include <tracy/Tracy.hpp>
@@ -6,69 +8,55 @@
 
 #include "gpu/mainRenderer.h"
 
-WindowRenderer::WindowRenderer(SdlWindow* sdlWindow) : sdlWindow(sdlWindow) {
+WindowRenderer::WindowRenderer(WindowId windowId, SdlWindow* sdlWindow) : windowId(windowId), sdlWindow(sdlWindow) {
 	logInfo("Initializing window renderer...");
 
-	// create surface and use it to make sure a vulkan device has been created
-	surface = sdlWindow->createVkSurface(MainRenderer::get().getVulkanInstance().getVkbInstance());
-	device = MainRenderer::get().getVulkanInstance().createOrGetDevice(surface);
+	VkSurfaceKHR rawSurface = sdlWindow->createVkSurface(MainRenderer::get().getVulkanInstance().getVkbInstance());
+	surface = vk::SurfaceKHR(rawSurface);
+	device = &MainRenderer::get().getVulkanInstance().createOrGetDevice(surface);
 
-	// initialize frames
-	frames.init(device);
+	frames.init(*device);
 
-	// set up swapchain and subrenderer
 	std::pair<uint32_t, uint32_t> sdlWindowSize = sdlWindow->getSize();
-	windowSize ={max(sdlWindowSize.first, 1), max(sdlWindowSize.second, 1)}; // should stop vulkan validation error
-	swapchain.init(device, surface, windowSize);
+	windowSize ={max(sdlWindowSize.first, 1), max(sdlWindowSize.second, 1)};
+	swapchain.init(*device, surface, windowSize);
 	createRenderPass();
 	createColorResources();
-	swapchain.createFramebuffers(renderPass, colorImage);
+	swapchain.createFramebuffers(renderPass.get(), *colorImage);
 
-	// subrenderers
-	rmlRenderer.init(device, renderPass);
-	viewportRenderer.init(device, renderPass);
+	imGuiRenderer.emplace(sdlWindow->getHandle(), renderPass.get(), FRAMES_IN_FLIGHT);
 
-	// start render loop
-	running = true;
+	running.store(true);
+	renderLoopStopped.store(false);
 	renderThread = std::thread(&WindowRenderer::renderLoop, this);
 }
 
 WindowRenderer::~WindowRenderer() {
 	// stop render thread (not completely sure if this is right for the destructor yet)
-	running = false;
+	running.store(false);
+	while (!renderLoopStopped.load()) App::doRunOnMainForThread(renderThread.get_id());
 	if (renderThread.joinable()) renderThread.join();
 
-	// start by deleting render pass
-	vkDestroyRenderPass(device->getDevice(), renderPass, nullptr);
-	// now the swapchain can be deleted
+	device->waitIdle();
+	renderPass.reset();
 	swapchain.cleanup();
-	// now the frames are free!
 	frames.cleanup();
-	// clean up color image for multisampled
-	destroyImage(colorImage);
-
-	// delete rml renderer
-	rmlRenderer.cleanup();
-	// delete viewport renderer
-	viewportRenderer.cleanup();
 }
 
 void WindowRenderer::resize(std::pair<uint32_t, uint32_t> windowSize) {
 	std::lock_guard<std::mutex> lock(windowSizeMux);
 
-	this->windowSize = {max(windowSize.first, 1), max(windowSize.second, 1)}; // should stop vulkan validation error
+	this->windowSize = {max(windowSize.first, 1), max(windowSize.second, 1)};
 
 	swapchainRecreationNeeded = true;
 }
 
 void WindowRenderer::renderLoop() {
-	while(running) {
-		Frame& frame = frames.getCurrentFrame();
+	while(running.load()) {
+		std::shared_ptr<Frame> frame = frames.getCurrentFrame();
 
-		// wait for frame completion
 		frames.waitForCurrentFrameCompletion();
 
-		// recreate swapchain if needed
 		if (swapchainRecreationNeeded) {
 			recreateSwapchain();
 			continue;
@@ -76,232 +64,223 @@ void WindowRenderer::renderLoop() {
 
 		// try to start rendering the frame
 		// get next swapchain image to render to (or fail and try again)
-		uint32_t imageIndex;
-		VkResult imageGetResult = vkAcquireNextImageKHR(device->getDevice(), swapchain.getSwapchain(), UINT64_MAX, frame.acquireSemaphore, VK_NULL_HANDLE, &imageIndex);
-		if (imageGetResult == VK_ERROR_OUT_OF_DATE_KHR || imageGetResult == VK_SUBOPTIMAL_KHR) {
-			// if the swapchain is not ideal, try again but recreate it this time (this happens in normal operation)
+		uint32_t imageIndex = 0;
+		vk::Result acquireResult = static_cast<vk::Result>(vkAcquireNextImageKHR(
+			static_cast<VkDevice>(device->getDevice()),
+			static_cast<VkSwapchainKHR>(swapchain.getSwapchainHandle()),
+			UINT64_MAX,
+			static_cast<VkSemaphore>(frame->acquireSemaphore.get()),
+			VK_NULL_HANDLE,
+			&imageIndex));
+		if (acquireResult == vk::Result::eErrorOutOfDateKHR || acquireResult == vk::Result::eSuboptimalKHR) {
 			swapchainRecreationNeeded = true;
-
-			if (imageGetResult == VK_ERROR_OUT_OF_DATE_KHR) continue;
-		} else if (imageGetResult != VK_SUCCESS) {
-			// if the error was even worse (one could say exceptional), we log an error and pray
+			if (acquireResult == vk::Result::eErrorOutOfDateKHR) continue;
+		} else if (acquireResult != vk::Result::eSuccess) {
 			logError("failed to acquire swap chain image!");
 			continue;
 		}
 
-		// tell frame that it has started
 		frames.startCurrentFrame();
 
-		// record command buffer
-		vkResetCommandBuffer(frame.mainCommandBuffer, 0);
-		renderToCommandBuffer(frame, imageIndex);
+		{
+			std::lock_guard guard(MainRenderer::get().getVulkanInstance().getDevice().getGraphicsQueueLock());
+			frame->mainCommandBuffer.reset({});
+		}
 
-		// start setting up graphics submission ====================================================
-		VkSubmitInfo submitInfo{};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		imGuiRenderer->beginFrame();
+		semaphoreForThisFrame.clear();
+		MainRenderer::get().setCurrentlyRenderedWindow(windowId);
+		sdlWindow->doRendering();
+		MainRenderer::get().clearCurrentlyRenderedWindow();
+		renderToCommandBuffer(*frame, imageIndex);
 
-		// wait semaphore
-		VkSemaphore waitSemaphores[] = { frame.acquireSemaphore };
-		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = waitSemaphores;
-		submitInfo.pWaitDstStageMask = waitStages;
+		vk::SubmitInfo submitInfo{};
 
-		// command buffers
+		semaphoreForThisFrame.push_back(frame->acquireSemaphore.get());
+		std::vector<vk::PipelineStageFlags> waitStages(semaphoreForThisFrame.size(), vk::PipelineStageFlagBits::eColorAttachmentOutput);
+		submitInfo.waitSemaphoreCount = semaphoreForThisFrame.size();
+		submitInfo.pWaitSemaphores = semaphoreForThisFrame.data();
+		submitInfo.pWaitDstStageMask = waitStages.data();
+
 		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &frame.mainCommandBuffer;
+		submitInfo.pCommandBuffers = &frame->mainCommandBuffer;
 
-		// signal semaphores
-		VkSemaphore signalSemaphores[] = { swapchain.getImageSemaphores()[imageIndex] };
+		vk::Semaphore signalSemaphores[] = { swapchain.getImageSemaphores()[imageIndex].get() };
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
-		// submit to queue
-		if (device->submitGraphicsQueue(&submitInfo, frame.renderFence) != VK_SUCCESS){
+		if (device->submitGraphicsQueue(submitInfo, frame->renderFence.get()) != vk::Result::eSuccess){
 			logError("failed to submit draw command buffer!");
 		}
 
-		// start setting up present submission =====================================================
-		VkPresentInfoKHR presentInfo{};
-		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		vk::PresentInfoKHR presentInfo{};
 		presentInfo.waitSemaphoreCount = 1;
 		presentInfo.pWaitSemaphores = signalSemaphores;
-		VkSwapchainKHR swapchains[] = { swapchain.getSwapchain() };
+		vk::SwapchainKHR swapchains[] = { swapchain.getSwapchainHandle() };
 		presentInfo.swapchainCount = 1;
 		presentInfo.pSwapchains = swapchains;
 		presentInfo.pImageIndices = &imageIndex;
-		presentInfo.pResults = nullptr; // unused
 
-		// submit to present queue
-		VkResult imagePresentResult = device->submitPresent(&presentInfo);
-		if (imagePresentResult == VK_ERROR_OUT_OF_DATE_KHR || imagePresentResult == VK_SUBOPTIMAL_KHR) {
+		vk::Result imagePresentResult = device->submitPresent(presentInfo);
+		if (imagePresentResult == vk::Result::eErrorOutOfDateKHR || imagePresentResult == vk::Result::eSuboptimalKHR) {
 			swapchainRecreationNeeded = true;
-		} else if (imagePresentResult != VK_SUCCESS) {
+		} else if (imagePresentResult != vk::Result::eSuccess) {
 			logError("failed to present swap chain image!");
 		}
 
-		//increase the number of frames drawn
 		frames.incrementFrame();
 #ifdef TRACY_PROFILER
 		FrameMark;
 #endif
 	}
-
-	device->waitIdle();
+	renderLoopStopped.store(true);
+	renderLoopStopped.notify_all();
 }
 
 void WindowRenderer::renderToCommandBuffer(Frame& frame, uint32_t imageIndex) {
-	// preparation
-	VkExtent2D windowSize = swapchain.getSwapchain().extent;
+	vk::Extent2D windowSize = vk::Extent2D(swapchain.getSwapchain().extent.width, swapchain.getSwapchain().extent.height);
 
-	// start recording
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = 0; // Optional
-	beginInfo.pInheritanceInfo = nullptr; // Optional
-	if (vkBeginCommandBuffer(frame.mainCommandBuffer, &beginInfo) != VK_SUCCESS) {
-		throw std::runtime_error("failed to begin recording command buffer!");
+	vk::CommandBufferBeginInfo beginInfo{};
+	if (frame.mainCommandBuffer.begin(beginInfo) != vk::Result::eSuccess) {
+		throwFatalError("failed to begin recording command buffer!");
 	}
 
-	VkClearValue clearValues[1];
-	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+	vk::ClearValue clearValues[1];
+	clearValues[0].color = vk::ClearColorValue(std::array<float,4>{ 0.0f, 0.0f, 0.0f, 1.0f });
 
-	// begin render pass
-	VkRenderPassBeginInfo renderPassInfo{};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	renderPassInfo.renderPass = renderPass;
-	renderPassInfo.framebuffer = swapchain.getFramebuffers()[imageIndex];
-	renderPassInfo.renderArea.offset = {0, 0};
-	renderPassInfo.renderArea.extent = swapchain.getSwapchain().extent;
+	vk::RenderPassBeginInfo renderPassInfo{};
+	renderPassInfo.renderPass = renderPass.get();
+	renderPassInfo.framebuffer = swapchain.getFramebuffers()[imageIndex].get();
+	renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
+	renderPassInfo.renderArea.extent = windowSize;
 	renderPassInfo.clearValueCount = 1;
 	renderPassInfo.pClearValues = clearValues;
 
-	vkCmdBeginRenderPass(frame.mainCommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	frame.mainCommandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
-	// do actual rendering...
 	{
-		// viewports
-		std::lock_guard<std::mutex> lock(viewportRenderersMux);
-		for (ViewportRenderData* viewport : viewportRenderDatas) {
-			viewportRenderer.render(frame, viewport);
-		}
-
-		// rml rendering
-		rmlRenderer.render(frame, windowSize);
+		imGuiRenderer->endFrame(frame.mainCommandBuffer);
 	}
 
-	// end render pass
-	vkCmdEndRenderPass(frame.mainCommandBuffer);
-	if (vkEndCommandBuffer(frame.mainCommandBuffer) != VK_SUCCESS) {
-		throw std::runtime_error("failed to record command buffer!");
+	frame.mainCommandBuffer.endRenderPass();
+	if (frame.mainCommandBuffer.end() != vk::Result::eSuccess) {
+		throwFatalError("failed to record command buffer!");
 	}
 }
 
 void WindowRenderer::createRenderPass() {
-	VkSampleCountFlagBits msaaSamples = device->getMaxUsableSampleCount();
+	vk::SampleCountFlagBits msaaSamples = device->getMaxUsableSampleCount();
 
-    // Multisampled color attachment (offscreen)
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = swapchain.getSwapchain().image_format;
-    colorAttachment.samples = msaaSamples;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	vk::AttachmentDescription colorAttachment{};
+	colorAttachment.format = vk::Format(swapchain.getSwapchain().image_format);
+	colorAttachment.samples = msaaSamples;
+	colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+	colorAttachment.storeOp = vk::AttachmentStoreOp::eDontCare;
+	colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+	colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+	colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+	colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-    // Resolve attachment (the swapchain image)
-    VkAttachmentDescription colorAttachmentResolve{};
-    colorAttachmentResolve.format = swapchain.getSwapchain().image_format;
-    colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	vk::AttachmentDescription colorAttachmentResolve{};
+	colorAttachmentResolve.format = vk::Format(swapchain.getSwapchain().image_format);
+	colorAttachmentResolve.samples = vk::SampleCountFlagBits::e1;
+	colorAttachmentResolve.loadOp = vk::AttachmentLoadOp::eDontCare;
+	colorAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
+	colorAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+	colorAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+	colorAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
+	colorAttachmentResolve.finalLayout = vk::ImageLayout::ePresentSrcKHR;
 
-    // References
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	vk::AttachmentReference colorAttachmentRef{};
+	colorAttachmentRef.attachment = 0;
+	colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
 
-    VkAttachmentReference colorAttachmentResolveRef{};
-    colorAttachmentResolveRef.attachment = 1;
-    colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	vk::AttachmentReference colorAttachmentResolveRef{};
+	colorAttachmentResolveRef.attachment = 1;
+	colorAttachmentResolveRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
 
-    // Subpass
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-    subpass.pResolveAttachments = &colorAttachmentResolveRef;
+	vk::SubpassDescription subpass{};
+	subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorAttachmentRef;
+	subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
-    // Subpass dependency
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	vk::SubpassDependency dependency{};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+	dependency.srcAccessMask = {};
+	dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+	dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
 
-    // Create render pass
-    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, colorAttachmentResolve};
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-    renderPassInfo.pAttachments = attachments.data();
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
+	std::array<vk::AttachmentDescription, 2> attachments = {colorAttachment, colorAttachmentResolve};
+	vk::RenderPassCreateInfo renderPassInfo{};
+	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+	renderPassInfo.pAttachments = attachments.data();
+	renderPassInfo.subpassCount = 1;
+	renderPassInfo.pSubpasses = &subpass;
+	renderPassInfo.dependencyCount = 1;
+	renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(device->getDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create MSAA render pass!");
-    }
+	auto result = device->getDevice().createRenderPassUnique(renderPassInfo);
+	if (result.result != vk::Result::eSuccess) {
+		throwFatalError("failed to create MSAA render pass!");
+	}
+	renderPass = std::move(result.value);
 }
 
 void WindowRenderer::createColorResources() {
-    VkExtent3D size = {swapchain.getSwapchain().extent.width, swapchain.getSwapchain().extent.height, 1};
-    VkFormat colorFormat = swapchain.getSwapchain().image_format;
-    VkSampleCountFlagBits msaaSamples = device->getMaxUsableSampleCount();
+	vk::Extent3D size = {swapchain.getSwapchain().extent.width, swapchain.getSwapchain().extent.height, 1};
+	vk::Format colorFormat = vk::Format(swapchain.getSwapchain().image_format);
+	vk::SampleCountFlagBits msaaSamples = device->getMaxUsableSampleCount();
 
-    colorImage = createImage(
-        device,
-        size,
-        colorFormat,
-        VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        false,
-        msaaSamples
-    );
+	colorImage.emplace(
+		*device,
+		size,
+		colorFormat,
+		vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment,
+		false,
+		msaaSamples
+	);
 }
 
 void WindowRenderer::recreateSwapchain() {
-	device->waitIdle();
+	std::lock_guard guard(MainRenderer::get().getVulkanInstance().getDevice().getGraphicsQueueLock());
+	device->waitIdleNoMux();
 
 	std::lock_guard<std::mutex> lock(windowSizeMux);
 
-	destroyImage(colorImage);
+	colorImage.reset();
 	swapchain.recreate(surface, windowSize);
 	createColorResources();
-	swapchain.createFramebuffers(renderPass, colorImage);
+	swapchain.createFramebuffers(renderPass.get(), *colorImage);
 
 	swapchainRecreationNeeded = false;
 }
 
-void WindowRenderer::registerViewportRenderData(ViewportRenderData *viewportRenderData) {
-	std::lock_guard<std::mutex> lock(viewportRenderersMux);
-	viewportRenderDatas.insert(viewportRenderData);
+void WindowRenderer::setImGuiRenderFunc(std::function<void()> imGuiRenderFunc) {
+	std::lock_guard<std::mutex> lock(imGuiRenderFuncMux);
+	this->imGuiRenderFunc = imGuiRenderFunc;
 }
 
-void WindowRenderer::deregisterViewportRenderData(ViewportRenderData* viewportRenderData) {
-	std::lock_guard<std::mutex> lock(viewportRenderersMux);
-	viewportRenderDatas.erase(viewportRenderData);
-}
-
-bool WindowRenderer::hasViewportRenderData(ViewportRenderData* viewportRenderData) {
-	std::lock_guard<std::mutex> lock(viewportRenderersMux);
-	return viewportRenderDatas.contains(viewportRenderData);
+void WindowRenderer::updateImGuiBlockTextureArrayLayers() {
+	std::lock_guard lock(imGuiBlockTextureArrayLayersMux);
+	if (blockTextureArrayImage == nullptr) {
+		assert(imGuiBlockTextureArrayLayers.empty());
+		blockTextureArrayImage = MainRenderer::get().getVulkanInstance().getDevice().getBlockTextureManager().getTextureArray();
+	} else {
+		std::shared_ptr<BlockTextureArray> image = MainRenderer::get().getVulkanInstance().getDevice().getBlockTextureManager().getTextureArray();
+		if (blockTextureArrayImage == image) return; // image has not changed
+		imGuiBlockTextureArrayLayers.clear();
+		blockTextureArrayImage = image;
+	}
+	if (blockTextureArrayImage == nullptr) return;
+	if (!blockTextureArrayImage->image.has_value()) return;
+	for (unsigned int i = 0; i < blockTextureArrayImage->image->arrayLayers; i++) {
+		imGuiBlockTextureArrayLayers.emplace_back(std::make_shared<ImGuiRenderer::ImGuiDescriptorSet>(
+			vk::DescriptorSet(ImGui_ImplVulkan_AddTexture(static_cast<VkSampler>(blockTextureArrayImage->sampler.get()), static_cast<VkImageView>(blockTextureArrayImage->image->layerViews[i].get()), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)),
+			imGuiRenderer.value(),
+			std::vector<std::shared_ptr<void>>{ blockTextureArrayImage }
+		));
+	}
 }

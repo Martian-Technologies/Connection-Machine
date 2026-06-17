@@ -13,15 +13,15 @@ class VulkanDevice;
 
 struct BlockTextureArray {
 	DescriptorAllocator descriptorAllocator;
-	VulkanDevice* device;
-	AllocatedImage image;
-	VkSampler sampler;
-	VkDescriptorSet descriptor;
-	VkExtent3D textureSize;
+	VulkanDevice* device = nullptr;
+	std::optional<AllocatedImage> image;
+	vk::UniqueSampler sampler;
+	vk::DescriptorSet descriptor;
+	vk::Extent3D textureSize;
 
 	uint32_t layerCount;
 
-	BlockTextureArray() : device(nullptr), sampler(VK_NULL_HANDLE), descriptor(VK_NULL_HANDLE), layerCount(0) { }
+	BlockTextureArray() : layerCount(0) { }
 	~BlockTextureArray();
 };
 
@@ -53,7 +53,7 @@ public:
 
 class BlockTextureManager {
 public:
-	void init(VulkanDevice* device);
+	void init(VulkanDevice& device);
 	BlockTextureId addTexture(const std::string& path);
 	void refreshBlockTexture(const std::string& path);
 	BlockTextureId addTexture(const unsigned char* pixels, int textureWidth, int textureHeight);
@@ -61,25 +61,25 @@ public:
 	void removeBlockTexture(const std::string& path);
 	void removeBlockTexture(BlockTextureId blockTextureId);
 	BlockTextureCords getBlockTextureCords(BlockTextureId blockTextureId) const;
-	BlockTextureCords getBlockTextureCords(BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize) const;
-	BlockTextureCords getBlockTextureCords(BlockTextureId blockTextureId, Vec2Int tileSize, Vec2Int smallestCordTile, Vec2Int blockSize, Vec2Int textureStepSize) const;
+	BlockTextureCords getBlockTextureCords(BlockTextureId blockTextureId, Vec2Int smallestTextureCord, Vec2Int textureSize) const;
+	BlockTextureCords getBlockTextureCords(BlockTextureId blockTextureId, Vec2Int smallestTextureCord, Vec2Int textureSize, Vec2Int textureStepSize) const;
 	void update();
 	void cleanup();
 
-	inline VkDescriptorSetLayout getDescriptorLayout() { return descriptorLayout; }
+	inline vk::DescriptorSetLayout getDescriptorLayout() { return descriptorLayout.get(); }
 	inline std::shared_ptr<BlockTextureArray> getTextureArray() {
 		std::lock_guard<std::mutex> lock(descriptorMutex);
 		return textureArray;
 	}
 
 private:
-	void makeTextureArray(uint32_t newLayerCount, VkExtent3D textureSize);
+	void makeTextureArray(uint32_t newLayerCount, vk::Extent3D textureSize);
 	void addTextureToArray(const unsigned char* pixels, Vec2Int textureSize, Vec2Int texturePos, unsigned int textureLayer);
 	void resizeTextureArray(uint32_t newLayerCount);
 
-	VulkanDevice* device;
+	VulkanDevice* device = nullptr;
 
-	VkDescriptorSetLayout descriptorLayout;
+	vk::UniqueDescriptorSetLayout descriptorLayout;
 
 	std::vector<bool> writtenLayers;
 	std::vector<RectPacker> layerRectPackers;

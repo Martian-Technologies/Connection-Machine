@@ -1,6 +1,6 @@
 #ifndef vulkanCallStructs_h
 #define vulkanCallStructs_h
 
+// what does this do???
 
-
-#endif
+#endif /* vulkanCallStructs_h */

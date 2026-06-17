@@ -53,7 +53,8 @@ public:
 	public:
 		SettingEntryBase(SettingType type) : type(type) { }
 		virtual ~SettingEntryBase() = default;
-		SettingType getType() const { return type; };
+		SettingType getType() const { return type; }
+		virtual bool isDefault() const { return false; }
 		template<SettingType settingType>
 		void addListener(ListenerFunction<settingType> listener) {
 			listeners.emplace_back(std::make_unique<SettingListener<settingType>>(std::move(listener)));
@@ -76,6 +77,7 @@ public:
 			func(key);
 		}
 	}
+
 	template<SettingType settingType>
 	void registerSetting(std::string key, const SettingTypeToType<settingType>::type& value) {
 		std::unordered_map<std::string, std::unique_ptr<SettingEntryBase>>::iterator iter = mappings.find(key);
@@ -114,10 +116,26 @@ public:
 		}
 		return &(settingEntry->getValue());
 	}
+	template<SettingType settingType>
+	const SettingTypeToType<settingType>::type* getDefault(const std::string& key) const {
+		std::unordered_map<std::string, std::unique_ptr<SettingEntryBase>>::const_iterator iter = mappings.find(key);
+		if (iter == mappings.end() || settingType != iter->second->getType()) return nullptr;
+		const SettingEntry<settingType>* settingEntry = dynamic_cast<const SettingEntry<settingType>*>(iter->second.get());
+		if (!settingEntry) {
+			logError("Failed to get value. Type and SettingType mismatched internal state bad. Please report error and relaunch the app.", "SettingsMap");
+			return nullptr;
+		}
+		return &(settingEntry->getDefault());
+	}
 	SettingType getType(const std::string& key) const {
 		std::unordered_map<std::string, std::unique_ptr<SettingEntryBase>>::const_iterator iter = mappings.find(key);
 		if (iter == mappings.end()) return SettingType::VOID;
 		return iter->second->getType();
+	}
+	bool isDefault(const std::string& key) const {
+		std::unordered_map<std::string, std::unique_ptr<SettingEntryBase>>::const_iterator iter = mappings.find(key);
+		if (iter == mappings.end()) return false;
+		return iter->second->isDefault();
 	}
 	bool hasKey(const std::string& key) const {
 		std::unordered_map<std::string, std::unique_ptr<SettingEntryBase>>::const_iterator iter = mappings.find(key);
@@ -197,7 +215,7 @@ private:
 	class SettingEntry : public SettingEntryBase {
 	public:
 		SettingEntry() : SettingEntryBase(settingType) { }
-		SettingEntry(const SettingTypeToType<settingType>::type& value) : SettingEntryBase(settingType), value(value) { }
+		SettingEntry(const SettingTypeToType<settingType>::type& value) : SettingEntryBase(settingType), value(value), defaultValue(value) { }
 
 		const SettingTypeToType<settingType>::type& getValue() const { return value; }
 		void setValue(const SettingTypeToType<settingType>::type& value) {
@@ -213,9 +231,12 @@ private:
 				}
 			}
 		}
+		bool isDefault() const override { return value == defaultValue; }
+		const SettingTypeToType<settingType>::type& getDefault() const { return defaultValue; }
 
 	private:
 		SettingTypeToType<settingType>::type value;
+		SettingTypeToType<settingType>::type defaultValue;
 	};
 
 	std::vector<AllListenerFunction> allListenerFunctions;

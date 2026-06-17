@@ -32,6 +32,9 @@ public:
 		case HalfConnectionPreview:
 			MainRenderer::get().removeHalfConnectionPreview(viewportId, iter->first);
 			break;
+		case Text:
+			MainRenderer::get().removeTextOnViewport(viewportId, iter->first);
+			break;
 		}
 		ids.erase(iter);
 	}
@@ -52,7 +55,10 @@ public:
 			case HalfConnectionPreview:
 				MainRenderer::get().removeHalfConnectionPreview(viewportId, pair.first);
 				break;
-		}
+			case Text:
+				MainRenderer::get().removeTextOnViewport(viewportId, pair.first);
+				break;
+			}
 		}
 		ids.clear();
 	}
@@ -99,12 +105,25 @@ public:
 		return id;
 	}
 
+	// scale > 0 scales with the view. scale < 0 is fixed size. scale = 0 is nothing.
+	ElementId addText(const std::string& text, FPosition pos, float scale) {
+		assert(viewportId);
+		ElementId id = MainRenderer::get().addTextOnViewport(viewportId, TextRenderData {
+			text,
+			pos,
+			scale
+		});
+		ids[id] = ElementType::Text;
+		return id;
+	}
+
 private:
 	enum ElementType {
 		SelectionElement,
 		ConnectionPreview,
 		HalfConnectionPreview,
 		BlockPreview,
+		Text
 	};
 
 	ViewportId viewportId;

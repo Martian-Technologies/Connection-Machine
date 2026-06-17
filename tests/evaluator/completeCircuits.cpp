@@ -10,7 +10,7 @@ protected:
 	void TearDown() override;
 	Environment environment { false };
 	EvalLogicSimulator* simulator = nullptr;
-	SharedCircuit circuit = nullptr;
+	Circuit* circuit = nullptr;
 	logic_state_t L = logic_state_t::LOW;
 	logic_state_t H = logic_state_t::HIGH;
 	logic_state_t Z = logic_state_t::FLOATING;
@@ -22,7 +22,7 @@ protected:
 BlockType CompleteCircuitsEvaluatorTest::loadCircuit(const std::filesystem::path& path) {
 	CircuitFileManager& circuitFileManager = environment.getCircuitFileManager();
 	circuit_id_t circuitId = circuitFileManager.loadFromFile(path.string()).at(0);
-	SharedCircuit circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
+	Circuit* circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	return circuit->getBlockType();
 }
 
@@ -33,14 +33,14 @@ const BlockData* CompleteCircuitsEvaluatorTest::getBlockData(BlockType type) {
 
 void CompleteCircuitsEvaluatorTest::SetUp() {
 	circuit_id_t circuitId = environment.getBackend().getCircuitManager().createNewCircuit(false);
-	circuit = environment.getBackend().getCircuit(circuitId);
+	circuit = environment.getBackend().getCircuitManager().getCircuit(circuitId);
 	simulator_id_t simulatorId = environment.getBackend().createSimulator(circuitId).value();
 	simulator = environment.getBackend().getSimulator(simulatorId);
 	ASSERT_TRUE(simulator->isPause());
 }
 
 void CompleteCircuitsEvaluatorTest::TearDown() {
-	circuit.reset();
+	circuit = nullptr;
 	simulator = nullptr;
 }
 

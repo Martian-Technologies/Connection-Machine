@@ -2,48 +2,25 @@
 
 BlockData::BlockData(BlockType blockType, DataUpdateEventManager& dataUpdateEventManager) : blockType(blockType), dataUpdateEventManager(dataUpdateEventManager) { }
 
-void BlockData::setDefaultData(bool defaultData) {
-	if (defaultData == this->defaultData) return;
-	bool sentPre = false;
-	if (defaultData) {
-		for (auto connection : connections) {
-			if (connection.first == 0 || connection.first == 1) continue;
-			dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("preBlockDataRemoveConnection", { blockType, connection.first });
-			// dataUpdateEventManager.sendEvent<std::tuple<BlockType, connection_end_id_t, BlockData::ConnectionData::PortType>>("preBlockDataSetConnection", { blockType,
-			// connection.first, connection.second.portType });
-		}
-		if (getSize() != Size(1)) {
-			dataUpdateEventManager.sendEvent<std::pair<BlockType, Size>>("preBlockSizeChange", { blockType, Size(1) });
-			sentPre = true;
-		}
-		dataUpdateEventManager.sendEvent<std::tuple<BlockType, connection_end_id_t, BlockData::ConnectionData::PortType>>(
-			"preBlockDataSetConnection",
-			{ blockType, 0, BlockData::ConnectionData::PortType::INPUT }
-		);
-		dataUpdateEventManager.sendEvent<std::tuple<BlockType, connection_end_id_t, BlockData::ConnectionData::PortType>>(
-			"preBlockDataSetConnection",
-			{ blockType, 1, BlockData::ConnectionData::PortType::OUTPUT }
-		);
-	}
-	this->defaultData = defaultData;
-	blockSize = Size(1);
-
-	if (defaultData) {
-		if (sentPre) {
-			dataUpdateEventManager.sendEvent<std::pair<BlockType, Size>>("postBlockSizeChange", { blockType, Size(1) });
-		}
-		for (auto connection : connections) {
-			dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataRemoveConnection", { blockType, connection.first });
-			dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, connection.first });
-		}
-		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, 0 });
-		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, 1 });
-		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, 0 });
-		dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataConnectionNameSet", { blockType, 1 });
-		connections.clear();
-	}
-	sendBlockDataUpdate();
+BlockData::BlockDataCopy BlockData::getBlockDataCopy() const {
+	BlockData::BlockDataCopy copy;
+	copy.blockType = blockType;
+	copy.primitive = primitive;
+	copy.placeable = placeable;
+	copy.bus = bus;
+	copy.name = name;
+	copy.path = path;
+	copy.blockSize = blockSize;
+	copy.inputConnectionCount = inputConnectionCount;
+	copy.outputConnectionCount = outputConnectionCount;
+	copy.connections = connections;
+	copy.virtualConnections = virtualConnections;
+	copy.connectionIdNames = connectionIdNames;
+	copy.renderData = renderData;
+	return copy;
 }
+
+void BlockData::sendBlockDataUpdate() { dataUpdateEventManager.sendEvent("blockDataUpdate", blockType); }
 
 void BlockData::setPrimitive(bool primitive) {
 	this->primitive = primitive;
@@ -77,6 +54,15 @@ void BlockData::setName(const std::string& name) {
 void BlockData::setPath(const std::string& path) {
 	this->path = path;
 	sendBlockDataUpdate();
+}
+
+connection_end_id_t BlockData::getNewConnectionId() const {
+	connection_end_id_t maxId = 0;
+	for (auto connection : connections) {
+		if (maxId < connection.first)
+			maxId = connection.first;
+	}
+	return maxId.get() + 1;
 }
 
 void BlockData::removeConnection(connection_end_id_t connectionId) {
@@ -131,10 +117,10 @@ void BlockData::setConnectionIdName(connection_end_id_t connectionId, const std:
 		"blockDataConnectionNameSet",
 		std::pair<BlockType, connection_end_id_t>({ blockType, connectionId })
 	);
+	sendBlockDataUpdate();
 }
 
 std::optional<std::string> BlockData::getConnectionIdToName(connection_end_id_t connectionId) const {
-	if (defaultData) return connectionId == 1 ? "Out" : "In";
 	const std::string* str = connectionIdNames.get(connectionId);
 	if (str) return *str;
 	return std::nullopt;
@@ -149,6 +135,7 @@ void BlockData::setConnectionPortOffset(connection_end_id_t connectionId, FVecto
 	if (iter == connections.end()) return;
 	iter->second.portOffset = offset;
 	dataUpdateEventManager.sendEvent<std::pair<BlockType, connection_end_id_t>>("blockDataSetConnection", { blockType, connectionId });
+	sendBlockDataUpdate();
 }
 
 void BlockData::setConnectionBitConfiguration(connection_end_id_t connectionId, std::variant<unsigned int, std::vector<unsigned int>> bitConfiguration) {
@@ -171,23 +158,17 @@ void BlockData::setConnectionBitConfiguration(connection_end_id_t connectionId, 
 	);
 	iter->second.bitConfiguration = bitConfiguration;
 	dataUpdateEventManager.sendEvent<std::tuple<BlockType, connection_end_id_t, unsigned int>>("blockDataPortBitConfigurationSet", { blockType, connectionId, bitWidth });
+	sendBlockDataUpdate();
 }
 
 nlohmann::json BlockData::dumpState() const /* GCOVR_EXCL_FUNCTION */ {
 	nlohmann::json blockJson;
 	blockJson["blockType"] = blocktype_to_string(blockType);
-	blockJson["defaultData"] = defaultData;
 	blockJson["primitive"] = primitive;
 	blockJson["placeable"] = placeable;
 	blockJson["bus"] = bus;
 	blockJson["name"] = name;
 	blockJson["path"] = path;
-	// blockJson["texturePath"] = texturePath; // disabled for privacy
-	blockJson["usesTileMapTexture"] = usesTileMapTexture;
-	blockJson["textureTileSize"] = textureTileSize.toString();
-	blockJson["textureSmallestCordTile"] = textureSmallestCordTile.toString();
-	blockJson["textureBlockTileSize"] = textureBlockTileSize.toString();
-	blockJson["textureBlockStateOffset"] = textureBlockStateOffset.toString();
 	blockJson["blockSize"] = blockSize.toString();
 	blockJson["inputConnectionCount"] = inputConnectionCount;
 	blockJson["outputConnectionCount"] = outputConnectionCount;
@@ -230,7 +211,6 @@ nlohmann::json BlockData::VirtualConnectionData::dumpState() const /* GCOVR_EXCL
 void BlockData::setVirtualConnection(virtual_connection_id_t virtualConnectionId, unsigned int bitWidth) {
 	dataUpdateEventManager.sendEvent<std::tuple<BlockType, virtual_connection_id_t, unsigned int>>("preBlockDataSetVirtualConnection", { blockType, virtualConnectionId, bitWidth });
 	virtualConnections.insert_or_assign(virtualConnectionId, VirtualConnectionData(bitWidth));
-	inputConnectionCount++;
 	dataUpdateEventManager.sendEvent<std::pair<BlockType, virtual_connection_id_t>>("blockDataSetVirtualConnection", { blockType, virtualConnectionId });
 	sendBlockDataUpdate();
 }
@@ -246,51 +226,121 @@ void BlockData::removeVirtualConnection(virtual_connection_id_t virtualConnectio
 
 // ------------------------------- Render Block Data -------------------------------
 
-void BlockData::setTexturePath(const std::string& texturePath) {
-	if (this->texturePath == texturePath) return; // what is this going to do...
-	this->texturePath = texturePath;
-	dataUpdateEventManager.sendEvent<std::pair<BlockType, std::string>>("blockDataTextureChange", { blockType, texturePath });
+void BlockData::moveRenderData(unsigned int before, unsigned int after) {
+	assert(before < renderData.size());
+	assert(after < renderData.size());
+	if (before == after) return;
+	if (before < after) {
+		std::rotate(renderData.begin() + before, renderData.begin() + before + 1, renderData.begin() + after);
+	} else {
+		std::rotate(renderData.begin() + after, renderData.begin() + before, renderData.begin() + before + 1);
+	}
+	dataUpdateEventManager.sendEvent<std::tuple<BlockType, unsigned int, unsigned int>>("blockDataMoveRenderData", { blockType, before, after });
 	sendBlockDataUpdate();
 }
 
-void BlockData::setTextureVirtualConnection(std::optional<virtual_connection_id_t> textureVirtualConnection) {
-	if (this->textureVirtualConnection == textureVirtualConnection) return;
-	this->textureVirtualConnection = textureVirtualConnection;
-	dataUpdateEventManager.sendEvent<std::pair<BlockType, std::optional<virtual_connection_id_t>>>("blockDataTextureVirtualConnectionChange", { blockType, textureVirtualConnection });
+void BlockData::removeRenderData(unsigned int index) {
+	assert(index < renderData.size());
+	renderData.erase(renderData.begin() + index);
+	dataUpdateEventManager.sendEvent<std::pair<BlockType, unsigned int>>("blockDatarRemoveRenderData", { blockType, index });
 	sendBlockDataUpdate();
 }
 
-void BlockData::setUsesTileMapTexture(bool usesTileMapTexture) {
-	if (this->usesTileMapTexture == usesTileMapTexture) return;
-	this->usesTileMapTexture = usesTileMapTexture;
-	dataUpdateEventManager.sendEvent<std::pair<BlockType, bool>>("blockDataUsesTileMapTextureChange", { blockType, usesTileMapTexture });
+void BlockData::setBlockTexturePath(unsigned int index, const std::string& texturePath) {
+	assert(index < renderData.size());
+	assert(std::holds_alternative<BlockTextureData>(renderData[index]));
+	if (std::get<BlockTextureData>(renderData[index]).path == texturePath) return;
+	std::get<BlockTextureData>(renderData[index]).path = texturePath;
+	dataUpdateEventManager.sendEvent<std::tuple<BlockType, unsigned int, std::string>>("blockDataTexturePathChange", { blockType, index, texturePath });
 	sendBlockDataUpdate();
 }
 
-void BlockData::setTextureTileSize(Vec2Int tileSize) {
-	if (this->textureTileSize == tileSize) return;
-	this->textureTileSize = tileSize;
-	dataUpdateEventManager.sendEvent<std::pair<BlockType, Vec2Int>>("blockDataTextureTileSizeChange", { blockType, tileSize });
+void BlockData::setBlockUseFullTexture(unsigned int index, bool useFullTexture) {
+	assert(index < renderData.size());
+	assert(std::holds_alternative<BlockTextureData>(renderData[index]));
+	if (std::get<BlockTextureData>(renderData[index]).useFullTexture == useFullTexture) return;
+	std::get<BlockTextureData>(renderData[index]).useFullTexture = useFullTexture;
+	dataUpdateEventManager.sendEvent<std::tuple<BlockType, unsigned int, bool>>("blockDataTextureUseFullTextureChange", { blockType, index, useFullTexture });
 	sendBlockDataUpdate();
 }
 
-void BlockData::setTextureSmallestCordTile(Vec2Int smallestCordTile) {
-	if (this->textureSmallestCordTile == smallestCordTile) return;
-	this->textureSmallestCordTile = smallestCordTile;
-	dataUpdateEventManager.sendEvent<std::pair<BlockType, Vec2Int>>("blockDataTextureSmallestCordTileChange", { blockType, smallestCordTile });
+void BlockData::setBlockTextureTopLeft(unsigned int index, Vec2Int topLeft) {
+	assert(index < renderData.size());
+	assert(std::holds_alternative<BlockTextureData>(renderData[index]));
+	if (std::get<BlockTextureData>(renderData[index]).topLeft == topLeft) return;
+	std::get<BlockTextureData>(renderData[index]).topLeft = topLeft;
+	dataUpdateEventManager.sendEvent<std::tuple<BlockType, unsigned int, Vec2Int>>("blockDataTextureTopLeftChange", { blockType, index, topLeft });
 	sendBlockDataUpdate();
 }
 
-void BlockData::setTextureBlockTileSize(Vec2Int blockSizeInTiles) {
-	if (this->textureBlockTileSize == blockSizeInTiles) return;
-	this->textureBlockTileSize = blockSizeInTiles;
-	dataUpdateEventManager.sendEvent<std::pair<BlockType, Vec2Int>>("blockDataTextureBlockTileSizeChange", { blockType, blockSizeInTiles });
+void BlockData::setBlockTextureSize(unsigned int index, Vec2Int size) {
+	assert(index < renderData.size());
+	assert(std::holds_alternative<BlockTextureData>(renderData[index]));
+	if (std::get<BlockTextureData>(renderData[index]).size == size) return;
+	std::get<BlockTextureData>(renderData[index]).size = size;
+	dataUpdateEventManager.sendEvent<std::tuple<BlockType, unsigned int, Vec2Int>>("blockDataTextureSizeChange", { blockType, index, size });
 	sendBlockDataUpdate();
 }
 
-void BlockData::setTextureBlockStateOffset(Vec2Int textureBlockStateOffset) {
-	if (this->textureBlockStateOffset == textureBlockStateOffset) return;
-	this->textureBlockStateOffset = textureBlockStateOffset;
-	dataUpdateEventManager.sendEvent<std::pair<BlockType, Vec2Int>>("blockDataTextureBlockStateOffsetChange", { blockType, textureBlockStateOffset });
+void BlockData::setBlockRenderState(unsigned int index, bool renderState) {
+	assert(index < renderData.size());
+	assert(std::holds_alternative<BlockTextureData>(renderData[index]));
+	if (std::get<BlockTextureData>(renderData[index]).renderState == renderState) return;
+	std::get<BlockTextureData>(renderData[index]).renderState = renderState;
+	dataUpdateEventManager.sendEvent<std::tuple<BlockType, unsigned int, bool>>("blockDataTextureRenderStateChange", { blockType, index, renderState });
 	sendBlockDataUpdate();
 }
+
+void BlockData::setBlockTextureVirtualConnection(unsigned int index, virtual_connection_id_t virtualConnectionId) {
+	assert(index < renderData.size());
+	assert(std::holds_alternative<BlockTextureData>(renderData[index]));
+	if (std::get<BlockTextureData>(renderData[index]).virtualConnectionId == virtualConnectionId) return;
+	std::get<BlockTextureData>(renderData[index]).virtualConnectionId = virtualConnectionId;
+	dataUpdateEventManager.sendEvent<std::tuple<BlockType, unsigned int, std::optional<virtual_connection_id_t>>>("blockDataTextureVirtualConnectionChange", { blockType, index, virtualConnectionId });
+	sendBlockDataUpdate();
+}
+
+void BlockData::setBlockTextureStateOffset(unsigned int index, Vec2Int stateOffset) {
+	assert(index < renderData.size());
+	assert(std::holds_alternative<BlockTextureData>(renderData[index]));
+	if (std::get<BlockTextureData>(renderData[index]).stateOffset == stateOffset) return;
+	std::get<BlockTextureData>(renderData[index]).stateOffset = stateOffset;
+	dataUpdateEventManager.sendEvent<std::tuple<BlockType, unsigned int, Vec2Int>>("blockDataTextureStateOffsetChange", { blockType, index, stateOffset });
+	sendBlockDataUpdate();
+}
+
+
+// void BlockData::setTexturePath(const std::string& texturePath) {
+// 	if (this->texturePath == texturePath) return; // what is this going to do...
+// 	this->texturePath = texturePath;
+// 	dataUpdateEventManager.sendEvent<std::pair<BlockType, std::string>>("blockDataTextureChange", { blockType, texturePath });
+// 	sendBlockDataUpdate();
+// }
+
+// void BlockData::setTextureVirtualConnection(std::optional<virtual_connection_id_t> textureVirtualConnection) {
+// 	if (this->textureVirtualConnection == textureVirtualConnection) return;
+// 	this->textureVirtualConnection = textureVirtualConnection;
+// 	dataUpdateEventManager.sendEvent<std::pair<BlockType, std::optional<virtual_connection_id_t>>>("blockDataTextureVirtualConnectionChange", { blockType, textureVirtualConnection });
+// 	sendBlockDataUpdate();
+// }
+
+// void BlockData::setUsesTileMapTexture(bool usesTileMapTexture) {
+// 	if (this->usesTileMapTexture == usesTileMapTexture) return;
+// 	this->usesTileMapTexture = usesTileMapTexture;
+// 	dataUpdateEventManager.sendEvent<std::pair<BlockType, bool>>("blockDataUsesTileMapTextureChange", { blockType, usesTileMapTexture });
+// 	sendBlockDataUpdate();
+// }
+
+// void BlockData::setSmallestTextureCord(Vec2Int smallestTextureCord) {
+// 	if (this->smallestTextureCord == smallestTextureCord) return;
+// 	this->smallestTextureCord = smallestTextureCord;
+// 	dataUpdateEventManager.sendEvent<std::pair<BlockType, Vec2Int>>("blockDataSmallestTextureCordChange", { blockType, smallestTextureCord });
+// 	sendBlockDataUpdate();
+// }
+
+// void BlockData::setTextureBlockStateOffset(Vec2Int textureBlockStateOffset) {
+// 	if (this->textureBlockStateOffset == textureBlockStateOffset) return;
+// 	this->textureBlockStateOffset = textureBlockStateOffset;
+// 	dataUpdateEventManager.sendEvent<std::pair<BlockType, Vec2Int>>("blockDataTextureBlockStateOffsetChange", { blockType, textureBlockStateOffset });
+// 	sendBlockDataUpdate();
+// }

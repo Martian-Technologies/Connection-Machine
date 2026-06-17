@@ -26,7 +26,7 @@ std::shared_ptr<Font> Freetype::loadFont(const std::string& fontFile, uint32_t p
 	FT_Error error = FT_New_Face(ftLibrary, fontFile.c_str(), 0, &face);
 	if (error) {
 		logError("Failed to Create FreeType Face: {}", "FreeType", FT_Error_String(error));
-		exit(1);
+		return nullptr;
 	}
 	error = FT_Set_Char_Size(face, 0, ptSize << 6, 0, 0);
 	if (error) {

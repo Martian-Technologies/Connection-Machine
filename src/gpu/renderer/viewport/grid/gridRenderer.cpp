@@ -5,24 +5,19 @@
 #include "gpu/abstractions/vulkanShader.h"
 #include "backend/evaluator/simulator/evalLogicSimulator.h"
 
-void GridRenderer::init(VulkanDevice* device, VkRenderPass& renderPass) {
-	// create shaders
-	VkShaderModule gridVertShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/grid.vert.spv"));
-	VkShaderModule gridFragShader = createShaderModule(device->getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/grid.frag.spv"));
+void GridRenderer::init(VulkanDevice& device, vk::RenderPass renderPass) {
+	vk::UniqueShaderModule gridVertShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/grid.vert.spv"));
+	vk::UniqueShaderModule gridFragShader = createShaderModule(device.getDevice(), readFileAsBytes(DirectoryManager::getResourceDirectory() / "shaders/grid.frag.spv"));
 
-	// create pipeline
 	PipelineInformation gridPipelineInfo{};
-	gridPipelineInfo.vertShader = gridVertShader;
-	gridPipelineInfo.fragShader = gridFragShader;
+	gridPipelineInfo.vertShader = gridVertShader.get();
+	gridPipelineInfo.fragShader = gridFragShader.get();
 	gridPipelineInfo.renderPass = renderPass;
-	gridPipelineInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
-	gridPipelineInfo.pushConstants.push_back({VK_SHADER_STAGE_VERTEX_BIT, fragmentPushOffset});
-	gridPipelineInfo.pushConstants.push_back({VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(GridPushConstants) - fragmentPushOffset});
-	gridPipelineInfo.sampleCount = device->getMaxUsableSampleCount();
+	gridPipelineInfo.frontFace = vk::FrontFace::eClockwise;
+	gridPipelineInfo.pushConstants.push_back({vk::ShaderStageFlagBits::eVertex, fragmentPushOffset});
+	gridPipelineInfo.pushConstants.push_back({vk::ShaderStageFlagBits::eFragment, sizeof(GridPushConstants) - fragmentPushOffset});
+	gridPipelineInfo.sampleCount = device.getMaxUsableSampleCount();
 	pipeline.init(device, gridPipelineInfo);
-
-	destroyShaderModule(device->getDevice(), gridVertShader);
-	destroyShaderModule(device->getDevice(), gridFragShader);
 }
 
 void GridRenderer::cleanup() {
@@ -52,11 +47,9 @@ void GridRenderer::render(Frame& frame, const glm::mat4& viewMatrix, float viewS
 		gradientColor
 	};
 
-	// bind pipeline
-	vkCmdBindPipeline(frame.mainCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.getHandle());
+	frame.mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.getHandle());
 
-	// bind push constants
 	pipeline.cmdPushConstants(frame.mainCommandBuffer, &pushConstants);
 
-	vkCmdDraw(frame.mainCommandBuffer, 6, 1, 0, 0);
+	frame.mainCommandBuffer.draw(6, 1, 0, 0);
 }

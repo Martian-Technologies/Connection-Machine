@@ -1,7 +1,11 @@
 #include "junctionMergeEvalLayer.h"
 #include "evalLayerState.h"
 
-bool isConnectionEndIdSinglePin(EvalGateType gateType, connection_end_id_t connectionEndId) {
+#ifdef TRACY_PROFILER
+#include <tracy/Tracy.hpp>
+#endif
+
+bool EvalConnectionEndInfo::isConnectionEndIdSinglePin(EvalGateType gateType, connection_end_id_t connectionEndId) {
 	// ignore lights, junctions, busses, custom blocks
 	switch (getBlockType(gateType)) {
 	case BlockType::SWITCH:
@@ -27,8 +31,7 @@ bool isConnectionEndIdSinglePin(EvalGateType gateType, connection_end_id_t conne
 	}
 }
 
-
-bool isOutputConnectionPort(EvalGateType gateType, connection_end_id_t connectionEndId) {
+bool EvalConnectionEndInfo::isOutputConnectionPort(EvalGateType gateType, connection_end_id_t connectionEndId) {
 	// ignore lights, junctions, busses, custom blocks
 	switch (getBlockType(gateType)) {
 	case BlockType::SWITCH:
@@ -55,8 +58,10 @@ bool isOutputConnectionPort(EvalGateType gateType, connection_end_id_t connectio
 	}
 }
 
-
 void JunctionMergeEvalLayer::run() {
+	#ifdef TRACY_PROFILER
+	ZoneScopedN("JunctionMerge Run");
+	#endif
 	// logInfo("Running layer {}", "", (unsigned long long)this);
 	// currentState.visualize();
 	std::unordered_set<EvalConnectionPoint> connectionPointsToScan;
@@ -179,7 +184,7 @@ void JunctionMergeEvalLayer::run() {
 		if (isJunctionType(iter.second)) {
 			connectionPointsToScan.emplace(iter.first, 0);
 		} else {
-			auto suc = nextState.getGateIdRemapping().emplace(iter.first, iter.first);
+			auto suc = nextState.getGateIdRemapping().try_emplace(iter.first, iter.first);
 			assert(suc.second);
 			nextState.getGateIdReverseRemapping().emplace(iter.first, iter.first);
 			assert(nextState.getGateIdReverseRemapping().size() == nextState.getGateIdRemapping().size());
@@ -194,7 +199,7 @@ void JunctionMergeEvalLayer::run() {
 		if (connectionPointRemappingIterA != connectionPointRemapping.end()) {
 			const EvalGate* gate = nextState.getGate(connection.connectionPointA.gateId);
 			assert(gate);
-			assert(isConnectionEndIdSinglePin(gate->type, connection.connectionPointA.connectionEndId));
+			assert(EvalConnectionEndInfo::isConnectionEndIdSinglePin(gate->type, connection.connectionPointA.connectionEndId));
 			connection.connectionPointA = EvalConnectionPoint(connectionPointRemappingIterA->second, 0);
 			remappedTypeA = 1;
 		} else if (connection.connectionPointA.connectionEndId == 0) {
@@ -219,7 +224,7 @@ void JunctionMergeEvalLayer::run() {
 		if (connectionPointRemappingIterB != connectionPointRemapping.end()) {
 			const EvalGate* gate = nextState.getGate(connection.connectionPointB.gateId);
 			assert(gate);
-			assert(isConnectionEndIdSinglePin(gate->type, connection.connectionPointB.connectionEndId));
+			assert(EvalConnectionEndInfo::isConnectionEndIdSinglePin(gate->type, connection.connectionPointB.connectionEndId));
 			connection.connectionPointB = EvalConnectionPoint(connectionPointRemappingIterB->second, 0);
 			remappedTypeB = 1;
 		} else if (connection.connectionPointB.connectionEndId == 0) {
@@ -254,16 +259,16 @@ void JunctionMergeEvalLayer::run() {
 			if (remappedTypeA != 0) junctionGroupsToKill.insert(connection.connectionPointA.gateId);
 			if (remappedTypeB != 0) junctionGroupsToKill.insert(connection.connectionPointB.gateId);
 		} else if (
-			isConnectionEndIdSinglePin(gateA->type, connection.connectionPointA.connectionEndId) &&
-			isConnectionEndIdSinglePin(gateB->type, connection.connectionPointB.connectionEndId)
+			EvalConnectionEndInfo::isConnectionEndIdSinglePin(gateA->type, connection.connectionPointA.connectionEndId) &&
+			EvalConnectionEndInfo::isConnectionEndIdSinglePin(gateB->type, connection.connectionPointB.connectionEndId)
 		) {
 			connectionPointsToScan.insert(iter.first.connectionPointA);
 			assert(remappedTypeA == 0);
 			assert(remappedTypeB == 0);
-		} else if (isJunctionType(gateA->type) && isConnectionEndIdSinglePin(gateB->type, connection.connectionPointB.connectionEndId)) {
+		} else if (isJunctionType(gateA->type) && EvalConnectionEndInfo::isConnectionEndIdSinglePin(gateB->type, connection.connectionPointB.connectionEndId)) {
 			connectionPointsToScan.insert(iter.first.connectionPointA);
 			if (remappedTypeA != 0) junctionGroupsToKill.insert(connection.connectionPointA.gateId);
-		} else if (isJunctionType(gateB->type) && isConnectionEndIdSinglePin(gateA->type, connection.connectionPointA.connectionEndId)) {
+		} else if (isJunctionType(gateB->type) && EvalConnectionEndInfo::isConnectionEndIdSinglePin(gateA->type, connection.connectionPointA.connectionEndId)) {
 			connectionPointsToScan.insert(iter.first.connectionPointA);
 			if (remappedTypeB != 0) junctionGroupsToKill.insert(connection.connectionPointB.gateId);
 		} else {
@@ -293,10 +298,11 @@ void JunctionMergeEvalLayer::run() {
 		{
 			const EvalGate* curGate = currentState.getGate(connectionPointToScanFrom.gateId);
 			if (!curGate) continue;
-			if (!(isJunctionType(curGate->type) || isConnectionEndIdSinglePin(curGate->type, connectionPointToScanFrom.connectionEndId))) {
+			if (!(isJunctionType(curGate->type) || EvalConnectionEndInfo::isConnectionEndIdSinglePin(curGate->type, connectionPointToScanFrom.connectionEndId))) {
 				// logError("This is a bug and should not happen. Tho it should not break anything I dont want it to happen!"); // for now this will happen as I just throw alot at connectionPointsToScan
 				continue;
 			}
+			if (isJunctionType(curGate->type) && connectionPointToScanFrom.connectionEndId != connection_end_id_t(0)) continue;
 		}
 		auto [junctions, singlePinConnectionPoints, nonJunctionConnectionPoints, gateType] = gatherJunctionGroup(connectionPointToScanFrom, currentState);
 		assert(junctions.size() > 0 || singlePinConnectionPoints.size() > 0);
@@ -313,7 +319,7 @@ void JunctionMergeEvalLayer::run() {
 			const EvalGate* gate = nextState.getGate(connectionPoint.gateId);
 			assert(gate);
 			if (outputConnectionPoint.has_value()) {
-				if (isOutputConnectionPort(gate->type, connectionPoint.connectionEndId)) {
+				if (EvalConnectionEndInfo::isOutputConnectionPort(gate->type, connectionPoint.connectionEndId)) {
 					if (outputConnectionPoint->isNull()) outputConnectionPoint = connectionPoint;
 					else outputConnectionPoint = std::nullopt;
 				}
@@ -331,7 +337,10 @@ void JunctionMergeEvalLayer::run() {
 			EvalConnectionPoint connectionPoint = outputConnectionPoint.value();
 			for (std::pair<EvalConnectionPoint, unsigned int> pair : nonJunctionConnectionPoints) {
 				connectionPointsToScan.erase(pair.first);
-				if (pair.first == connectionPoint) continue;
+				// connectionPoint is null when the group has no driving output (e.g. an
+				// input sharing a bus port whose only driver was just removed); there is
+				// nothing to wire from, so leave the input unconnected.
+				if (connectionPoint.isNull() || pair.first == connectionPoint) continue;
 				nextState.addConnection(EvalConnection(connectionPoint, pair.first), pair.second);
 			}
 			continue;
@@ -360,6 +369,7 @@ void JunctionMergeEvalLayer::run() {
 		}
 		for (std::pair<EvalConnectionPoint, unsigned int> connectionPoint : nonJunctionConnectionPoints) {
 			connectionPointsToScan.erase(connectionPoint.first);
+			nextState.addConnectionPointRemappingsUpdated(connectionPoint.first);
 			if (singlePinConnectionPoints.contains(connectionPoint.first)) {
 				auto suc = connectionPointRemapping.emplace(connectionPoint.first, mergedGateId);
 				assert(suc.second);
@@ -379,7 +389,7 @@ void JunctionMergeEvalLayer::run() {
 			}
 		}
 		for (eval_gate_id junctionId : junctions) {
-			auto suc = nextState.getGateIdRemapping().emplace(junctionId, mergedGateId);
+			auto suc = nextState.getGateIdRemapping().try_emplace(junctionId, mergedGateId);
 			assert(suc.second);
 			nextState.getGateIdReverseRemapping().emplace(mergedGateId, junctionId);
 			assert(nextState.getGateIdReverseRemapping().size() == nextState.getGateIdRemapping().size());
@@ -435,7 +445,7 @@ std::tuple<
 		if (startGate->type == getEvalGateType(BlockType::JUNCTION_L)) foundPullDown = true;
 		else if (startGate->type == getEvalGateType(BlockType::JUNCTION_H)) foundPullUp = true;
 		else if (startGate->type == getEvalGateType(BlockType::JUNCTION_X)) foundPullUp = foundPullDown = true;
-	} else if (isConnectionEndIdSinglePin(startGate->type, start.connectionEndId)) {
+	} else if (EvalConnectionEndInfo::isConnectionEndIdSinglePin(startGate->type, start.connectionEndId)) {
 		singlePinConnectionPoints.insert(start);
 	} else {
 		assert(false);
@@ -474,7 +484,7 @@ std::tuple<
 					else if (otherGate->type == getEvalGateType(BlockType::JUNCTION_H)) foundPullUp = true;
 					else if (otherGate->type == getEvalGateType(BlockType::JUNCTION_X)) foundPullUp = foundPullDown = true;
 				}
-			} else if (isConnectionEndIdSinglePin(otherGate->type, otherConnectionPoint.connectionEndId)) {
+			} else if (EvalConnectionEndInfo::isConnectionEndIdSinglePin(otherGate->type, otherConnectionPoint.connectionEndId)) {
 				if (visited.insert(otherConnectionPoint).second) {
 					queue.push_back(otherConnectionPoint);
 					singlePinConnectionPoints.insert(otherConnectionPoint);

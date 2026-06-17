@@ -12,9 +12,9 @@ void CreateSimulatorCommand::run(const std::vector<std::string>& args, Environme
 	  	return;
     }
 
-    circuit_id_t cirID;
+    circuit_id_t circuitId;
     try {
-        cirID = std::stoi(args[1]);
+        circuitId = std::stoi(args[1]);
     }
     catch (...) {
         logError("Exception occured. Check your arguments, they should be reasonably-sized integers.", "CreateSimulatorCommand");
@@ -22,9 +22,9 @@ void CreateSimulatorCommand::run(const std::vector<std::string>& args, Environme
     }
 
     Backend& backend = environment.getBackend();
-    if (backend.getCircuitManager().getCircuit(cirID) == nullptr) {
+    if (backend.getCircuitManager().getCircuit(circuitId) == nullptr) {
         logError("Unrecognized circuit ID. Available circuits can be found with the 'list_circuits' command.", "CreateSimulatorCommand");
         return;
     }
-    backend.createSimulator(cirID);
+    backend.createSimulator(circuitId);
 }

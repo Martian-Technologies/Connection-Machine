@@ -32,12 +32,11 @@ SdlInstance::SdlInstance() {
 
 	// Submit click events when focusing the window.
 	SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
-	
+
 
 }
 
-SdlInstance::~SdlInstance() {
-	logInfo("Shutting down SDL...");
+SdlInstance::~SdlInstance() { // dont do anything here because any other part of the code could have been destroyed
 	// Gesture_Quit();
 	SDL_Quit();
 }

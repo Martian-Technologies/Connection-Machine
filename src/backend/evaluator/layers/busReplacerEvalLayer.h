@@ -14,8 +14,8 @@ public:
 	std::variant<EvalConnectionPoint, VecEvalConnectionPoint> getEvalConnectionPointsForConnectionPoint(EvalConnectionPoint connectionPoint) const;
 
 private:
-	std::unordered_map<eval_gate_id, BusData> busses;
-	std::unordered_map<eval_gate_id, std::vector<eval_gate_id>> busJunctions;
+	IdMap<eval_gate_id, BusData> busses;
+	IdMap<eval_gate_id, std::vector<eval_gate_id>> busJunctions;
 };
 
 #endif /* busReplacerEvalLayer_h */

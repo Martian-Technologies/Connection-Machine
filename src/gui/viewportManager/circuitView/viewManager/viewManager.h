@@ -1,32 +1,47 @@
 #ifndef viewManager_h
 #define viewManager_h
 
+#include "backend/circuit/circuitDefs.h"
 #include "backend/position/position.h"
-#include "backend/circuit/circuit.h"
 #include "util/vec2.h"
 
 class EventRegister;
 class Event;
+class Backend;
 
 class ViewManager {
 private:
 	struct ViewPositioningData {
-		ViewPositioningData(FPosition viewCenter, float viewScale) : viewCenter(viewCenter), viewScale(viewScale) {}
+		ViewPositioningData(FPosition viewCenter, float viewScale) : viewCenter(viewCenter), viewScale(viewScale) { }
 		FPosition viewCenter;
 		float viewScale;
 	};
 public:
 	// initialization
-	ViewManager() : viewCenter(), viewScale(8.0f), aspectRatio(16.0f / 9.0f), pointerViewPosition(0.5f, 0.5f) {}
+	ViewManager(Backend& backend) : backend(backend), viewCenter(), viewScale(8.0f), aspectRatio(16.0f / 9.0f), pointerViewPosition(0.5f, 0.5f) { }
+	ViewManager(const ViewManager&) = delete;
+	void operator=(const ViewManager&) = delete;
 	void setUpEvents(EventRegister& eventRegister);
 
 	// event output
 	inline void connectViewChanged(const std::function<void()>& func) { viewChangedListener = func; }
 
 	// setters
-	void setCircuit(Circuit* circuit);
-	inline void setAspectRatio(float value) { if (value > 10000.f || value < 0.0001f) return; aspectRatio = value; viewChanged(); }
-	inline void setViewCenter(FPosition value) { viewCenter = value; viewChanged(); }
+	void setCircuit(circuit_id_t circuitId);
+	void setAspectRatio(float value) {
+		if (value > 10000.f || value < 0.0001f) return;
+		aspectRatio = value;
+		viewChanged();
+	}
+	void setViewCenter(FPosition value) {
+		viewCenter = value;
+		viewChanged();
+	}
+	void setViewScale(float value) {
+		viewScale = value;
+		applyLimits();
+		viewChanged();
+	}
 
 	// getters
 	inline float getViewScale() const { return viewScale; }
@@ -66,7 +81,6 @@ private:
 	bool pointerEnterView(const Event* event);
 	bool pointerExitView(const Event* event);
 private:
-
 	// pointer
 	bool anchored = false;
 	bool pointerActive = false;
@@ -75,7 +89,8 @@ private:
 
 	// view data per circuit
 	std::map<circuit_id_t, ViewPositioningData> perCircuitViewData;
-	Circuit* currentCircuit = nullptr;
+	circuit_id_t currentCircuitId = 0;
+	Backend& backend;
 
 	// view
 	FPosition viewCenter;
