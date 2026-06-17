@@ -756,24 +756,26 @@ void BlockCreationWidget::renderSideBar(circuit_id_t circuitId) {
 									if (ImGui::Button("Path")) {
 										App::runOnMain([this, index]() {
 											SDL_ShowOpenFileDialog([](void* userData, const char* const* filePaths, int filter) {
-												App::runOnMain([&]() {
-													if (!filePaths || !filePaths[0]) return;
-
-													std::pair<BlockCreationWidget*, unsigned int>* data = (std::pair<BlockCreationWidget*, unsigned int>*)userData;
+												std::pair<BlockCreationWidget*, unsigned int>* data = (std::pair<BlockCreationWidget*, unsigned int>*)userData;
+												std::optional<std::string> selectedFilePath;
+												if (filePaths && filePaths[0]) selectedFilePath = filePaths[0];
+												App::runOnMain([data, selectedFilePath]() {
+													std::unique_ptr<std::pair<BlockCreationWidget*, unsigned int>> dataGuard(data);
+													if (!selectedFilePath.has_value()) return;
 
 													circuit_id_t circuitId = data->first->getGUIValue<circuit_id_t>("circuitId");
 													Circuit* circuit = data->first->getBackend().getCircuitManager().getCircuit(circuitId);
 													if (!circuit) return;
 													BlockData* blockData = data->first->getBackend().getBlockDataManager().getBlockData(circuit->getBlockType());
+													if (blockData == nullptr) return;
 
-													std::string filePath = filePaths[0];
+													std::string filePath = selectedFilePath.value();
 													if (filePath.empty()) return;
 													const BlockData::RenderDataType* renderData = blockData->getRenderData(data->second);
 													if (renderData == nullptr) return;
 													if (std::holds_alternative<BlockData::BlockTextureData>(*renderData)) {
 														blockData->setBlockTexturePath(data->second, filePath);
 													}
-													delete data;
 												});
 											}, new std::pair(this, index), nullptr, nullptr, 0, nullptr, true);
 										});

@@ -82,7 +82,7 @@ void EvalLogicSimulator::setState(const Address& address, logic_state_t state) {
 	if (!std::holds_alternative<EvalConnectionPoint>(connectionPoints)) return;
 	std::optional<simulator_state_reference> simulatorStateIndex = getSimulatorStateIndex_noMux(std::get<EvalConnectionPoint>(connectionPoints));
 	if (!simulatorStateIndex.has_value()) {
-		logError("Could not find simulator state index for address: {}", "EvalLogicSimulator", address.toString());
+		logWarning("Could not find simulator state index for address: {}", "EvalLogicSimulator", address.toString());
 		return;
 	}
 	setState(simulatorStateIndex.value(), state);

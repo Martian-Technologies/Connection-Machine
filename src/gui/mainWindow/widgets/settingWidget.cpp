@@ -150,13 +150,15 @@ struct SettingTreeNode {
 					if (ImGui::Button("Select File")) {
 						App::runOnMain([this, path, filePath]() {
 							SDL_ShowOpenFileDialog([](void* userData, const char* const* filePaths, int filter) {
-								App::runOnMain([&]() {
-									if (!filePaths || !filePaths[0]) return;
-									std::pair<SettingWidget*, std::string>* data = (std::pair<SettingWidget*, std::string>*)userData;
-									std::string filePath = filePaths[0];
+								std::pair<SettingWidget*, std::string>* data = (std::pair<SettingWidget*, std::string>*)userData;
+								std::optional<std::string> selectedFilePath;
+								if (filePaths && filePaths[0]) selectedFilePath = filePaths[0];
+								App::runOnMain([data, selectedFilePath]() {
+									std::unique_ptr<std::pair<SettingWidget*, std::string>> dataGuard(data);
+									if (!selectedFilePath.has_value()) return;
+									std::string filePath = selectedFilePath.value();
 									if (filePath.empty()) return;
 									Settings::set<SettingType::FILE_PATH>(data->second, DirectoryManager::shortenPath(filePath));
-									delete data;
 								});
 							}, new std::pair(this, path), nullptr, nullptr, 0, filePath.c_str(), true);
 						});

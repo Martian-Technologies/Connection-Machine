@@ -11,29 +11,52 @@ FuzzTestcase TestcaseMinifier::minifyTestcase(const FuzzTestcase& originalTestca
 	// gen.seed(std::random_device {}());
 
 	FuzzTestcase currentTestcase = originalTestcase;
-	while (true) {
-		bool reduced = false;
-		for (int i = 0; i < currentTestcase.getTestActions().size() + currentTestcase.getEditActions().size(); ++i) {
-			logInfo("Trying to remove action {}/{}...", "", i + 1, currentTestcase.getTestActions().size() + currentTestcase.getEditActions().size());
-			std::set<size_t> editActionsToTry;
-			std::set<size_t> testActionsToTry;
-			size_t numEditActions = currentTestcase.getEditActions().size();
-			size_t numTestActions = currentTestcase.getTestActions().size();
+	auto makeRemovalSets = [](size_t start, size_t count, size_t numTestActions, size_t totalActions, std::set<size_t>& editActionsToTry, std::set<size_t>& testActionsToTry) {
+		size_t end = start + count;
+		if (end > totalActions) end = totalActions;
+		for (size_t i = start; i < end; ++i) {
 			if (i < numTestActions) {
 				testActionsToTry.insert(i);
 			} else {
 				editActionsToTry.insert(i - numTestActions);
 			}
+		}
+	};
+
+	size_t totalActions = currentTestcase.getTestActions().size() + currentTestcase.getEditActions().size();
+	size_t removeCount = totalActions / 10;
+	if (removeCount == 0 && totalActions != 0) removeCount = 1;
+	while (removeCount > 0) {
+		bool reduced = false;
+		totalActions = currentTestcase.getTestActions().size() + currentTestcase.getEditActions().size();
+		if (totalActions == 0) break;
+		if (removeCount > totalActions) removeCount = totalActions;
+		for (size_t start = 0; start < totalActions; start += removeCount) {
+			std::set<size_t> editActionsToTry;
+			std::set<size_t> testActionsToTry;
+			makeRemovalSets(start, removeCount, currentTestcase.getTestActions().size(), totalActions, editActionsToTry, testActionsToTry);
+			logInfo(
+				"Trying to remove {} actions starting at {}/{}...",
+				"",
+				editActionsToTry.size() + testActionsToTry.size(),
+				start + 1,
+				totalActions
+			);
 			std::unique_ptr<FuzzTestcase> newTestcase = tryRemoveEditActions(currentTestcase, editActionsToTry, testActionsToTry);
 			if (newTestcase) {
 				currentTestcase = std::move(*newTestcase);
-				// gen.seed(std::random_device {}());
 				reduced = true;
+				totalActions = currentTestcase.getTestActions().size() + currentTestcase.getEditActions().size();
+				removeCount = totalActions / 10;
+				if (removeCount == 0 && totalActions != 0) removeCount = 1;
 				break;
 			}
 		}
 		if (!reduced) {
-			break;
+			if (removeCount == 1) break;
+			removeCount /= 2;
+			if (removeCount == 0) removeCount = 1;
+			logInfo("Could not remove that many actions; reducing batch size to {}", "", removeCount);
 		}
 	}
 	currentTestcase.tryRemoveBlockTypesNotUsed();

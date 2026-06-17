@@ -17,9 +17,8 @@ namespace {
 }
 
 void setupFuzzLogCapture() {
-	setLogStdErrEnabled(false); // we re-emit below so we can drop one specific line
+	setLogStdErrEnabled(false); // we re-emit below so intercepted logs are still visible
 	setLogOutputCallback([](const std::string& line) {
-		if (line.find("Failed to set sim id") != std::string::npos && line.find("EvalLogicSimulator::setState") != std::string::npos) return;
 		std::cerr << line << "\n";
 	});
 	setLogErrorCallback([](const std::string& message, const std::string& subcategory) {

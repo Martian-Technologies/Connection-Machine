@@ -89,11 +89,15 @@ void MainWindow::setNextWindowSideBarDockable() const {
 std::chrono::time_point<std::chrono::high_resolution_clock> lastOpenCommand = std::chrono::high_resolution_clock::now();
 
 void LoadCallback(void* userData, const char* const* filePaths, int filter) {
-	App::runOnMain([&](){
-		MainWindow* mainWindow = (MainWindow*)userData;
+	MainWindow* mainWindow = (MainWindow*)userData;
+	std::optional<std::string> selectedFilePath;
+	if (filePaths && filePaths[0]) {
+		selectedFilePath = filePaths[0];
+	}
+	App::runOnMain([mainWindow, selectedFilePath](){
 		assert(mainWindow);
-		if (filePaths && filePaths[0]) {
-			std::string filePath = filePaths[0];
+		if (selectedFilePath.has_value()) {
+			std::string filePath = selectedFilePath.value();
 			if (filePath.ends_with(".tst")) {
 				std::optional<CircuitTestGroup> testGroup = CircuitTestFileLoader::getCircuitTestGroupFromFilePath(filePath, mainWindow->getEnvironment().getBackend());
 				if (testGroup.has_value()) {
