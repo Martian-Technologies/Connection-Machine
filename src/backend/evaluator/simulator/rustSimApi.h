@@ -28,5 +28,8 @@ extern "C" {
 	bool cm_sim_is_replay(const CmSimulator*);
 	std::uint64_t cm_sim_tick_index(const CmSimulator*);
 	std::size_t cm_sim_replay_bytes(const CmSimulator*);
+	void cm_sim_set_jit_enabled(CmSimulator*, bool enabled);
+	// Four counters: gate evaluations, compiled groups, code bytes, JIT calls.
+	void cm_sim_diagnostics(const CmSimulator*, std::uint64_t* output);
 }
 #endif /* rustSimApi_h */

@@ -1,5 +1,5 @@
 # Build the simulator independently of Wasmtime's Cargo workspace. The core has
-# a narrow C ABI and does not pull a Wasm compiler into ordinary simulation.
+# a narrow C ABI and uses native Cranelift independently of the Wasm runtime.
 function(add_simulator_rust)
 	find_program(SIMULATOR_CARGO cargo REQUIRED)
 	find_package(Threads REQUIRED)

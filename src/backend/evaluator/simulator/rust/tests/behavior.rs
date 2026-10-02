@@ -299,6 +299,28 @@ fn settled_circuits_do_no_gate_work() {
     }
     assert_eq!(e.evaluations, evaluations);
     assert_eq!(e.replay_bytes(), 0);
+
+    // Recycled delta capacity must not be charged to later empty frames.
+    let low = e.add_gate(17);
+    let oscillators: Vec<_> = (0..8).map(|_| e.add_gate(8)).collect();
+    for &id in &oscillators {
+        e.connect(id, id, 0, 1);
+    }
+    for _ in 0..1000 {
+        let id = e.add_gate(7);
+        e.connect(id, id, 0, 1);
+    }
+    for _ in 0..1100 {
+        e.tick();
+    }
+    for id in oscillators {
+        e.connect(id, id, 0, -1);
+        e.connect(low, id, 0, 1);
+    }
+    for _ in 0..1100 {
+        e.tick();
+    }
+    assert_eq!(e.replay_bytes(), 0);
 }
 
 #[test]
@@ -464,5 +486,248 @@ fn randomized_wire_edits_match_a_tick_oracle_through_input_compaction() {
                 old[i] = expected;
             }
         }
+    }
+}
+
+#[cfg(feature = "jit")]
+#[test]
+fn jit_scalar_and_simd_match_all_four_state_inputs_and_realistic_transitions() {
+    for realistic in [false, true] {
+        let mut e = Engine::new();
+        e.set_realistic(realistic);
+        let a: Vec<_> = (0..32).map(|_| e.add_gate(16)).collect();
+        let b: Vec<_> = (0..32).map(|_| e.add_gate(16)).collect();
+        let mut cases = Vec::new();
+        for kind in (1..=8).chain([13, 15]) {
+            for lane in 0..32 {
+                let out = e.add_gate(kind);
+                if kind != 15 {
+                    assert!(e.connect(a[lane], out, 0, 1));
+                    if kind <= 6 || kind == 13 {
+                        assert!(e.connect(b[lane], out, u32::from(kind == 13), 1));
+                    }
+                }
+                cases.push((kind, lane, out));
+            }
+        }
+        e.compile();
+        for lane in 0..32 {
+            e.set_state(a[lane], (lane % 4) as u8);
+            e.set_state(b[lane], ((lane / 4) % 4) as u8);
+        }
+        e.prepare_jit();
+        assert_eq!(e.jit_stats().0, cases.len().div_ceil(256));
+        for tick in 0..2 {
+            let old: Vec<_> = cases.iter().map(|&(_, _, id)| e.state(id)).collect();
+            e.tick();
+            for (index, &(kind, lane, out)) in cases.iter().enumerate() {
+                let (a, b) = ((lane % 4) as u8, ((lane / 4) % 4) as u8);
+                let target = match kind {
+                    13 => match b {
+                        L => Z,
+                        H if a < Z => a,
+                        _ => X,
+                    },
+                    15 => L,
+                    7 | 8 => reference(kind, &[a]),
+                    _ => reference(kind, &[a, b]),
+                };
+                let expected = if realistic && kind != 15 && old[index] != X && old[index] != target
+                {
+                    X
+                } else {
+                    target
+                };
+                assert_eq!(
+                    e.state(out),
+                    expected,
+                    "kind={kind} lane={lane} tick={tick} realistic={realistic}"
+                );
+            }
+        }
+        assert!(e.jit_stats().2 > 0);
+    }
+}
+
+#[cfg(feature = "jit")]
+#[test]
+fn jit_edits_settings_and_replay_match_the_interpreter() {
+    let mut native = Engine::new();
+    let mut reference = Engine::new();
+    reference.set_jit_enabled(false);
+    for engine in [&mut native, &mut reference] {
+        for i in 0..800 {
+            let id = engine.add_gate(if i % 2 == 0 { 4 } else { 8 });
+            engine.connect(id, id, 0, if i % 2 == 0 { 2 } else { 1 });
+        }
+        engine.compile();
+    }
+    native.prepare_jit();
+    for tick in 0..120 {
+        if tick == 40 {
+            for engine in [&mut native, &mut reference] {
+                engine.connect(4, 4, 0, -2);
+                engine.connect(5, 4, 0, 2);
+                engine.compile();
+            }
+            assert_eq!(
+                native.jit_stats().0,
+                3,
+                "a local edit invalidates one chunk"
+            );
+        }
+        if tick == 60 {
+            for engine in [&mut native, &mut reference] {
+                engine.set_realistic(true);
+            }
+            assert_eq!(native.jit_stats().0, 0);
+            native.prepare_jit();
+        }
+        if tick == 80 {
+            for engine in [&mut native, &mut reference] {
+                engine.remove_gate(15);
+                engine.add_gate(8);
+                engine.compile();
+            }
+            native.prepare_jit();
+        }
+        native.tick();
+        reference.tick();
+        for id in 4..804 {
+            assert_eq!(native.state(id), reference.state(id), "tick={tick} id={id}");
+        }
+    }
+    for _ in 0..100 {
+        assert_eq!(native.step_back(), reference.step_back());
+        for id in 4..804 {
+            assert_eq!(native.state(id), reference.state(id));
+        }
+    }
+    assert!(native.jit_stats().2 > 0);
+}
+
+#[cfg(feature = "jit")]
+#[test]
+fn background_jit_discards_stale_compilations_during_edits() {
+    use std::time::{Duration, Instant};
+    let mut native = Engine::new();
+    let mut oracle = Engine::new();
+    oracle.set_jit_enabled(false);
+    for engine in [&mut native, &mut oracle] {
+        for _ in 0..1600 {
+            let id = engine.add_gate(8);
+            engine.connect(id, id, 0, 1);
+        }
+    }
+    for _ in 0..128 {
+        native.tick();
+        oracle.tick();
+    }
+    // There are outstanding jobs. Replace topology, then rewire again while
+    // the next generation is compiling. Old native offsets must never publish.
+    for engine in [&mut native, &mut oracle] {
+        engine.remove_gate(4);
+        let replacement = engine.add_gate(8);
+        assert_eq!(replacement, 4);
+        engine.connect(5, replacement, 0, 1);
+        engine.compile();
+    }
+    let start = Instant::now();
+    let mut ticks = 0;
+    while native.jit_stats().0 < 7 {
+        native.tick();
+        oracle.tick();
+        ticks += 1;
+        if ticks == 128 {
+            for engine in [&mut native, &mut oracle] {
+                engine.connect(5, 4, 0, -1);
+                engine.connect(6, 4, 0, 1);
+                engine.compile();
+            }
+        }
+        for id in [4, 5, 6, 259, 260, 1603] {
+            assert_eq!(native.state(id), oracle.state(id));
+        }
+        assert!(
+            start.elapsed() < Duration::from_secs(15),
+            "background compilation did not finish"
+        );
+        std::thread::yield_now();
+    }
+    for _ in 0..100 {
+        native.tick();
+        oracle.tick();
+        for id in 4..1604 {
+            assert_eq!(native.state(id), oracle.state(id));
+        }
+    }
+    assert!(native.jit_stats().2 > 0);
+}
+
+#[cfg(feature = "sparse-jit")]
+#[test]
+fn sparse_jit_dispatch_matches_the_interpreter_with_random_inputs_and_edits() {
+    for realistic in [false, true] {
+        let mut native = Engine::new();
+        let mut oracle = Engine::new();
+        oracle.set_jit_enabled(false);
+        let mut rng = 12345u64;
+        let mut random = || {
+            rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (rng >> 32) as u32
+        };
+        let kinds: Vec<_> = (0..640).map(|_| (random() % 6 + 1) as u16).collect();
+        let inputs: Vec<Vec<u32>> = (0..640)
+            .map(|_| (0..random() % 5).map(|_| random() % 320 + 4).collect())
+            .collect();
+        for engine in [&mut native, &mut oracle] {
+            engine.set_realistic(realistic);
+            for _ in 0..320 {
+                engine.add_gate(16);
+            }
+            for (which, &kind) in kinds.iter().enumerate() {
+                let id = engine.add_gate(kind);
+                for &source in &inputs[which] {
+                    assert!(engine.connect(source, id, 0, 1));
+                }
+            }
+            engine.tick();
+            engine.tick();
+        }
+        native.prepare_jit();
+        assert_eq!(native.jit_stats().0, 3);
+        for tick in 0..1200 {
+            let source = random() % 320 + 4;
+            let state = (random() % 4) as u8;
+            if tick % 100 == 0 {
+                let destination = random() % 640 + 324;
+                for engine in [&mut native, &mut oracle] {
+                    engine.connect(source, destination, 0, 1);
+                    engine.compile();
+                }
+                native.prepare_jit();
+            }
+            let changes: Vec<_> = (0..8)
+                .map(|_| (random() % 320 + 4, (random() % 4) as u8))
+                .chain([(source, state)])
+                .collect();
+            for engine in [&mut native, &mut oracle] {
+                for &(source, state) in &changes {
+                    engine.set_state(source, state);
+                }
+                engine.tick();
+            }
+            for id in 324..964 {
+                assert_eq!(
+                    native.state(id),
+                    oracle.state(id),
+                    "tick={tick} id={id} realistic={realistic}"
+                );
+            }
+        }
+        assert!(
+            native.jit_stats().2 > 1000,
+            "exercise native sparse dispatch"
+        );
     }
 }

@@ -108,3 +108,18 @@ pub unsafe extern "C" fn cm_sim_tick_index(engine: &Engine) -> u64 {
 pub unsafe extern "C" fn cm_sim_replay_bytes(engine: &Engine) -> usize {
     engine.replay_bytes()
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn cm_sim_set_jit_enabled(engine: &mut Engine, enabled: bool) {
+    engine.set_jit_enabled(enabled);
+}
+#[no_mangle]
+pub unsafe extern "C" fn cm_sim_diagnostics(engine: &Engine, output: *mut u64) {
+    let (groups, bytes, hits) = engine.jit_stats();
+    std::slice::from_raw_parts_mut(output, 4).copy_from_slice(&[
+        engine.evaluations,
+        groups as u64,
+        bytes as u64,
+        hits,
+    ]);
+}

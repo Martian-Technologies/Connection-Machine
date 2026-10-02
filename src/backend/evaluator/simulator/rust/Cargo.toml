@@ -2,7 +2,7 @@
 name = "connection-machine-simulator"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.89"
 
 [lib]
 name = "cm_simulator"
@@ -10,8 +10,19 @@ crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 rayon = "=1.12.0"
+cranelift-codegen = { version = "=0.124.2", optional = true }
+cranelift-frontend = { version = "=0.124.2", optional = true }
+cranelift-module = { version = "=0.124.2", optional = true }
+cranelift-jit = { version = "=0.124.2", optional = true }
+cranelift-native = { version = "=0.124.2", optional = true }
+
+[features]
+default = ["jit"]
+jit = ["dep:cranelift-codegen", "dep:cranelift-frontend", "dep:cranelift-module", "dep:cranelift-jit", "dep:cranelift-native"]
+# Experimental: irregular sparse dispatch currently loses to the interpreter
+# on gpu-autodemo. Kept opt-in for further profiling, never the app default.
+sparse-jit = ["jit"]
 
 [profile.release]
 lto = "thin"
 codegen-units = 1
-

@@ -85,10 +85,14 @@ void LogicSimulator::simulationLoop() {
 			cm_sim_tick(engine, 1);
 		}
 		if (sprint) {
-			std::lock_guard lock(controlMutex);
-			simulatorConfig.consumeSprintTick();
+			bool finished;
+			{
+				std::lock_guard lock(controlMutex);
+				simulatorConfig.consumeSprintTick();
+				finished = !simulatorConfig.canConsumeSprintTick();
+			}
+			if (finished) controlCv.notify_all();
 		}
-		controlCv.notify_all();
 		if (!firstTick) {
 			double seconds = std::chrono::duration<double>(now - lastTick).count();
 			if (seconds > 0) {
@@ -196,8 +200,14 @@ bool LogicSimulator::isViewingReplay() const { std::lock_guard lock(engineMutex)
 
 nlohmann::json LogicSimulator::dumpState() const {
 	std::lock_guard lock(engineMutex);
+	std::uint64_t diagnostics[4];
+	cm_sim_diagnostics(engine, diagnostics);
 	nlohmann::json json = { { "engine", "rust" }, { "tick", cm_sim_tick_index(engine) }, { "replayBytes", cm_sim_replay_bytes(engine) },
 		{ "viewingReplay", cm_sim_is_replay(engine) }, { "simulatorConfig", simulatorConfig.dumpState() } };
+	json["evaluations"] = diagnostics[0];
+	json["jitGroups"] = diagnostics[1];
+	json["jitCodeBytes"] = diagnostics[2];
+	json["jitCalls"] = diagnostics[3];
 	json["gates"] = nlohmann::json::array();
 	for (const auto& [id, type] : gateTypes) json["gates"].push_back({ { "id", id.get() }, { "type", blocktype_to_string(type) }, { "state", logicstate_to_string(static_cast<logic_state_t>(cm_sim_state(engine, id.get()))) } });
 	return json;

@@ -15,6 +15,9 @@ const HISTORY_TICKS: usize = 1024;
 const HISTORY_BYTES: usize = 64 * 1024 * 1024;
 const PARALLEL_THRESHOLD: usize = 16_384;
 
+#[cfg(feature = "jit")]
+mod jit;
+
 // Values match BlockType in the C++ adapter. Keep the ABI independent of Rust enums.
 fn junction(kind: u16) -> bool {
     (9..=12).contains(&kind)
@@ -212,6 +215,8 @@ pub struct Engine {
     live_input_count: usize,
     removed_consumer_marks: Vec<bool>,
     states: Arc<Vec<u8>>,
+    spare_states: Vec<u8>,
+    spare_changes: Vec<Change>,
     program: Vec<Instruction>,
     groups: Vec<KernelGroup>,
     unary: Vec<(u32, u32)>,
@@ -221,6 +226,7 @@ pub struct Engine {
     gate_dependencies: Vec<Vec<usize>>,
     net_dependencies: Vec<Vec<usize>>,
     active: Vec<usize>,
+    spare_active: Vec<usize>,
     scheduled: Vec<bool>,
     dirty_nets: Vec<usize>,
     net_scheduled: Vec<bool>,
@@ -235,6 +241,8 @@ pub struct Engine {
     view: Option<(usize, Vec<u8>)>,
     pub ticks: u64,
     pub evaluations: u64,
+    #[cfg(feature = "jit")]
+    jit: jit::Cache,
 }
 
 impl Default for Engine {
@@ -252,6 +260,8 @@ impl Engine {
             live_input_count: 0,
             removed_consumer_marks: Vec::new(),
             states: Arc::new(vec![LOW, HIGH, FLOATING, UNDEFINED]),
+            spare_states: Vec::new(),
+            spare_changes: Vec::new(),
             program: Vec::new(),
             groups: Vec::new(),
             unary: Vec::new(),
@@ -261,6 +271,7 @@ impl Engine {
             gate_dependencies: Vec::new(),
             net_dependencies: Vec::new(),
             active: Vec::new(),
+            spare_active: Vec::new(),
             scheduled: Vec::new(),
             dirty_nets: Vec::new(),
             net_scheduled: Vec::new(),
@@ -275,6 +286,8 @@ impl Engine {
             view: None,
             ticks: 0,
             evaluations: 0,
+            #[cfg(feature = "jit")]
+            jit: jit::Cache::default(),
         }
     }
     pub fn add_gate(&mut self, kind: u16) -> u32 {
@@ -388,6 +401,8 @@ impl Engine {
     pub fn set_realistic(&mut self, realistic: bool) {
         if realistic != self.realistic {
             self.realistic = realistic;
+            #[cfg(feature = "jit")]
+            self.jit.reset(self.program.len());
             self.invalidate_history();
             self.activate_all();
         }
@@ -544,6 +559,8 @@ impl Engine {
         self.dirty_nets = (0..self.nets.len()).collect();
         self.net_scheduled = vec![true; self.nets.len()];
         self.needs_compile = false;
+        #[cfg(feature = "jit")]
+        self.jit.reset(self.program.len());
         let mut ignored = Vec::new();
         self.resolve_nets(&mut ignored);
     }
@@ -580,6 +597,8 @@ impl Engine {
         let mut added: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
         for (id, old_sources) in std::mem::take(&mut self.pending_connections) {
             let index = self.instruction_of[id as usize];
+            #[cfg(feature = "jit")]
+            self.jit.invalidate(index);
             let gate = self.gates[id as usize].as_ref().unwrap();
             let kind = gate.kind;
             let new_sources: BTreeSet<_> = gate.inputs.keys().map(|&(_, source)| source).collect();
@@ -709,7 +728,25 @@ impl Engine {
             self.tick_dense();
             return;
         }
-        let active = std::mem::take(&mut self.active);
+        if self.active.is_empty() && self.dirty_nets.is_empty() {
+            self.history.push_back(Frame {
+                data: FrameData::Delta(Vec::new()),
+                input: false,
+            });
+            self.trim_history();
+            self.ticks += 1;
+            return;
+        }
+        let mut active = std::mem::take(&mut self.spare_active);
+        std::mem::swap(&mut active, &mut self.active);
+        #[cfg(feature = "sparse-jit")]
+        self.jit.poll(
+            &self.program,
+            &self.inputs,
+            self.states.len(),
+            self.realistic,
+            Some(&active),
+        );
         for &index in &active {
             self.scheduled[index] = false;
         }
@@ -750,27 +787,89 @@ impl Engine {
                 }
             }
         } else {
-            for (result, &index) in self.results.iter_mut().zip(&active) {
-                *result = self.program[index].evaluate(&self.states, &self.inputs, self.realistic);
+            #[cfg(feature = "sparse-jit")]
+            let native = self.jit.has_code() && active.len() >= 8;
+            #[cfg(not(feature = "sparse-jit"))]
+            let native = false;
+            if native {
+                active.sort_unstable();
+                #[cfg(feature = "sparse-jit")]
+                {
+                    let mut start = 0;
+                    while start < active.len() {
+                        let chunk = active[start] / jit::CHUNK;
+                        let mut end = start + 1;
+                        while end < active.len() && active[end] / jit::CHUNK == chunk {
+                            end += 1;
+                        }
+                        let complex = active[start..end]
+                            .iter()
+                            .any(|&i| !matches!(self.program[i].kind, 7 | 8 | 15));
+                        if !complex
+                            || !self.jit.evaluate(
+                                chunk,
+                                &self.states,
+                                &active[start..end],
+                                &mut self.results[start..end],
+                            )
+                        {
+                            for (result, &index) in
+                                self.results[start..end].iter_mut().zip(&active[start..end])
+                            {
+                                *result = self.program[index].evaluate(
+                                    &self.states,
+                                    &self.inputs,
+                                    self.realistic,
+                                );
+                            }
+                        }
+                        start = end;
+                    }
+                }
+            } else {
+                for (result, &index) in self.results.iter_mut().zip(&active) {
+                    *result =
+                        self.program[index].evaluate(&self.states, &self.inputs, self.realistic);
+                }
             }
         }
-        let mut changes = Vec::new();
-        for (position, &index) in active.iter().enumerate() {
-            let instruction = self.program[index];
-            let value = self.results[position];
-            let old = self.states[instruction.output as usize];
-            self.commit(instruction.output, value, &mut changes);
-            if self.realistic && old != value && value == UNDEFINED {
-                self.schedule(index);
+        let mut changes = std::mem::take(&mut self.spare_changes);
+        changes.clear();
+        if active
+            .iter()
+            .zip(&self.results)
+            .any(|(&i, &value)| self.states[self.program[i].output as usize] != value)
+        {
+            // Acquire mutable state once per publication, rather than checking
+            // Arc ownership for every changed gate. Evaluation is complete.
+            let states = Arc::make_mut(&mut self.states);
+            for (&index, &value) in active.iter().zip(&self.results) {
+                let id = self.program[index].output;
+                let before = states[id as usize];
+                if before != value {
+                    changes.push(Change {
+                        id,
+                        before,
+                        after: value,
+                    });
+                    states[id as usize] = value;
+                }
+            }
+            for change in &changes {
+                self.changed(change.id as usize);
+                if self.realistic && change.after == UNDEFINED {
+                    self.schedule(self.instruction_of[change.id as usize]);
+                }
             }
         }
         self.resolve_nets(&mut changes);
         // Reuse the active-list allocation after the next list has been built.
-        if self.active.is_empty() {
-            self.active = active;
-            self.active.clear();
-        }
-        let data = if let Some(before) = before {
+        self.spare_active = active;
+        self.spare_active.clear();
+        let data = if changes.is_empty() {
+            self.spare_changes = changes;
+            FrameData::Delta(Vec::new())
+        } else if let Some(before) = before {
             FrameData::Dense {
                 before,
                 after: Arc::clone(&self.states),
@@ -793,19 +892,42 @@ impl Engine {
         self.net_scheduled.fill(false);
         self.evaluations += self.program.len() as u64;
         let before = Arc::clone(&self.states);
-        let mut next = self.states.as_ref().clone();
-        if self.program.len() >= PARALLEL_THRESHOLD && self.threads > 1 && self.pool.is_none() {
+        let mut next = std::mem::take(&mut self.spare_states);
+        next.clone_from(&self.states);
+        #[cfg(feature = "jit")]
+        self.jit.poll(
+            &self.program,
+            &self.inputs,
+            self.states.len(),
+            self.realistic,
+            None,
+        );
+        // Dispatch overhead dominates inexpensive kernels below this size.
+        #[cfg(feature = "jit")]
+        let has_jit = self.jit.has_code();
+        #[cfg(not(feature = "jit"))]
+        let has_jit = false;
+        let parallel =
+            self.program.len() >= (if has_jit { 524_288 } else { 131_072 }) && self.threads > 1;
+        if parallel && self.pool.is_none() {
             let count = self.threads.min(self.program.len() / 4096).max(1);
             self.pool = rayon::ThreadPoolBuilder::new()
                 .num_threads(count)
                 .build()
                 .ok();
         }
-        if let Some(pool) = self
-            .pool
-            .as_ref()
-            .filter(|_| self.program.len() >= PARALLEL_THRESHOLD && self.threads > 1)
-        {
+        #[cfg(feature = "jit")]
+        let native_parallel = parallel
+            && has_jit
+            && self
+                .pool
+                .as_ref()
+                .is_some_and(|pool| self.jit.run_parallel(pool, &self.states, &mut next));
+        #[cfg(not(feature = "jit"))]
+        let native_parallel = false;
+        if native_parallel {
+            // Native kernels wrote only their verified disjoint partitions.
+        } else if let Some(pool) = self.pool.as_ref().filter(|_| parallel && !has_jit) {
             let states = &self.states;
             let inputs = &self.inputs;
             let realistic = self.realistic;
@@ -860,28 +982,57 @@ impl Engine {
                 });
             }
         } else {
-            for group in &self.groups {
-                if !self.realistic && (group.kind == 7 || group.kind == 8) {
-                    let invert = u8::from(group.kind == 8);
-                    let ops = &self.unary[group.start..group.end];
-                    let first = ops[0].0 as usize;
-                    if ops.last().unwrap().0 as usize - first + 1 == ops.len() {
-                        for (output, &(_, input)) in
-                            next[first..first + ops.len()].iter_mut().zip(ops)
-                        {
-                            let s = self.states[input as usize];
-                            *output = (s ^ invert) | (s >> 1);
-                        }
+            if has_jit {
+                #[cfg(feature = "jit")]
+                for (chunk, ops) in self.program.chunks(jit::CHUNK).enumerate() {
+                    if let Some(code) = self.jit.code(chunk) {
+                        code.run(&self.states, &mut next);
+                        self.jit.hits += 1;
                     } else {
-                        for &(output, input) in ops {
-                            let s = self.states[input as usize];
-                            next[output as usize] = (s ^ invert) | (s >> 1);
+                        if !self.realistic
+                            && matches!(ops[0].kind, 7 | 8)
+                            && ops[0].kind == ops.last().unwrap().kind
+                        {
+                            let invert = u8::from(ops[0].kind == 8);
+                            for instruction in ops {
+                                let s = self.states[instruction.data as usize];
+                                next[instruction.output as usize] = (s ^ invert) | (s >> 1);
+                            }
+                        } else {
+                            for instruction in ops {
+                                next[instruction.output as usize] = instruction.evaluate(
+                                    &self.states,
+                                    &self.inputs,
+                                    self.realistic,
+                                );
+                            }
                         }
                     }
-                } else {
-                    for instruction in &self.program[group.start..group.end] {
-                        next[instruction.output as usize] =
-                            instruction.evaluate(&self.states, &self.inputs, self.realistic);
+                }
+            } else {
+                for group in &self.groups {
+                    if !self.realistic && (group.kind == 7 || group.kind == 8) {
+                        let invert = u8::from(group.kind == 8);
+                        let ops = &self.unary[group.start..group.end];
+                        let first = ops[0].0 as usize;
+                        if ops.last().unwrap().0 as usize - first + 1 == ops.len() {
+                            for (output, &(_, input)) in
+                                next[first..first + ops.len()].iter_mut().zip(ops)
+                            {
+                                let s = self.states[input as usize];
+                                *output = (s ^ invert) | (s >> 1);
+                            }
+                        } else {
+                            for &(output, input) in ops {
+                                let s = self.states[input as usize];
+                                next[output as usize] = (s ^ invert) | (s >> 1);
+                            }
+                        }
+                    } else {
+                        for instruction in &self.program[group.start..group.end] {
+                            next[instruction.output as usize] =
+                                instruction.evaluate(&self.states, &self.inputs, self.realistic);
+                        }
                     }
                 }
             }
@@ -893,11 +1044,24 @@ impl Engine {
             }
         }
         self.states = Arc::new(next);
-        let changed = before
-            .iter()
-            .zip(self.states.iter())
-            .filter(|(a, b)| a != b)
-            .count();
+        // Only the density threshold and an empty/nonempty result are needed.
+        // Stop scanning once dense execution is guaranteed for the next tick.
+        let threshold = self.program.len() / 8;
+        let mut changed = 0;
+        for (old, new) in before.chunks(64).zip(self.states.chunks(64)) {
+            let (a, a_tail) = old.as_chunks::<8>();
+            let (b, b_tail) = new.as_chunks::<8>();
+            for (&a, &b) in a.iter().zip(b) {
+                // Four-state bytes have only two bits: fold both into a
+                // single bit per byte, then count eight changes together.
+                let diff = u64::from_le_bytes(a) ^ u64::from_le_bytes(b);
+                changed += ((diff | (diff >> 1)) & 0x0101_0101_0101_0101).count_ones() as usize;
+            }
+            changed += a_tail.iter().zip(b_tail).filter(|(a, b)| a != b).count();
+            if changed > threshold {
+                break;
+            }
+        }
         self.dense_execution = changed > self.program.len() / 8;
         if !self.dense_execution {
             for id in 4..self.states.len() {
@@ -932,7 +1096,23 @@ impl Engine {
     }
     fn trim_history(&mut self) {
         while self.history.len() > HISTORY_TICKS || self.history_bytes > HISTORY_BYTES {
-            self.history_bytes -= self.history.pop_front().unwrap().bytes();
+            let expired = self.history.pop_front().unwrap();
+            self.history_bytes -= expired.bytes();
+            match expired.data {
+                FrameData::Delta(changes) => {
+                    if changes.capacity() >= self.spare_changes.capacity() {
+                        self.spare_changes = changes;
+                    }
+                }
+                FrameData::Dense { before, .. } => {
+                    // The oldest snapshot normally has a single owner. Recycle
+                    // its buffer only after ownership proves replay no longer
+                    // needs it; every recorded tick still has its actual state.
+                    if let Ok(states) = Arc::try_unwrap(before) {
+                        self.spare_states = states;
+                    }
+                }
+            }
         }
     }
     pub fn step_back(&mut self) -> bool {
@@ -991,6 +1171,40 @@ impl Engine {
     }
     pub fn replay_bytes(&self) -> usize {
         self.history_bytes
+    }
+
+    /// Disable native code for differential tests or interpreter-only callers.
+    pub fn set_jit_enabled(&mut self, enabled: bool) {
+        #[cfg(feature = "jit")]
+        {
+            self.jit.enabled = enabled;
+        }
+        #[cfg(not(feature = "jit"))]
+        let _ = enabled;
+    }
+
+    /// Optional eager preparation for offline use. The app normally compiles
+    /// hot dense groups in the background, without blocking edit publication.
+    pub fn prepare_jit(&mut self) {
+        self.compile();
+        #[cfg(feature = "jit")]
+        self.jit.prepare(
+            &self.program,
+            &self.inputs,
+            self.states.len(),
+            self.realistic,
+        );
+    }
+
+    pub fn jit_stats(&self) -> (usize, usize, u64) {
+        #[cfg(feature = "jit")]
+        {
+            self.jit.stats()
+        }
+        #[cfg(not(feature = "jit"))]
+        {
+            (0, 0, 0)
+        }
     }
 }
 
