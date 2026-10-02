@@ -91,3 +91,9 @@ build_error.txt
 /lib-binary
 /CircuitLib/procedural/rust/target
 CircuitLib/procedural/rust/Cargo.lock
+
+# Standalone simulator Cargo builds
+/src/backend/evaluator/simulator/rust/target/
+
+# Local tools
+/tools/

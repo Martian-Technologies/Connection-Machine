@@ -1,0 +1,17 @@
+[package]
+name = "connection-machine-simulator"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+name = "cm_simulator"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+rayon = "=1.12.0"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+

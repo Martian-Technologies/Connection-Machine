@@ -1,8 +1,11 @@
 include(cmake/CPM.cmake)
 include(ExternalProject)
+include(cmake/simulatorRust.cmake)
 
 function(add_main_dependencies)
 	message("adding main dependencies")
+	add_simulator_rust()
+	list(APPEND EXTERNAL_LINKS cm_simulator)
 
 	if (APPLE)
 		find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)

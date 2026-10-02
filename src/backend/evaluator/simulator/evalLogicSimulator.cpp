@@ -109,9 +109,7 @@ std::variant<logic_state_t, std::vector<logic_state_t>> EvalLogicSimulator::getP
 }
 
 void EvalLogicSimulator::waitForSprintComplete() {
-	while (logicSimulator.getSimulatorConfig().getSprintCount() > 0) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	}
+	logicSimulator.waitForSprintComplete();
 }
 
 void EvalLogicSimulator::tickStep(unsigned int nTicks) {

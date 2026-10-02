@@ -1,6 +1,8 @@
 #ifndef simulatorConfig_h
 #define simulatorConfig_h
 
+#include <limits>
+
 #include "backend/dataUpdateEventManager.h"
 #include "backend/settings/settings.h"
 #include "simulatorDefs.h"
@@ -8,7 +10,10 @@
 class SimulatorConfig {
 public:
 	SimulatorConfig(simulator_id_t simulatorId, DataUpdateEventManager& dataUpdateEventManager) : simulatorId(simulatorId), dataUpdateEventManager(dataUpdateEventManager) {
-		Settings::registerListener<SettingType::UINT>("Simulation/Max Thread Count", [this](const int& newMaxThreadCount) { this->setMaxThreadCount(newMaxThreadCount); });
+		std::weak_ptr<int> lifetime = listenerLifetime;
+		Settings::registerListener<SettingType::UINT>("Simulation/Max Thread Count", [this, lifetime](const unsigned int& count) {
+			if (!lifetime.expired()) this->setMaxThreadCount(static_cast<int>(std::min(count, static_cast<unsigned int>(std::numeric_limits<int>::max()))));
+		});
 	}
 
 	inline double getTargetTickrate() const {
@@ -111,6 +116,9 @@ public:
 	}
 
 private:
+	// Settings listeners outlive simulators. Callbacks run on the application
+	// thread; an expired token prevents them from touching a destroyed config.
+	std::shared_ptr<int> listenerLifetime = std::make_shared<int>(0);
 	DataUpdateEventManager& dataUpdateEventManager;
 	simulator_id_t simulatorId;
 
